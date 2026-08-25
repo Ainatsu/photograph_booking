@@ -1,0 +1,17 @@
+# 阶段C §4-C.5：规则识别退为兜底之后，仍必须选得出正确的工具。
+# expected.tool 为 null 表示这条消息不该触发任何工具（闲聊 / 摄影知识问答）。
+# 说明：企划检索（search_projects）暂不在本集内——规则抽取器目前不产出
+# resource_types=["projects"]，那是既有的独立缺口，不该被这里的门禁掩盖。
+{"id":"packages-city-budget","input":"帮我找重庆预算3000以内的婚礼套餐","expected":{"tool":"search_packages"}}
+{"id":"packages-makeup","input":"推荐北京包含化妆的写真套餐","expected":{"tool":"search_packages"}}
+{"id":"packages-price-question","input":"上海的儿童写真方案大概多少钱","expected":{"tool":"search_packages"}}
+{"id":"photographers-city-style","input":"帮我找深圳预算1500元以内的日系摄影师","expected":{"tool":"search_photographers"}}
+{"id":"photographers-plain","input":"有没有擅长拍毕业照的摄影师","expected":{"tool":"search_photographers"}}
+{"id":"portfolio-samples","input":"想看看杭州胶片风格的作品","expected":{"tool":"search_portfolio_items"}}
+{"id":"portfolio-cases","input":"有没有婚礼跟拍的样片","expected":{"tool":"search_portfolio_items"}}
+{"id":"chat-knowledge","input":"逆光人像应该怎么补光","expected":{"tool":null}}
+{"id":"chat-greeting","input":"你好，你能帮我做什么","expected":{"tool":null}}
+{"id":"booking","input":"我想预约明天下午三点拍摄","expected":{"tool":"create_booking"}}
+{"id":"follow","input":"关注这位摄影师","expected":{"tool":"follow_photographer"}}
+{"id":"project-publish","input":"我要发布一个婚礼跟拍的拍摄需求，预算3000到5000，重庆，日期6月8日","expected":{"tool":"create_project"}}
+{"id":"package-publish","input":"帮我上架一个婚礼跟拍套餐，价格2680，时长8小时","expected":{"tool":"publish_package"}}

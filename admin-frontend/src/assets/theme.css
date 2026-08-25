@@ -1,0 +1,105 @@
+/* Admin Panel — E-Ink/Paper Theme Override */
+:root {
+  --color-paper: #FAF7F2;
+  --color-paper-light: #FFFDF9;
+  --color-ink: #1A1A1A;
+  --color-ink-secondary: #6B6560;
+  --color-ink-tertiary: #9C9892;
+  --color-brand: #2D5A27;
+  --color-brand-light: #EBF2EA;
+  --color-brand-hover: #3A6E33;
+  --color-brand-active: #1F3F1A;
+  --color-border: #D9D3CB;
+  --color-border-light: #EBE5DE;
+  --color-divider: #E8E2DA;
+  --color-danger: #C53030;
+  --color-warning: #8B6914;
+  --color-success: #2D5A27;
+  --color-focus-ring: #2D5A27;
+  --font-sans: 'Noto Serif SC', Georgia, serif;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-full: 9999px;
+  --shadow-none: none;
+  --shadow-flyout: 0 1px 4px rgba(0, 0, 0, 0.06);
+  --border-default: 1px solid var(--color-border);
+  --content-max-width: 1200px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --tap-target-min: 44px;
+  --icon-size-sm: 16px;
+  --icon-size-md: 20px;
+  --icon-size-lg: 24px;
+  --icon-stroke-width: 1.8;
+
+  --el-color-primary: var(--color-brand);
+  --el-color-primary-light-3: #56854F;
+  --el-color-primary-light-5: #7EA277;
+  --el-color-primary-light-9: #DBE6D7;
+  --el-color-primary-dark-2: var(--color-brand-hover);
+  --el-bg-color: var(--color-paper-light);
+  --el-bg-color-page: var(--color-paper);
+  --el-bg-color-overlay: var(--color-paper-light);
+  --el-text-color-primary: var(--color-ink);
+  --el-text-color-regular: var(--color-ink-secondary);
+  --el-text-color-secondary: var(--color-ink-tertiary);
+  --el-text-color-placeholder: var(--color-ink-tertiary);
+  --el-border-color: var(--color-border);
+  --el-border-color-light: var(--color-border-light);
+  --el-border-color-lighter: var(--color-border-light);
+  --el-border-color-extra-light: var(--color-divider);
+  --el-border-radius-base: var(--radius-md);
+  --el-box-shadow: none;
+  --el-box-shadow-light: var(--shadow-flyout);
+  --el-font-family: var(--font-sans);
+  --el-font-size-base: var(--text-base);
+  --el-color-success: var(--color-success);
+  --el-color-warning: var(--color-warning);
+  --el-color-danger: var(--color-danger);
+  --el-color-error: var(--color-danger);
+  --el-menu-bg-color: var(--color-paper-light);
+  --el-menu-hover-bg-color: var(--color-brand-light);
+  --el-menu-text-color: var(--color-ink);
+  --el-menu-active-color: var(--color-brand);
+  --el-table-border-color: var(--color-border);
+  --el-table-header-bg-color: var(--color-paper);
+  --el-table-row-hover-bg-color: var(--color-brand-light);
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-paper);
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.lucide {
+  flex-shrink: 0;
+  stroke-width: var(--icon-stroke-width);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

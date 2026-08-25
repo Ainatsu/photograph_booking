@@ -1,0 +1,243 @@
+import api from './client'
+import type { AgentTask } from '@/types/agentTask'
+
+// ── Page context types for agent handoff ──
+
+export type AIPageContextResourceType =
+  | 'portfolio_item'
+  | 'photographer'
+  | 'package'
+  | 'project'
+
+export interface AIPageContext {
+  route_name: string
+  route_path: string
+  resource_type: AIPageContextResourceType
+  resource_id: string
+  title: string
+  summary?: string
+  description?: string
+  tags?: string[]
+  styles?: string[]
+  city?: string
+  location?: string
+  status?: string
+  price?: number
+  price_label?: string
+  budget_label?: string
+  date_label?: string
+  duration?: number
+  image_count?: number
+  owner_user_id?: number
+  owner_display_name?: string
+  photographer_id?: number
+  photographer_name?: string
+  package_name?: string
+  packages?: Array<Record<string, unknown>>
+  portfolio?: Array<Record<string, unknown>>
+  applications?: Array<Record<string, unknown>>
+  current_object?: {
+    media_type?: string
+    image_url?: string
+    thumbnail_url?: string
+  }
+  search_text?: string
+}
+
+export interface AIMessagePayload {
+  content: string | null
+  attachments?: Array<{ type: 'image'; url: string; mime_type?: string }>
+  page_context?: AIPageContext
+  task_submission?: {
+    task_id: string
+    task_type: 'create_project' | 'publish_package' | 'publish_work' | 'project_application' | 'create_booking'
+    action: 'publish' | 'save_draft' | 'cancel'
+    revision: number
+    form_data: Record<string, unknown>
+    media_refs?: string[]
+    idempotency_key: string
+  }
+  shoot_context_selection?: {
+    source_message_id: number
+    latitude: number
+    longitude: number
+  }
+}
+
+export interface AIShootContextPlace {
+  name: string
+  address?: string
+  latitude: number
+  longitude: number
+  coordinate_system?: string
+  provider?: string
+}
+
+export interface AIShootContextWeatherHour {
+  time: string
+  temperature_c?: number | null
+  precipitation_probability?: number | null
+  cloud_cover?: number | null
+  wind_kph?: number | null
+  visibility_km?: number | null
+}
+
+export interface AIShootContext {
+  schema_version: 'shoot_context_v1' | string
+  status: 'success' | 'partial' | 'ambiguous' | 'failed' | string
+  place?: AIShootContextPlace | null
+  weather?: {
+    timezone?: string
+    forecast_date?: string
+    hourly?: AIShootContextWeatherHour[]
+    provider?: string
+    updated_at?: string
+  } | null
+  sunlight?: {
+    sunrise?: string | null
+    sunset?: string | null
+    golden_hour_start?: string | null
+    golden_hour_end?: string | null
+    blue_hour_end?: string | null
+  } | null
+  recommendations?: Array<{
+    code?: string
+    severity?: 'info' | 'warning' | string
+    title: string
+    detail: string
+  }>
+  place_candidates?: AIShootContextPlace[]
+  error_code?: string | null
+}
+
+// ── Existing types ──
+
+export interface AIConversation {
+  id: string
+  title?: string
+  created_at: string
+  updated_at: string
+}
+
+// ── Reference item types for AI recommendations ──
+
+export interface RefPhotographer {
+  user_id?: number | string
+  id?: number | string
+  user_avatar_url?: string
+  avatar_url?: string
+  user_display_name?: string
+  name?: string
+}
+
+export interface RefPortfolioItem {
+  id?: number | string
+  title?: string
+  thumbnail_url?: string
+  url?: string
+}
+
+export interface RefPackage {
+  id?: number | string
+  package_name?: string
+  name?: string
+  samples?: string[]
+}
+
+export interface RefProject {
+  id?: number | string
+  title?: string
+  city?: string
+  match_reason?: string
+  reference_images?: string[]
+  budget_label?: string
+  date_label?: string
+  status?: string
+}
+
+export interface AIMessage {
+  id: string
+  conversation_id: string
+  role: 'user' | 'assistant'
+  content: string
+  attachments?: { type: string; url: string; mime_type?: string }[]
+  page_context?: AIPageContext
+  metadata?: {
+    references?: {
+      photographers?: RefPhotographer[]
+      portfolio_items?: RefPortfolioItem[]
+      packages?: RefPackage[]
+      projects?: RefProject[]
+    }
+    shoot_context?: AIShootContext
+    web_reference_images?: {
+      schema_version?: string
+      items?: Array<{
+        image_url: string
+        source_url: string
+        title?: string
+        alt?: string
+        domain?: string
+      }>
+    }
+    [key: string]: any
+  }
+  created_at: string
+}
+
+export interface AIChatResponse {
+  user_message: AIMessage
+  assistant_message: AIMessage
+  active_task: AgentTask | null
+}
+
+export interface AIUploadResponse {
+  url: string
+  mime_type: string
+}
+
+// ── Client Action types for agent-driven navigation ──
+
+export interface WorkPublishDraft {
+  title: string
+  description: string
+  tags: string[]
+}
+
+export interface ClientAction {
+  type: 'open_work_publisher' | 'open_project_application'
+  label: string
+  draft?: WorkPublishDraft
+  project_id?: number | string
+}
+
+export async function createAIConversation(data?: Record<string, unknown>): Promise<AIConversation> {
+  const { data: res } = await api.post<AIConversation>('/ai/conversations', data || {})
+  return res
+}
+
+export async function getAIConversations(params = {}): Promise<AIConversation[]> {
+  const { data } = await api.get<AIConversation[]>('/ai/conversations', { params })
+  return data
+}
+
+export async function getAIMessages(conversationId: string, params = {}): Promise<AIMessage[]> {
+  const { data } = await api.get<AIMessage[]>(`/ai/conversations/${conversationId}/messages`, { params })
+  return data
+}
+
+export async function sendAIMessage(conversationId: string, data: AIMessagePayload & Record<string, unknown>): Promise<AIChatResponse> {
+  const { data: res } = await api.post<AIChatResponse>(
+    `/ai/conversations/${conversationId}/messages`,
+    data,
+    { timeout: 70000 } as any,
+  )
+  return res
+}
+
+export async function uploadAIImage(file: File): Promise<AIUploadResponse> {
+  const form = new FormData()
+  form.append('file', file)
+  const { data } = await api.post<AIUploadResponse>('/ai/uploads', form)
+  return data
+}

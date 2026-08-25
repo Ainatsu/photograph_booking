@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual env
+venv/
+.venv/
+venv-vision39/
+
+# Node
+node_modules/
+frontend/node_modules/
+admin-frontend/node_modules/
+
+# Build output
+dist/
+frontend/dist/
+admin-frontend/dist/
+
+# Env and secrets
+.env
+.env.*
+!.env.example
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+photographer.db
+
+# Uploads and generated media
+uploads/
+assets/resume-photo.jpg
+
+# Local models and temporary artifacts
+Models/
+.tmp/
+.pytest-joint-rec-*/
+
+# Logs
+*.log
+backend-diagnostic*.log
+.codex-runtime-logs/
+playwright-report/
+frontend/test-results/
+frontend/playwright-report/
+.vite/
+
+# IDE
+.idea/
+.vscode/
+
+# Personal documents
+resume.html
+
+# OS
+.DS_Store
+Thumbs.db

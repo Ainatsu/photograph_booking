@@ -1,0 +1,316 @@
+/* Shared Apple-style material and interaction layer for every mobile route. */
+
+ion-content { --background: var(--paper); color: var(--ink); }
+ion-page { background: var(--paper); }
+
+ion-header,
+ion-footer {
+  background: transparent;
+  box-shadow: none;
+}
+
+ion-toolbar {
+  --background: var(--material-regular);
+  --border-color: transparent;
+  --color: var(--ink);
+  --min-height: 52px;
+  backdrop-filter: var(--material-blur);
+  -webkit-backdrop-filter: var(--material-blur);
+}
+
+ion-toolbar::after,
+ion-header::after { display: none; }
+
+ion-title {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+ion-back-button,
+ion-button { --color: var(--brand); min-width: 44px; min-height: 44px; }
+
+ion-refresher-content { color: var(--ink-secondary); }
+ion-spinner { color: currentColor; }
+
+ion-modal,
+ion-action-sheet,
+ion-alert,
+ion-popover {
+  --backdrop-opacity: 0.48;
+  --background: var(--material-thick);
+  --color: var(--ink);
+}
+
+ion-modal::part(content),
+ion-popover::part(content) {
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-xl);
+  background: var(--material-thick);
+  box-shadow: var(--shadow-3);
+  backdrop-filter: var(--material-blur);
+  -webkit-backdrop-filter: var(--material-blur);
+}
+
+/* Surfaces: grouped content, not floating decoration. */
+#app [class$='-card'],
+#app [class*='-card '],
+#app [class$='-panel'],
+#app [class*='-panel '],
+#app .settings-card,
+#app .publish-section,
+#app .empty-card,
+#app .stat-card,
+#app .summary-card,
+#app .info-card,
+#app .detail-card,
+#app .list-card,
+#app .content-card,
+#app .management-card,
+#app .notice-card {
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-1);
+}
+
+/* Image-backed profile cards keep the intended wide, vertically cropped cover. */
+#app .profile-card.has-cover {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+#app [class$='-card'] > img,
+#app [class*='-card '] > img,
+#app [class$='-card'] picture > img,
+#app [class*='-card '] picture > img { border-radius: inherit; }
+
+#app .card-heading,
+#app .publish-section-heading,
+#app .binding-heading,
+#app .section-heading {
+  border-bottom: 1px solid var(--divider);
+  box-shadow: none;
+}
+
+/* Buttons share one visual grammar across legacy page-local class names. */
+#app .primary-button,
+#app .secondary-button,
+#app .danger-button,
+#app .inline-action,
+#app .compact-button,
+#app .close-button,
+#app .icon-action,
+#app .header-action,
+#app .task-action-btn,
+#app .attach-button,
+#app .slot-send-btn,
+#app .send-button,
+#app .state-action,
+#app .submit-button,
+#app button.primary,
+#app button.secondary,
+#app button.danger {
+  min-height: var(--touch-target);
+  border: 0;
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+#app .primary-button,
+#app .task-action-confirm,
+#app .slot-send-btn,
+#app .send-button,
+#app .state-action,
+#app .submit-button,
+#app button.primary {
+  background: var(--brand);
+  color: var(--white);
+}
+
+#app .secondary-button,
+#app .inline-action,
+#app .compact-button,
+#app button.secondary {
+  background: var(--surface-secondary);
+  color: var(--brand);
+}
+
+#app .danger-button,
+#app button.danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+#app .icon-action,
+#app .close-button,
+#app .header-action {
+  display: grid;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  padding: 0;
+  place-items: center;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--brand);
+}
+
+#app button:active:not(:disabled),
+#app [role='button']:active:not([aria-disabled='true']) {
+  filter: brightness(0.96);
+}
+
+#app button:disabled,
+#app [aria-disabled='true'] {
+  box-shadow: none;
+  filter: none;
+  opacity: 0.42;
+}
+
+/* Form controls use inset grouped surfaces and visible labels. */
+#app input:not([type='checkbox']):not([type='radio']):not([type='range']),
+#app textarea,
+#app select,
+#app .publish-input,
+#app .publish-select,
+#app .publish-textarea,
+#app .settings-input,
+#app .settings-textarea,
+#app .slot-input,
+#app .search-field,
+#app .search-input-wrap,
+#app .comment-composer,
+#app .composer-input {
+  min-height: var(--touch-target);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--surface-secondary);
+  box-shadow: none;
+  color: var(--ink);
+}
+
+#app textarea { min-height: 112px; resize: vertical; }
+
+#app input:focus,
+#app textarea:focus,
+#app select:focus,
+#app .search-field.focused {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(10, 103, 208, 0.14);
+  outline: 0;
+}
+
+#app input::placeholder,
+#app textarea::placeholder { color: var(--ink-tertiary); opacity: 1; }
+
+#app .field-label,
+#app label:not(.search-field) {
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+#app .field-error,
+#app .composer-error,
+#app .filter-error { color: var(--danger); }
+
+#app .request-error,
+#app [class*='error-card'] {
+  border: 0;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* Pills and status indicators stay compact and semantic. */
+#app [class*='badge'],
+#app [class*='pill'],
+#app .tag,
+#app .count {
+  box-shadow: none;
+  font-variant-numeric: tabular-nums;
+}
+
+#app .skeleton,
+#app [class*='skeleton'] {
+  background: var(--surface-tertiary);
+}
+
+/* Media cards prioritize imagery and keep chrome quiet. */
+#app .work-card,
+#app .package-card,
+#app .photographer-card,
+#app .project-card {
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-1);
+}
+
+#app .work-card .card-button,
+#app .package-card .card-button,
+#app .photographer-card .card-button,
+#app .project-card .card-button {
+  border-radius: inherit;
+  background: transparent;
+  box-shadow: none;
+}
+
+#app .media,
+#app .preview-grid,
+#app .preview-cell {
+  background: var(--surface-secondary);
+  box-shadow: none;
+}
+
+#app .media img,
+#app .preview-cell img { transition: transform var(--motion-slow) var(--spring-ui); }
+#app .card-button:active .media img,
+#app .card-button:active .preview-cell img { transform: scale(1.015); }
+
+#app .video-badge,
+#app .location-pill {
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+}
+
+/* Fixed overlays and dropdowns materialize above content. */
+#app .filter-dropdown,
+#app [class*='popover'],
+#app [class*='dropdown'] {
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-lg);
+  background: var(--material-thick);
+  box-shadow: var(--shadow-2);
+  backdrop-filter: var(--material-blur);
+  -webkit-backdrop-filter: var(--material-blur);
+}
+
+/* Avoid desktop-like hover-only behavior on touch; use hover only where real. */
+@media (hover: hover) and (pointer: fine) {
+  #app .card-button:hover,
+  #app .pressable:hover { filter: brightness(0.985); }
+}
+
+@media (min-width: 768px) {
+  #app .work-card,
+  #app .package-card,
+  #app .photographer-card,
+  #app .project-card { border-radius: var(--radius-xl); }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  ion-toolbar,
+  ion-modal::part(content),
+  ion-popover::part(content),
+  #app .filter-dropdown,
+  #app [class*='popover'],
+  #app [class*='dropdown'] {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

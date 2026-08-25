@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">约拍</string>
+    <string name="title_activity_main">约拍</string>
+    <string name="package_name">com.photographerbooking.mobile</string>
+    <string name="custom_url_scheme">com.photographerbooking.mobile</string>
+</resources>

@@ -1,0 +1,143 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: photographer_booking
+      POSTGRES_USER: photographer
+      POSTGRES_PASSWORD: photographer
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U photographer -d photographer_booking"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        until mc alias set local http://minio:9000 minioadmin minioadmin; do
+          echo "Waiting for MinIO..."
+          sleep 2
+        done
+        mc mb --ignore-existing local/photographer-booking
+        mc anonymous set download local/photographer-booking
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        INSTALL_VISION_EMBEDDING: ${INSTALL_VISION_EMBEDDING:-false}
+    environment:
+      APP_ENV: production
+      DATABASE_URL: postgresql+psycopg://photographer:photographer@postgres:5432/photographer_booking
+      AUTO_RUN_MIGRATIONS: "false"
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+      CORS_ORIGINS: http://localhost:5173,http://localhost:5174
+      PUBLIC_BASE_URL: http://localhost:8000
+      REDIS_URL: redis://redis:6379/0
+      AI_PROVIDER: ${AI_PROVIDER:-mimo}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_MODEL: ${AI_MODEL:-mimo-v2.5}
+      AI_REQUEST_TIMEOUT: ${AI_REQUEST_TIMEOUT:-60}
+      AI_MAX_HISTORY_MESSAGES: ${AI_MAX_HISTORY_MESSAGES:-20}
+      MIMO_API_KEY: ${MIMO_API_KEY:-}
+      MIMO_BASE_URL: ${MIMO_BASE_URL:-https://api.xiaomimimo.com/v1}
+      MIMO_MODEL: ${MIMO_MODEL:-mimo-v2.5}
+      MIMO_MAX_COMPLETION_TOKENS: ${MIMO_MAX_COMPLETION_TOKENS:-1024}
+      MIMO_THINKING_MODE: ${MIMO_THINKING_MODE:-disabled}
+      MIMO_RESPONSE_FORMAT_ENABLED: ${MIMO_RESPONSE_FORMAT_ENABLED:-false}
+      AI_EMBEDDING_PROVIDER: ${AI_EMBEDDING_PROVIDER:-mock}
+      AI_TEXT_EMBEDDING_PROVIDER: ${AI_TEXT_EMBEDDING_PROVIDER:-mock}
+      AI_EMBEDDING_API_KEY: ${AI_EMBEDDING_API_KEY:-}
+      AI_EMBEDDING_BASE_URL: ${AI_EMBEDDING_BASE_URL:-}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-text-embedding-3-small}
+      AI_EMBEDDING_VERSION: ${AI_EMBEDDING_VERSION:-v1}
+      AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-1536}
+      AI_IMAGE_EMBEDDING_PROVIDER: ${AI_IMAGE_EMBEDDING_PROVIDER:-disabled}
+      AI_IMAGE_EMBEDDING_MODEL: ${AI_IMAGE_EMBEDDING_MODEL:-google/siglip-base-patch16-224}
+      AI_IMAGE_EMBEDDING_DIMENSIONS: ${AI_IMAGE_EMBEDDING_DIMENSIONS:-768}
+      AI_IMAGE_EMBEDDING_DEVICE: ${AI_IMAGE_EMBEDDING_DEVICE:-cpu}
+      AI_IMAGE_EMBEDDING_MAX_BYTES: ${AI_IMAGE_EMBEDDING_MAX_BYTES:-12582912}
+      AI_IMAGE_EMBEDDING_TIMEOUT_SECONDS: ${AI_IMAGE_EMBEDDING_TIMEOUT_SECONDS:-20}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4-flash}
+      QWEN_API_KEY: ${QWEN_API_KEY:-}
+      QWEN_BASE_URL: ${QWEN_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      QWEN_MODEL: ${QWEN_MODEL:-qwen-vl-plus}
+      UPLOAD_STORAGE: s3
+      UPLOAD_DIR: /app/uploads
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_BUCKET: photographer-booking
+      S3_PUBLIC_BASE_URL: http://localhost:9000/photographer-booking
+    volumes:
+      - backend_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+  admin-frontend:
+    build:
+      context: .
+      dockerfile: admin-frontend/Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "5174:80"
+
+volumes:
+  postgres_data:
+  minio_data:
+  backend_uploads:

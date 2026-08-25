@@ -1,0 +1,145 @@
+:root {
+  color-scheme: light dark;
+
+  /* Apple-inspired semantic palette. Photography remains the visual focus. */
+  --paper: #f2f2f7;
+  --paper-light: #ffffff;
+  --paper-deep: #e5e5ea;
+  --surface: rgba(255, 255, 255, 0.86);
+  --surface-solid: #ffffff;
+  --surface-secondary: #f2f2f7;
+  --surface-tertiary: #e9e9ee;
+  --ink: #1c1c1e;
+  --ink-secondary: #5a5a60;
+  --ink-tertiary: #767680;
+  --brand: #0a67d0;
+  --brand-strong: #0054b6;
+  --brand-soft: #e7f1ff;
+  --accent: #32ade6;
+  --success: #248a3d;
+  --success-soft: #e6f6ea;
+  --warning: #9a6700;
+  --warning-soft: #fff3d6;
+  --danger: #d70015;
+  --danger-soft: #ffeaed;
+  --white: #ffffff;
+  --border: rgba(60, 60, 67, 0.18);
+  --divider: rgba(60, 60, 67, 0.12);
+  --separator-opaque: #d1d1d6;
+  --scrim: rgba(0, 0, 0, 0.48);
+
+  --material-thin: rgba(249, 249, 251, 0.72);
+  --material-regular: rgba(249, 249, 251, 0.86);
+  --material-thick: rgba(249, 249, 251, 0.94);
+  --material-blur: blur(22px) saturate(180%);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.05), 0 5px 18px rgba(0, 0, 0, 0.06);
+  --shadow-2: 0 8px 28px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-3: 0 18px 54px rgba(0, 0, 0, 0.2), 0 4px 14px rgba(0, 0, 0, 0.08);
+
+  /* Compatibility aliases while page-local styles migrate to semantic tokens. */
+  --neu-light: rgba(255, 255, 255, 0.82);
+  --neu-shade: rgba(0, 0, 0, 0.12);
+  --neu-shade-soft: rgba(0, 0, 0, 0.06);
+  --neu-raise-sm: var(--shadow-1);
+  --neu-raise: var(--shadow-1);
+  --neu-raise-lg: var(--shadow-3);
+  --neu-inset: inset 0 0 0 1px var(--border);
+  --neu-inset-deep: inset 0 0 0 1px var(--brand), 0 0 0 3px rgba(10, 103, 208, 0.16);
+  --neu-inset-brand: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+  --neu-surface: var(--surface-solid);
+  --neu-surface-flat: var(--surface-secondary);
+  --neu-surface-brand: var(--brand);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-serif: var(--font-sans);
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 20px;
+  --text-xl: 28px;
+  --text-2xl: 34px;
+
+  --touch-target: 48px;
+  --bottom-nav-height: 64px;
+  --bottom-nav-offset: 10px;
+  --content-max: 760px;
+  --motion-instant: 100ms;
+  --motion-fast: 180ms;
+  --motion-normal: 300ms;
+  --motion-slow: 400ms;
+  --spring-ui: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --focus-ring: rgba(10, 103, 208, 0.42);
+  --layer-content: 0;
+  --layer-sticky: 20;
+  --layer-dropdown: 40;
+  --layer-modal: 100;
+
+  --ion-font-family: var(--font-sans);
+  --ion-background-color: var(--paper);
+  --ion-text-color: var(--ink);
+  --ion-color-primary: var(--brand);
+  --ion-color-primary-rgb: 10, 103, 208;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #085bb7;
+  --ion-color-primary-tint: #2376d5;
+  --ion-toolbar-background: transparent;
+  --ion-tab-bar-background: transparent;
+  --ion-item-background: transparent;
+}
+
+:root[data-theme='dark'] {
+  --paper: #000000;
+  --paper-light: #1c1c1e;
+  --paper-deep: #2c2c2e;
+  --surface: rgba(28, 28, 30, 0.86);
+  --surface-solid: #1c1c1e;
+  --surface-secondary: #2c2c2e;
+  --surface-tertiary: #3a3a3c;
+  --ink: #f5f5f7;
+  --ink-secondary: #c7c7cc;
+  --ink-tertiary: #98989d;
+  --brand: #409cff;
+  --brand-strong: #64adff;
+  --brand-soft: #102d4f;
+  --accent: #64d2ff;
+  --success: #30d158;
+  --success-soft: #12391d;
+  --warning: #ffd60a;
+  --warning-soft: #3d3200;
+  --danger: #ff453a;
+  --danger-soft: #481513;
+  --border: rgba(255, 255, 255, 0.2);
+  --divider: rgba(255, 255, 255, 0.12);
+  --separator-opaque: #38383a;
+  --material-thin: rgba(28, 28, 30, 0.68);
+  --material-regular: rgba(28, 28, 30, 0.84);
+  --material-thick: rgba(28, 28, 30, 0.94);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 22px rgba(0, 0, 0, 0.22);
+  --shadow-2: 0 10px 34px rgba(0, 0, 0, 0.42), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-3: 0 20px 60px rgba(0, 0, 0, 0.56), 0 4px 16px rgba(0, 0, 0, 0.34);
+  --neu-light: rgba(255, 255, 255, 0.08);
+  --neu-shade: rgba(0, 0, 0, 0.4);
+  --neu-shade-soft: rgba(0, 0, 0, 0.24);
+  --focus-ring: rgba(64, 156, 255, 0.55);
+  --ion-color-primary: #409cff;
+  --ion-color-primary-rgb: 64, 156, 255;
+  --ion-color-primary-contrast: #000000;
+  --ion-color-primary-contrast-rgb: 0, 0, 0;
+}

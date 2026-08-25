@@ -1,0 +1,226 @@
+/**
+ * Neumorphism（拟物化软 UI）全局覆盖层
+ *
+ * 页面样式绝大多数写在各自的 <style scoped> 里，逐个改动成本过高且易漏。
+ * 这里用 #app 提权，统一把「边框 + 平铺底色」的旧卡片语言替换为
+ * 「同色底 + 左上高光 / 右下暗影」的软浮雕语言。
+ *
+ * 光源固定左上，凸起用 --neu-raise*，凹陷用 --neu-inset*，按压时凸转凹。
+ */
+
+/* ── 表面：凸起卡片 ───────────────────────────────── */
+
+/* 命中项目里通用的卡片/面板/区块类名 */
+#app [class*="-card"],
+#app [class*="-panel"],
+#app [class*="-section"]:not(section):not([class*="-section-heading"]),
+#app .settings-card,
+#app .publish-section,
+#app .empty-card,
+#app .stat-card,
+#app .summary-card,
+#app .info-card,
+#app .detail-card,
+#app .list-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--neu-surface);
+  box-shadow: var(--neu-raise);
+}
+
+/* 图片型卡片保持内容裁切干净，阴影不外溢到媒体上 */
+#app [class*="-card"] > img,
+#app [class*="-card"] picture > img {
+  border-radius: calc(var(--radius-lg) - 4px);
+}
+
+/* ── 分隔：拟物化用凹槽线代替 1px 实线 ─────────────── */
+
+#app .card-heading,
+#app .publish-section-heading,
+#app .binding-heading {
+  border-bottom: 1px solid var(--neu-light);
+  box-shadow: 0 1px 0 var(--neu-shade-soft);
+}
+
+/* ── 交互元素：按钮 ───────────────────────────────── */
+
+#app .primary-button,
+#app .secondary-button,
+#app .danger-button,
+#app .inline-action,
+#app .compact-button,
+#app .close-button,
+#app .icon-action,
+#app .task-action-btn,
+#app .attach-button,
+#app .slot-send-btn {
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--neu-surface);
+  box-shadow: var(--neu-raise-sm);
+  transition:
+    box-shadow var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    background var(--motion-fast) ease,
+    transform var(--motion-normal) cubic-bezier(0.2, 0, 0, 1);
+}
+
+#app .icon-action,
+#app .close-button {
+  border-radius: 50%;
+}
+
+/* 主行动按钮：品牌色实体，同样保留浮雕关系 */
+#app .primary-button,
+#app .task-action-confirm,
+#app .slot-send-btn,
+#app .send-button {
+  background: var(--neu-surface-brand);
+  color: var(--white);
+  box-shadow: var(--neu-raise-sm);
+}
+
+/* 按压：凸起塌陷为凹陷，这是拟物化的核心反馈 */
+#app .primary-button:active,
+#app .secondary-button:active,
+#app .danger-button:active,
+#app .inline-action:active,
+#app .compact-button:active,
+#app .close-button:active,
+#app .icon-action:active,
+#app .task-action-btn:active,
+#app .attach-button:active,
+#app .slot-send-btn:active,
+#app .send-button:active {
+  box-shadow: var(--neu-inset);
+  transform: scale(0.98);
+}
+
+#app .primary-button:active,
+#app .task-action-confirm:active,
+#app .slot-send-btn:active,
+#app .send-button:active {
+  box-shadow: var(--neu-inset-brand);
+}
+
+/* 禁用：压平，既不凸也不凹 */
+#app button:disabled,
+#app .primary-button:disabled,
+#app .secondary-button:disabled,
+#app .danger-button:disabled {
+  background: var(--paper-deep);
+  box-shadow: none;
+  color: var(--ink-tertiary);
+  opacity: 0.72;
+}
+
+/* ── 输入控件：一律凹陷，暗示「可以往里填」 ────────── */
+
+#app .publish-input,
+#app .publish-select,
+#app .publish-textarea,
+#app .settings-input,
+#app .settings-textarea,
+#app .slot-input,
+#app input[type="text"],
+#app input[type="search"],
+#app input[type="email"],
+#app input[type="tel"],
+#app input[type="password"],
+#app input[type="number"],
+#app input[type="date"],
+#app input[type="time"],
+#app textarea,
+#app select {
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--paper-light);
+  box-shadow: var(--neu-inset);
+}
+
+#app .publish-input:focus,
+#app .publish-select:focus,
+#app .publish-textarea:focus,
+#app .settings-input:focus,
+#app .settings-textarea:focus,
+#app .slot-input:focus,
+#app input:focus,
+#app textarea:focus,
+#app select:focus {
+  border: 0;
+  box-shadow:
+    var(--neu-inset-deep),
+    0 0 0 3px var(--focus-ring);
+}
+
+#app [aria-invalid="true"] {
+  box-shadow:
+    var(--neu-inset),
+    0 0 0 2px rgba(163, 59, 50, 0.34);
+}
+
+/* ── 标签 / 徽章：小尺寸用浅浮雕，避免视觉噪音 ─────── */
+
+#app .tag,
+#app .status-badge,
+#app .session-badge,
+#app .task-status-badge,
+#app [class*="-chip"] {
+  border: 1px solid var(--border);
+  background: var(--neu-surface-flat);
+  box-shadow: none;
+}
+
+/* ── 选中态：选中项凹陷，符合「被按下去」的物理直觉 ── */
+
+#app [aria-pressed="true"],
+#app [aria-selected="true"],
+#app .is-active,
+#app .selected {
+  box-shadow: var(--neu-inset);
+}
+
+/* ── Ionic 宿主组件 ───────────────────────────────── */
+
+ion-content {
+  --background: var(--paper);
+}
+
+ion-toolbar {
+  --background: var(--paper);
+  --border-width: 0;
+}
+
+ion-modal {
+  --background: var(--paper);
+  --border-radius: var(--radius-lg);
+}
+
+ion-footer {
+  background: var(--paper);
+  box-shadow: 0 -4px 16px var(--neu-shade-soft);
+}
+
+ion-footer::before {
+  display: none;
+}
+
+/* 弹层遮罩略深，保证前景软色卡片仍可读 */
+ion-modal::part(backdrop),
+ion-action-sheet::part(backdrop) {
+  --backdrop-opacity: 0.45;
+}
+
+/* ── 可访问性：软 UI 对比度天然偏低，保留清晰焦点环 ── */
+
+#app :focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app * {
+    transition-duration: 0.01ms !important;
+  }
+}

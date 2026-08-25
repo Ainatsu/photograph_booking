@@ -1,0 +1,13 @@
+/* main.css — Global page layout */
+@import './base.css';
+
+/* ===== 全局页面居中 ===== */
+/* 所有页面默认居中，细节页面可在 scoped 样式中覆盖宽度和 padding */
+
+.app-main > :where(div) {
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
