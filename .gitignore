@@ -96,5 +96,8 @@ Thumbs.db
 
 # Only publish the UI/UX skill under docs
 docs/*
+!docs/demo-guide.md
+!docs/example-pictures/
+!docs/example-pictures/**
 !docs/ui-ux-pro-max-skill-main/
 !docs/ui-ux-pro-max-skill-main/**
