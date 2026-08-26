@@ -93,3 +93,8 @@ out.txt
 # OS
 .DS_Store
 Thumbs.db
+
+# Only publish the UI/UX skill under docs
+docs/*
+!docs/ui-ux-pro-max-skill-main/
+!docs/ui-ux-pro-max-skill-main/**
