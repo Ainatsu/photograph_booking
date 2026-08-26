@@ -11,6 +11,7 @@ htmlcov/
 # Virtual env
 venv/
 .venv/
+venv-vision/
 venv-vision39/
 
 # Node
@@ -33,9 +34,17 @@ admin-frontend/dist/
 *.sqlite
 *.sqlite3
 photographer.db
+*.db-*
+*.db.*
+*.sqlite-*
 
 # Uploads and generated media
 uploads/
+assets/
+*.mp4
+*.mov
+*.avi
+*.webm
 assets/resume-photo.jpg
 
 # Local models and temporary artifacts
@@ -56,8 +65,30 @@ frontend/playwright-report/
 .idea/
 .vscode/
 
+# Local AI tooling
+.agents/
+.claude/
+.codex/
+
 # Personal documents
 resume.html
+resume.*
+个人信息/
+private/
+private-data/
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local scratch files and reports
+out.txt
+*.bak
+*.broken
+*.broken-*
+*.local
+0.4.5
 
 # OS
 .DS_Store
