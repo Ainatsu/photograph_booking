@@ -32,7 +32,7 @@ export interface AgentFormCard {
   result?: Record<string, unknown>
 }
 
-export type AgentFormFieldType = 'text' | 'textarea' | 'number' | 'datetime-local' | 'select' | 'tags'
+export type AgentFormFieldType = 'text' | 'textarea' | 'number' | 'date' | 'datetime-local' | 'select' | 'tags'
 
 export interface AgentFormFieldDefinition {
   key: string
@@ -84,7 +84,7 @@ export const agentFormDefinitions: Record<AgentTaskType, AgentFormFieldDefinitio
     { key: 'revision_note', label: '补充说明', type: 'textarea' },
   ],
   create_booking: [
-    { key: 'appointment_time', label: '预约时段', type: 'datetime-local', required: true },
+    { key: 'appointment_date', label: '预约日期', type: 'date', required: true },
     { key: 'notes', label: '备注', type: 'textarea', max: 500, help: '最多 500 字' },
   ],
 }

@@ -128,6 +128,7 @@ from backend.app.services.agent_form_task_service import (
 )
 from backend.app.services.agent_task_extraction_service import extract_task_patch
 from backend.app.services.agent_task_service import get_active_task, patch_task, serialize_task, sync_task_snapshot
+from backend.app.services.inspiration_agent_workflow_service import create_inspiration_workflow
 from backend.app.services.shoot_context_service import ShootContextService
 from backend.app.services.ai_vision_service import (
     VISION_SYSTEM_PROMPT,
@@ -233,7 +234,12 @@ def _local_static_path(url: str) -> Path | None:
     return file_path
 
 
-def _image_url_for_provider(attachment: dict) -> str:
+def _image_url_for_provider(
+    attachment: dict,
+    *,
+    max_edge: int | None = None,
+    jpeg_quality: int = 82,
+) -> str:
     """把附件图片转为 provider 可用的 URL，本地静态图读取后以 base64 data URI 返回。"""
     url = attachment.get("url") or ""
     local_path = _local_static_path(url)
@@ -244,7 +250,32 @@ def _image_url_for_provider(attachment: dict) -> str:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="上传图片不存在或已失效")
 
     mime_type = attachment.get("mime_type") or mimetypes.guess_type(local_path.name)[0] or "image/jpeg"
-    encoded = base64.b64encode(local_path.read_bytes()).decode("ascii")
+    image_bytes = local_path.read_bytes()
+    if max_edge:
+        try:
+            from io import BytesIO
+
+            from PIL import Image, ImageOps
+
+            with Image.open(local_path) as source:
+                image = ImageOps.exif_transpose(source)
+                image.thumbnail((max_edge, max_edge), Image.Resampling.LANCZOS)
+                if image.mode in ("RGBA", "LA") or (
+                    image.mode == "P" and "transparency" in image.info
+                ):
+                    image = image.convert("RGBA")
+                    background = Image.new("RGB", image.size, (255, 255, 255))
+                    background.paste(image, mask=image.getchannel("A"))
+                    image = background
+                else:
+                    image = image.convert("RGB")
+                output = BytesIO()
+                image.save(output, "JPEG", quality=jpeg_quality, optimize=True)
+                image_bytes = output.getvalue()
+                mime_type = "image/jpeg"
+        except Exception:
+            pass
+    encoded = base64.b64encode(image_bytes).decode("ascii")
     return f"data:{mime_type};base64,{encoded}"
 
 
@@ -1026,7 +1057,6 @@ CANCELLABLE_TASK_STATUSES = {
     "awaiting_confirmation",
     "awaiting_package",
     "awaiting_date",
-    "awaiting_time",
 }
 
 
@@ -1301,13 +1331,13 @@ def _booking_contextual_intent(
             intent="booking_flow",
             sub_intents=list(intent.sub_intents or ["search_package", "create_booking"]),
             slots=slots,
-            missing_slots=[slot for slot in ("date", "time") if not slots.get(slot)],
+            missing_slots=["date"] if not slots.get("date") else [],
             requires_confirmation=True,
             route="booking",
             confidence=max(intent.confidence, 0.9),
         )
     if task_state.get("status") not in {
-        "awaiting_date", "awaiting_time", "awaiting_confirmation",
+        "awaiting_date", "awaiting_confirmation",
     }:
         return intent
     slots = _merge_slots(task_state.get("slots"), intent.slots)
@@ -1765,14 +1795,6 @@ def _latest_booking_task_state(
             slots = {**(task.target or {}), **fields}
             if fields.get("appointment_date"):
                 slots["date"] = fields["appointment_date"]
-            appointment_time = fields.get("appointment_time")
-            if appointment_time:
-                try:
-                    parsed = datetime.fromisoformat(str(appointment_time))
-                    slots.setdefault("date", parsed.strftime("%m-%d"))
-                    slots["time"] = parsed.strftime("%H:%M")
-                except ValueError:
-                    pass
             return {
                 "task_type": "create_booking",
                 "status": "awaiting_confirmation" if slots.get("date") else "awaiting_date",
@@ -2556,19 +2578,9 @@ def _normalize_booking_pending_input(tool_input: dict, task_state: dict) -> dict
         normalized["package_description"] = package_description
 
     appointment_date = normalized.get("appointment_date") or slots.get("date")
-    appointment_time = normalized.get("appointment_time") or slots.get("time")
-    if appointment_date and (
-        not appointment_time
-        or re.fullmatch(r"\d{1,2}:\d{2}", str(appointment_time))
-    ):
-        try:
-            appointment_dt = build_booking_appointment_datetime(
-                str(appointment_date),
-                str(appointment_time) if appointment_time else None,
-            )
-            normalized["appointment_time"] = appointment_dt.isoformat()
-        except ValueError:
-            pass
+    if appointment_date:
+        normalized["appointment_date"] = str(appointment_date)
+        normalized.pop("appointment_time", None)
 
     return normalized
 
@@ -2988,14 +3000,14 @@ def _execute_pending_action_result(
                 "vision_analysis",
                 "search_packages",
                 "select_package",
-                "select_time",
+                "select_date",
                 "confirm_booking",
                 "create_booking",
             ) if status_value == "completed" else (
                 "vision_analysis",
                 "search_packages",
                 "select_package",
-                "select_time",
+                "select_date",
                 "confirm_booking",
             ),
             failed_step_id="create_booking" if status_value == "failed" else None,
@@ -3852,7 +3864,7 @@ async def send_ai_message(
     elif (
         active_task_before is not None
         and active_task_before.task_type not in {"resource_search", "package_search", "photographer_search", "project_search"}
-        and intent.intent not in {"project_flow", "package_publish_flow", "booking_flow"}
+        and intent.intent not in {"project_flow", "package_publish_flow", "booking_flow", "create_inspiration_flow"}
     ):
         result = _active_task_progress_result(active_task_before)
     elif decision_read_tool_active and decision_plan.tool == "search_web":
@@ -3896,6 +3908,30 @@ async def send_ai_message(
                 page_context_prompt=page_context_prompt,
             )
             result = await get_ai_provider().chat(provider_messages)
+    elif intent.intent == "create_inspiration_flow":
+        trusted_images = [
+            {
+                "attachment_index": index,
+                "url": item.get("url"),
+                "thumb_url": item.get("thumb_url"),
+                "mime_type": item.get("mime_type") or "image/jpeg",
+                "provider_image_url": _image_url_for_provider(
+                    item,
+                    max_edge=1280,
+                    jpeg_quality=82,
+                ),
+            }
+            for index, item in enumerate(attachments or [])
+            if item.get("type") == "image" and item.get("url")
+        ]
+        result = await create_inspiration_workflow(
+            db,
+            user_id=user_id,
+            conversation_id=conversation.id,
+            message_id=user_message.id,
+            reference_text=(content or "").strip(),
+            images=trusted_images,
+        )
     elif intent.intent == "project_flow":
         result = _project_agent_result(
             db,
@@ -3922,7 +3958,7 @@ async def send_ai_message(
             ),
             content=content,
         )
-    elif should_run_booking_plan(intent, retrieval):
+    elif should_run_booking_plan(intent, retrieval) and resource_reference is None:
         result = booking_plan_result(
             intent=intent,
             retrieval=retrieval,
@@ -4003,6 +4039,7 @@ async def send_ai_message(
         and not task_submission
         and cancel_task_state is None
         and not web_search_call
+        and intent.intent != "create_inspiration_flow"
     ):
         progress_result = _active_task_progress_result(active_task_before)
         result = {
@@ -4173,16 +4210,8 @@ async def send_ai_message(
                         break
             task_fields = {
                 "appointment_date": slots.get("date") or slots.get("appointment_date"),
-                "appointment_time": slots.get("appointment_time"),
                 "notes": slots.get("notes"),
             }
-            if not task_fields["appointment_time"] and slots.get("date") and slots.get("time"):
-                try:
-                    task_fields["appointment_time"] = build_booking_appointment_datetime(
-                        str(slots["date"]), str(slots["time"]),
-                    ).isoformat()
-                except ValueError:
-                    pass
             task_fields = {key: value for key, value in task_fields.items() if value not in (None, "")}
         else:
             target = {}
@@ -4201,7 +4230,7 @@ async def send_ai_message(
         status_map = {
             "awaiting_details": "collecting", "awaiting_reference_images": "collecting",
             "awaiting_confirmation": "collecting", "awaiting_package": "collecting",
-            "awaiting_date": "collecting", "awaiting_time": "collecting", "editing": "editing_page",
+            "awaiting_date": "collecting", "editing": "editing_page",
             "completed": "completed", "cancelled": "cancelled",
         }
         task = sync_task_snapshot(

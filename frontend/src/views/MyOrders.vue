@@ -52,11 +52,11 @@
     <el-table v-if="false" :data="orders" v-loading="loading" stripe>
       <el-table-column prop="id" label="订单号" width="80" />
       <el-table-column prop="package_snapshot" label="方案" min-width="200" />
-      <el-table-column label="预约时间" width="210">
+      <el-table-column label="预约日期" width="210">
         <template #default="{ row }">
-          <div>{{ new Date(row.appointment_time).toLocaleString() }}</div>
+          <div>{{ new Date(row.appointment_time).toLocaleDateString('zh-CN') }}</div>
           <div v-if="activeReschedule(row)" class="pending-reschedule">
-            改期候选：{{ new Date(activeReschedule(row).requested_appointment_time).toLocaleString() }}
+            改期候选：{{ new Date(activeReschedule(row).requested_appointment_time).toLocaleDateString('zh-CN') }}
           </div>
         </template>
       </el-table-column>

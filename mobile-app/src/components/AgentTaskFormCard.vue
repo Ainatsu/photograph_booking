@@ -68,23 +68,25 @@
 
         <div v-if="card.task_type === 'create_booking' && hasBookingTarget" class="availability-field">
           <div class="field-heading">
-            <span class="field-label">可用时段</span>
+            <span class="field-label">可预约日期</span>
             <span v-if="loadingAvailability" class="field-help">正在加载</span>
           </div>
           <div v-if="availabilityError" class="field-error" role="alert">{{ availabilityError }}</div>
-          <div v-else class="slot-list">
+          <div v-else class="date-list">
             <button
-              v-for="slot in availableSlots"
-              :key="slot.start_at"
+              v-for="day in availableDays"
+              :key="day.date"
               type="button"
-              class="slot-option pressable"
-              :class="{ selected: form.appointment_time === slot.start_at }"
-              @click="selectSlot(slot.start_at)"
+              class="date-option pressable"
+              :class="{ selected: form.appointment_date === day.date }"
+              :disabled="!day.bookable"
+              @click="setField('appointment_date', day.date)"
             >
-              {{ formatSlot(slot.start_at) }}
+              <strong>{{ formatDateLabel(day) }}</strong>
+              <small>{{ day.bookable ? '可预约' : day.unavailable_reason || '暂不可约' }}</small>
             </button>
           </div>
-          <p v-if="!loadingAvailability && !availableSlots.length" class="field-help">当前没有可用时段，请稍后重试。</p>
+          <p v-if="!loadingAvailability && !availableDays.some((day) => day.bookable)" class="field-help">当前没有可预约日期，请稍后重试。</p>
         </div>
       </fieldset>
 
@@ -113,7 +115,7 @@ import { CircleAlert, CheckCircle2, ImagePlus, Info, LoaderCircle, Save, X } fro
 import { getApiErrorMessage } from '@/api/client'
 import { getAvailableSlots } from '@/api/orders'
 import { uploadAIImage } from '@/api/ai'
-import type { AvailableSlot } from '@/types/orders'
+import type { AvailabilityDay } from '@/types/orders'
 import {
   agentFormDefinitions,
   primaryActionLabel,
@@ -131,7 +133,7 @@ const mediaRefs = ref<string[]>([...(props.card.media?.existing || [])])
 const uploading = ref(false)
 const loadingAvailability = ref(false)
 const availabilityError = ref('')
-const availableSlots = ref<AvailableSlot[]>([])
+const availableDays = ref<AvailabilityDay[]>([])
 const isEditable = computed(() => ['editing', 'invalid', 'draft_unavailable'].includes(props.card.status))
 const visibleFields = computed(() => agentFormDefinitions[props.card.task_type])
 const supportsMedia = computed(() => ['create_project', 'publish_package', 'publish_work'].includes(props.card.task_type))
@@ -157,13 +159,11 @@ function eventValue(event: Event) {
   return (event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value
 }
 
-function selectSlot(startAt: string) {
-  form.appointment_time = startAt
-}
-
-function formatSlot(value: string) {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+function formatDateLabel(day: AvailabilityDay) {
+  const date = new Date(`${day.date}T00:00:00`)
+  return Number.isNaN(date.getTime())
+    ? day.date
+    : date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric', weekday: 'short' })
 }
 
 function mediaName(url: string) {
@@ -214,7 +214,7 @@ async function loadAvailability() {
   availabilityError.value = ''
   try {
     const result = await getAvailableSlots(Number(form.photographer_id), { days: 45, duration_minutes: Number(form.duration_minutes || 120), buffer_minutes: 30 })
-    availableSlots.value = result.days.flatMap((day) => day.slots)
+    availableDays.value = result.days
   } catch (error) {
     availabilityError.value = getApiErrorMessage(error)
   } finally {
@@ -247,7 +247,7 @@ onMounted(() => void loadAvailability())
 .media-field, .availability-field { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--divider); }
 .media-list { display: flex; flex-wrap: wrap; gap: 6px; }.media-chip { max-width: 100%; overflow: hidden; padding: 5px 8px; border-radius: var(--radius-pill); background: var(--brand-soft); color: var(--ink-secondary); font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; }
 .media-picker { display: inline-flex; width: fit-content; min-height: var(--touch-target); align-items: center; gap: 7px; padding: 8px 12px; border: 1px solid var(--divider); border-radius: var(--radius-sm); color: var(--brand); font-size: var(--text-sm); cursor: pointer; }.media-picker input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.field-heading { display: flex; justify-content: space-between; }.slot-list { display: flex; flex-wrap: wrap; gap: 8px; }.slot-option { min-height: var(--touch-target); padding: 8px 12px; border: 1px solid var(--divider); border-radius: var(--radius-sm); background: var(--paper); color: var(--ink-secondary); }.slot-option.selected { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
+.field-heading { display: flex; justify-content: space-between; }.date-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }.date-option { display: grid; min-height: var(--touch-target); gap: 3px; justify-items: start; padding: 9px 12px; border: 1px solid var(--divider); border-radius: var(--radius-sm); background: var(--paper); color: var(--ink-secondary); text-align: left; }.date-option strong { color: var(--ink); font-size: var(--text-sm); }.date-option small { color: var(--ink-tertiary); font-size: var(--text-xs); }.date-option.selected { border-color: var(--brand); background: var(--brand-soft); }.date-option.selected strong, .date-option.selected small { color: var(--brand); }.date-option:disabled { cursor: not-allowed; opacity: .55; }
 .result-banner, .notice-banner, .error-summary { display: flex; align-items: flex-start; gap: 8px; padding: 10px var(--space-4); font-size: var(--text-sm); line-height: 1.5; }.result-banner { color: var(--success, #276749); background: color-mix(in srgb, var(--success, #276749) 10%, transparent); }.notice-banner { color: var(--warning); background: color-mix(in srgb, var(--warning) 10%, transparent); }.error-summary { color: var(--danger); background: color-mix(in srgb, var(--danger) 9%, transparent); }
 .form-card-footer { flex-wrap: wrap; justify-content: flex-end; border-top: 1px solid var(--divider); background: var(--paper-deep); }.form-card-footer button { display: inline-flex; min-height: var(--touch-target); align-items: center; justify-content: center; gap: 7px; padding: 9px 12px; border: 0; border-radius: var(--radius-sm); font: inherit; font-size: var(--text-sm); font-weight: 700; cursor: pointer; }.form-card-footer button:disabled { cursor: not-allowed; opacity: .55; }.action-primary { background: var(--neu-surface-brand); color: var(--white); }.action-secondary { background: var(--paper); color: var(--brand); }.action-danger { background: transparent; color: var(--danger); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }.spin { animation: spin 800ms linear infinite; }@keyframes spin { to { transform: rotate(360deg); } }

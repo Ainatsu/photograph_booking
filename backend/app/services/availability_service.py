@@ -228,15 +228,6 @@ def _entry_matches_weekday(entry: dict, query_date: date) -> bool:
     return _day_index(entry_day) == query_date.weekday()
 
 
-def _weekly_available_intervals(profile: Any, query_date: date) -> list[tuple[int, int]]:
-    """汇总摄影师周排期中当天的可预约时间段。"""
-    intervals: list[tuple[int, int]] = []
-    for entry in getattr(profile, "available_hours", None) or []:
-        if isinstance(entry, dict) and _entry_matches_weekday(entry, query_date):
-            intervals.extend(slot_strings_to_intervals(entry.get("slots") or []))
-    return _normalize_intervals(intervals)
-
-
 def get_day_availability(profile: Any, query_date: date) -> dict[str, str]:
     """获取指定日期的基础可约状态与地点信息。"""
     result = {
@@ -278,13 +269,8 @@ def interval_contains(container: tuple[int, int], target: tuple[int, int]) -> bo
 
 
 def is_interval_bookable_by_profile(profile: Any, appointment: datetime, duration_minutes: int) -> bool:
-    """判断指定预约时间与时长在摄影师档案下是否可预约。"""
+    """判断指定预约日期是否可预约；小时和套餐时长不再参与档期判断。"""
     query_date = appointment.date()
-    start_minutes = appointment.hour * 60 + appointment.minute
-    end_minutes = start_minutes + duration_minutes
-
-    if end_minutes > 24 * 60:
-        return False
     max_booking_date = getattr(profile, "max_booking_date", None)
     if max_booking_date and query_date > max_booking_date:
         return False
@@ -292,7 +278,7 @@ def is_interval_bookable_by_profile(profile: Any, appointment: datetime, duratio
     day = get_day_availability(profile, query_date)
     if day["status"] == "busy":
         return False
-    return True
+    return get_day_availability(profile, query_date)["status"] == "free"
 
 
 def parse_date_string(date_str: str | None, today: date) -> date | None:
@@ -333,7 +319,7 @@ def list_bookable_slots(
     duration_minutes: int,
     buffer_minutes: int = 30,
 ) -> dict:
-    """按摄影师周排期、例外日期、已有订单、提前预约量和每日上限生成真实可选档期。"""
+    """按日期例外、已有订单、提前预约量和每日上限生成可预约日期。"""
     from backend.app.models.order import Order, OrderStatus
     tz = platform_timezone()
     active_statuses = [
@@ -369,7 +355,7 @@ def compute_bookable_slots(
     buffer_minutes: int = 30,
     now_local: datetime | None = None,
 ) -> dict:
-    """Pure slot calculation over an already loaded profile and order collection."""
+    """Pure date-level availability calculation over an already loaded profile and orders."""
     from backend.app.core.config import settings
 
     timezone_name = settings.PLATFORM_TIMEZONE
@@ -385,56 +371,40 @@ def compute_bookable_slots(
     effective_max_date = configured_max_date or (platform_today() + timedelta(days=MAX_AVAILABILITY_DAYS))
     requested_days = max(1, min(days, MAX_AVAILABILITY_DAYS + 1))
 
-    orders_by_date: dict[date, list[tuple[datetime, datetime]]] = {}
+    orders_by_date: dict[date, list] = {}
     for order in orders:
         start_utc = order.appointment_time.replace(tzinfo=timezone.utc)
         start_local = start_utc.astimezone(tz)
-        end_local = start_local + timedelta(minutes=int(order.duration_minutes or 0) + buffer_value)
-        orders_by_date.setdefault(start_local.date(), []).append((start_local, end_local))
+        orders_by_date.setdefault(start_local.date(), []).append(order)
 
     for offset in range(requested_days):
         query_date = start_date + timedelta(days=offset)
         if query_date > effective_max_date:
             break
         day = get_day_availability(profile, query_date)
-        weekly_intervals = _weekly_available_intervals(profile, query_date)
-        intervals = weekly_intervals or [(DEFAULT_DAY_START_MINUTES, DEFAULT_DAY_END_MINUTES)]
         occupied = orders_by_date.get(query_date, [])
         slots = []
         unavailable_reason = None
         if day["status"] == "busy":
-            intervals = []
             unavailable_reason = "摄影师已标记全天不可预约"
         elif len(occupied) >= max_daily:
-            intervals = []
             unavailable_reason = "当日预约数量已满"
-
-        for interval_start, interval_end in intervals:
-            cursor = interval_start
-            while cursor + duration <= interval_end:
-                slot_start = datetime.combine(query_date, datetime.min.time(), tzinfo=tz) + timedelta(minutes=cursor)
-                slot_end = slot_start + timedelta(minutes=duration)
-                blocked_end = slot_end + timedelta(minutes=buffer_value)
-                # Historical dates are useful for audit/backfill queries and must
-                # still expose their computed schedule; advance notice only
-                # applies to today and future dates.
-                notice_ok = query_date < now_local.date() or slot_start >= earliest_local
-                if notice_ok and not any(
-                    slot_start < occupied_end and blocked_end > occupied_start
-                    for occupied_start, occupied_end in occupied
-                ):
-                    slots.append({
-                        "start_at": slot_start.isoformat(),
-                        "end_at": slot_end.isoformat(),
-                        "label": f"{slot_start.strftime('%H:%M')}–{slot_end.strftime('%H:%M')}",
-                    })
-                cursor += 30
+        # Date-only booking uses a canonical noon timestamp internally. The
+        # user-facing result deliberately contains no hourly slots.
+        notice_ok = query_date < now_local.date() or (
+            advance_notice_hours == 0 or query_date > earliest_local.date()
+        )
+        if not unavailable_reason and not notice_ok:
+            unavailable_reason = "未达到最少提前预约时间"
+        if not unavailable_reason:
+            slots = [{"date": query_date.isoformat(), "label": "可预约"}]
 
         result_days.append({
             "date": query_date.isoformat(),
             "weekday": weekday_name_cn(query_date),
             "location": day.get("location") or getattr(profile, "location", None),
             "slots": slots,
+            "bookable": bool(slots),
             "unavailable_reason": unavailable_reason if not slots else None,
         })
 

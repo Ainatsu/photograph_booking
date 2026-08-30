@@ -160,6 +160,7 @@ class LLMIntentCandidate(BaseModel):
         "chat",
         "resource_search",
         "image_analysis",
+        "create_inspiration_flow",
         "project_application",
         "project_flow",
         "package_publish_flow",
@@ -200,6 +201,11 @@ INTENT_POLICIES: dict[str, dict[str, Any]] = {
     "image_analysis": {
         "route": "vision",
         "sub_intents": ["vision_analysis"],
+        "requires_confirmation": False,
+    },
+    "create_inspiration_flow": {
+        "route": "inspiration",
+        "sub_intents": ["vision_analysis", "generate_inspiration", "select_location", "save_inspiration"],
         "requires_confirmation": False,
     },
     "project_application": {
@@ -302,8 +308,6 @@ def _policy_missing_slots(intent_name: str, slots: dict[str, Any]) -> list[str]:
         missing = []
         if not slots.get("date"):
             missing.append("date")
-        if not slots.get("time") and not slots.get("time_start"):
-            missing.append("time")
         return missing
     return []
 

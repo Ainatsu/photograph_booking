@@ -10,9 +10,9 @@
         <el-table :data="orders" v-loading="loadingOrders" stripe>
           <el-table-column prop="id" label="订单号" width="80" />
           <el-table-column prop="package_snapshot" label="方案" min-width="180" />
-          <el-table-column label="预约时间" width="170">
+          <el-table-column label="预约日期" width="170">
             <template #default="{ row }">
-              {{ new Date(row.appointment_time).toLocaleString() }}
+              {{ new Date(row.appointment_time).toLocaleDateString('zh-CN') }}
             </template>
           </el-table-column>
           <el-table-column label="需求" min-width="150">

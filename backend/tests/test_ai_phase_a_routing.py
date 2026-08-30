@@ -545,6 +545,31 @@ async def test_conversation_select_first_then_book_requires_confirmation(
 
 
 @pytest.mark.asyncio
+async def test_generic_booking_continues_single_recommendation(
+    db, customer_user, chengdu_budget_package, monkeypatch
+):
+    """单个真实套餐后说“帮我预约”必须沿用该套餐，不得重新选同摄影师的其他套餐。"""
+    provider = RecordingProvider()
+    monkeypatch.setattr(ai_service, "get_ai_provider", lambda: provider)
+    conversation = ai_service.create_conversation(db, customer_user.id)
+
+    _, first = await ai_service.send_ai_message(
+        db, customer_user.id, conversation.id, "推荐成都预算2000以内的婚礼拍摄方案"
+    )
+    first_package = first.message_metadata["references"]["packages"][0]
+
+    _, second = await ai_service.send_ai_message(
+        db, customer_user.id, conversation.id, "帮我预约"
+    )
+    task_state = second.message_metadata["task_state"]
+
+    assert task_state["status"] == "awaiting_date"
+    assert task_state["slots"]["package_id"] == first_package["id"]
+    assert task_state["slots"]["selected_package"]["id"] == first_package["id"]
+    assert task_state["slots"]["photographer_id"] == first_package["photographer_id"]
+
+
+@pytest.mark.asyncio
 async def test_conversation_chat_question_does_not_recommend_resources(
     db, customer_user, wedding_packages, monkeypatch
 ):

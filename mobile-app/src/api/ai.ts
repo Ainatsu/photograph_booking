@@ -196,6 +196,13 @@ export interface AIUploadResponse {
   mime_type: string
 }
 
+export type PublishPolishContentType = 'project' | 'package' | 'work'
+
+export interface PublishPolishResponse {
+  fields: Record<string, unknown>
+  polished_field_count: number
+}
+
 // ── Client Action types for agent-driven navigation ──
 
 export interface WorkPublishDraft {
@@ -239,5 +246,16 @@ export async function uploadAIImage(file: File): Promise<AIUploadResponse> {
   const form = new FormData()
   form.append('file', file)
   const { data } = await api.post<AIUploadResponse>('/ai/uploads', form)
+  return data
+}
+
+export async function polishPublishFields(
+  contentType: PublishPolishContentType,
+  fields: Record<string, unknown>,
+): Promise<PublishPolishResponse> {
+  const { data } = await api.post<PublishPolishResponse>('/ai/publish/polish', {
+    content_type: contentType,
+    fields,
+  }, { timeout: 70000 } as any)
   return data
 }

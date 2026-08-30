@@ -1,7 +1,7 @@
 """订单相关的业务逻辑服务。"""
 
 import enum
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -44,11 +44,21 @@ def _status_value(status_value: OrderStatus | str) -> str:
     return status_value.value if isinstance(status_value, OrderStatus) else str(status_value)
 
 
+INTERNAL_APPOINTMENT_HOUR = 12
+
+
 def _normalize_appointment(appointment: datetime) -> datetime:
     """将预约时间统一转为无时区 UTC 时间。"""
     if appointment.tzinfo is not None:
         return appointment.astimezone(timezone.utc).replace(tzinfo=None)
     return appointment
+
+
+def _appointment_for_date(appointment_date: date) -> datetime:
+    """将日期转换为内部兼容时间戳，不代表用户选择了具体小时。"""
+    if isinstance(appointment_date, datetime):
+        return _normalize_appointment(appointment_date)
+    return datetime.combine(appointment_date, datetime.min.time()).replace(hour=INTERNAL_APPOINTMENT_HOUR)
 
 
 def _format_appointment(appointment: datetime) -> str:
@@ -104,7 +114,7 @@ def _ensure_photographer_available(
 ) -> None:
     """校验摄影师档期及既有订单/改期申请是否冲突。"""
     target_start = _normalize_appointment(appointment)
-    target_end = target_start + timedelta(minutes=duration_minutes)
+    target_date = target_start.date()
 
     profile = db.query(PhotographerProfile).filter(
         PhotographerProfile.user_id == photographer_id
@@ -126,14 +136,18 @@ def _ensure_photographer_available(
     if exclude_order_id is not None:
         query = query.filter(Order.id != exclude_order_id)
 
-    for order in query.all():
-        order_start = _normalize_appointment(order.appointment_time)
-        order_end = order_start + timedelta(minutes=order.duration_minutes)
-        if target_start < order_end and target_end > order_start:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="该时段已被预约，请选择其他时间"
-            )
+    active_orders = query.all()
+    profile = profile or None
+    max_daily = max(1, int(getattr(profile, "max_daily_bookings", 5) or 5)) if profile else 5
+    same_day_orders = [
+        order for order in active_orders
+        if _normalize_appointment(order.appointment_time).date() == target_date
+    ]
+    if len(same_day_orders) >= max_daily:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="该日期预约数量已满，请选择其他日期",
+        )
 
     pending_request_query = (
         db.query(OrderRescheduleRequest)
@@ -151,11 +165,10 @@ def _ensure_photographer_available(
 
     for request in pending_request_query.all():
         request_start = _normalize_appointment(request.requested_appointment_time)
-        request_end = request_start + timedelta(minutes=request.order.duration_minutes)
-        if target_start < request_end and target_end > request_start:
+        if request_start.date() == target_date:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="该时段已有待处理的改期申请，请选择其他时间",
+                detail="该日期已有待处理的改期申请，请选择其他日期",
             )
 
 
@@ -642,7 +655,11 @@ def create_order(db: Session, customer_id: int, data: OrderCreateRequest) -> Ord
         raise HTTPException(status_code=400, detail="套餐不属于目标摄影师")
 
     # 2. 后端生成可信合同快照
-    target_start = _normalize_appointment(data.appointment_time)
+    appointment_value = data.appointment_date or data.appointment_time
+    if not appointment_value:
+        raise HTTPException(status_code=400, detail="缺少预约日期")
+    appointment_date = appointment_value.date() if isinstance(appointment_value, datetime) else appointment_value
+    target_start = _appointment_for_date(appointment_value)
     if package:
         try:
             contract_snapshot = build_package_contract_snapshot(
@@ -715,7 +732,7 @@ def request_order_reschedule(
     db: Session,
     order: Order,
     actor_id: int,
-    appointment_time: datetime,
+    appointment_date: date | datetime | None,
     reason: str,
     expires_in_hours: int = 24,
 ) -> Order:
@@ -734,7 +751,9 @@ def request_order_reschedule(
         )
 
     normalized_reason = _validate_note(reason, "申请改期必须填写原因")
-    requested_time = _normalize_appointment(appointment_time)
+    if not appointment_date:
+        raise HTTPException(status_code=400, detail="缺少新的预约日期")
+    requested_time = _appointment_for_date(appointment_date)
     if requested_time == _normalize_appointment(order.appointment_time):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -907,7 +926,7 @@ def counter_order_reschedule(
     db: Session,
     order: Order,
     actor_id: int,
-    appointment_time: datetime,
+    appointment_date: date | datetime | None,
     reason: str,
     request_id: int | None = None,
 ) -> Order:
@@ -934,7 +953,7 @@ def counter_order_reschedule(
         "原改期申请已结束，对方提出新的候选时间",
     )
     db.flush()
-    return request_order_reschedule(db, order, actor_id, appointment_time, reason)
+    return request_order_reschedule(db, order, actor_id, appointment_date, reason)
 
 
 def cancel_order(db: Session, order: Order, actor_id: int, actor_role: str | None, reason: str) -> Order:

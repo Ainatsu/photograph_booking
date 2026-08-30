@@ -118,19 +118,6 @@ def _work_thumbnail_urls(item: dict, media_type: str) -> list[str]:
     return clean
 
 
-def _normalize_available_hours(entries: list | None) -> list[dict]:
-    """规范化每周可约时段，丢弃空条目。"""
-    normalized = []
-    for entry in entries or []:
-        if not isinstance(entry, dict):
-            continue
-        day = str(entry.get("day") or "").strip()
-        slots = _normalize_slot_list(entry.get("slots") or [])
-        if day and slots:
-            normalized.append({"day": day, "slots": slots})
-    return normalized
-
-
 def _normalize_availability_exceptions(entries: list | None) -> list[dict]:
     """规范化可用性例外日期列表。"""
     return normalize_availability_entries(entries)
@@ -220,8 +207,7 @@ def create_or_update_profile(db: Session, user_id: int, data: dict) -> Photograp
         data["portfolio"] = _assign_ids(data["portfolio"])
     if data.get("packages"):
         data["packages"] = _normalize_package_defaults(_assign_ids(data["packages"]))
-    if "available_hours" in data and data["available_hours"] is not None:
-        data["available_hours"] = _normalize_available_hours(data["available_hours"])
+    # 档期只按日期管理；忽略旧客户端提交的小时级排期字段。
     if "availability_exceptions" in data and data["availability_exceptions"] is not None:
         data["availability_exceptions"] = _normalize_availability_exceptions(data["availability_exceptions"])
 
@@ -277,7 +263,6 @@ def get_profile_by_user_id(db: Session, user_id: int) -> dict | None:
         "styles": (profile.styles or []),
         "equipment": profile.equipment,
         "packages": packages,
-        "available_hours": profile.available_hours,
         "availability_exceptions": profile.availability_exceptions,
         "advance_notice": profile.advance_notice,
         "max_daily_bookings": profile.max_daily_bookings,
@@ -346,7 +331,6 @@ def get_all_profiles(
             "styles": (p.styles or []),
             "equipment": p.equipment,
             "packages": p.packages,
-            "available_hours": p.available_hours,
             "availability_exceptions": p.availability_exceptions,
             "advance_notice": p.advance_notice,
             "max_daily_bookings": p.max_daily_bookings,

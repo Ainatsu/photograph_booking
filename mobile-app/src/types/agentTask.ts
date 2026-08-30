@@ -4,8 +4,9 @@ export type AgentTaskType =
   | 'publish_work'
   | 'project_application'
   | 'create_booking'
+  | 'create_inspiration'
 
-export type AgentTaskStatus = 'collecting' | 'editing_page' | 'submitting' | 'completed' | 'cancelled' | 'expired'
+export type AgentTaskStatus = 'collecting' | 'editing_page' | 'submitting' | 'generating' | 'saving' | 'failed' | 'completed' | 'cancelled' | 'expired'
 
 export interface AgentTaskSummaryLine {
   label: string
@@ -21,6 +22,7 @@ export interface AgentTask {
   revision: number
   target: Record<string, unknown>
   fields: Record<string, unknown>
+  media_assets?: unknown[]
   summary: {
     title: string
     lines: AgentTaskSummaryLine[]

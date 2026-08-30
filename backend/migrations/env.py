@@ -41,6 +41,8 @@ from backend.app.models.project import ProjectApplication, ProjectEvent, ShootPr
 from backend.app.models.photographer_application import PhotographerApplication
 from backend.app.models.follow import Follow
 from backend.app.models.analytics import AnalyticsEvent
+from backend.app.models.inspiration import Inspiration
+from backend.app.models.inspiration_generation import InspirationGenerationBatch, InspirationGenerationJob
 
 target_metadata = Base.metadata
 

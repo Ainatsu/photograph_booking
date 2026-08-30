@@ -8,12 +8,17 @@ from fastapi import HTTPException
 from backend.app.models.project import ShootProject
 from backend.app.services import ai_service
 from backend.app.services.agent_task_extraction_service import extract_task_patch
-from backend.app.services.agent_task_service import commit_task, ensure_task, patch_task, serialize_task
+from backend.app.services.agent_task_service import cancel_task, commit_task, ensure_task, patch_task, serialize_task
 
 
 class UnexpectedProvider:
     async def chat(self, *_args, **_kwargs):
         raise AssertionError("an active Agent task must not call the language model for task progress")
+
+
+class ChatProvider:
+    async def chat(self, *_args, **_kwargs):
+        return {"content": "这是普通聊天回复。", "metadata": {}}
 
 
 def _apply_fields(db, conversation_id, user_id, task, fields):
@@ -203,3 +208,46 @@ def test_booking_receipt_describes_request_not_success(monkeypatch, db, customer
     assert "预约申请已提交" in receipt["content"]
     assert "预约成功" not in receipt["content"]
     assert serialize_task(completed)["summary"]["can_commit"] is False
+
+
+@pytest.mark.asyncio
+async def test_cancelled_task_does_not_resume_on_next_chat_message(monkeypatch, db, customer_user):
+    monkeypatch.setattr(ai_service, "get_ai_provider", lambda: ChatProvider())
+    conversation = ai_service.create_conversation(db, customer_user.id)
+
+    await ai_service.send_ai_message(
+        db,
+        customer_user.id,
+        conversation.id,
+        "帮我发布一个北京写真企划，预算800",
+    )
+    task = ensure_task(
+        db,
+        user_id=customer_user.id,
+        conversation_id=conversation.id,
+        task_type="create_project",
+    )
+    db.commit()
+
+    cancelled = cancel_task(
+        db,
+        user_id=customer_user.id,
+        conversation_id=conversation.id,
+        task_id=task.id,
+    )
+    db.commit()
+    assert cancelled.status == "cancelled"
+    latest_message = conversation.messages[-1]
+    assert latest_message.message_metadata["task_state"]["status"] == "cancelled"
+    assert latest_message.message_metadata["task_state"]["pending_action"] is None
+    assert latest_message.message_metadata["active_task"] is None
+
+    _, assistant = await ai_service.send_ai_message(
+        db,
+        customer_user.id,
+        conversation.id,
+        "和我随便聊两句",
+    )
+
+    assert assistant.message_metadata.get("active_task") is None
+    assert db.query(type(task)).filter_by(id=task.id).one().status == "cancelled"

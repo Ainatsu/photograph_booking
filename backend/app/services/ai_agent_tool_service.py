@@ -1,6 +1,7 @@
 """AI 智能体工具服务：封装关注、建单、发布套餐等工具调用，并记录执行日志。"""
 
 from time import perf_counter
+from datetime import date
 from typing import Any
 
 from fastapi import HTTPException
@@ -14,11 +15,13 @@ from backend.app.schemas.photographer import PackageSchema
 from backend.app.schemas.recommendation import PackageRecommendationQuery
 from backend.app.schemas.project import ProjectCreate
 from backend.app.schemas.order import OrderCreateRequest
+from backend.app.schemas.inspiration import InspirationCreate
 from backend.app.services import follow_service
 from backend.app.services import photographer_service
 from backend.app.services import project_service
 from backend.app.services.order_service import create_order as create_order_service
 from backend.app.services.package_recommendation_service import recommend_packages
+from backend.app.services import inspiration_service
 from backend.app.services.ai_tool_policy_service import (
     ToolExecutionPreparation,
     prepare_tool_execution,
@@ -41,6 +44,7 @@ def log_agent_action(
     confirmation_count: int = 0,
     duration_ms: int | None = None,
     error_code: str | None = None,
+    commit: bool = True,
 ) -> AgentActionLog:
     """记录一次智能体工具调用的执行日志。"""
     log = AgentActionLog(
@@ -60,8 +64,11 @@ def log_agent_action(
         error_code=error_code,
     )
     db.add(log)
-    db.commit()
-    db.refresh(log)
+    if commit:
+        db.commit()
+        db.refresh(log)
+    else:
+        db.flush()
     return log
 
 
@@ -382,20 +389,22 @@ def create_booking(
         photographer_id = tool_input.get("photographer_id")
         package_id = tool_input.get("package_id")
         package_description = tool_input.get("package_description", "")
-        appointment_time_str = tool_input.get("appointment_time")
+        appointment_date_str = tool_input.get("appointment_date")
+        if not appointment_date_str:
+            legacy_time = tool_input.get("appointment_time")
+            appointment_date_str = str(legacy_time)[:10] if legacy_time else None
         duration_minutes = tool_input.get("duration_minutes", 120)
         notes = tool_input.get("notes")
 
-        from datetime import datetime
-        appointment_time = datetime.fromisoformat(appointment_time_str) if appointment_time_str else None
-        if not appointment_time or not photographer_id:
-            raise ValueError("缺少必要参数：photographer_id, appointment_time")
+        appointment_date = _parse_booking_date(appointment_date_str)
+        if not appointment_date or not photographer_id:
+            raise ValueError("缺少必要参数：photographer_id, appointment_date")
 
         data = OrderCreateRequest(
             package_id=package_id,
             photographer_id=photographer_id,
             package_description=package_description,
-            appointment_time=appointment_time,
+            appointment_date=appointment_date,
             duration_minutes=duration_minutes,
             notes=notes,
         )
@@ -405,7 +414,7 @@ def create_booking(
             "order_id": order.id,
             "status": order.status.value if hasattr(order.status, "value") else str(order.status),
             "photographer_id": order.photographer_id,
-            "appointment_time": order.appointment_time.isoformat(),
+            "appointment_date": order.appointment_time.date().isoformat(),
             "duration_minutes": order.duration_minutes,
             "package_snapshot": order.package_snapshot,
         }
@@ -440,6 +449,30 @@ def create_booking(
     }
 
 
+def _parse_booking_date(value: Any) -> date | None:
+    """Normalize current and legacy agent date values without requiring a time."""
+    if not value:
+        return None
+    if isinstance(value, date):
+        return value
+
+    raw = str(value).strip()
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        pass
+
+    try:
+        month, day = (int(part) for part in raw.split("-", 1))
+        today = date.today()
+        parsed = date(today.year, month, day)
+        if parsed < today:
+            parsed = date(today.year + 1, month, day)
+        return parsed
+    except (TypeError, ValueError):
+        return None
+
+
 def search_bookable_packages(
     db: Session,
     *,
@@ -464,4 +497,68 @@ def search_bookable_packages(
             "idempotent": True,
             "timeout_seconds": 15,
         },
+    }
+
+
+def create_inspiration_draft(
+    db: Session,
+    *,
+    user_id: int,
+    conversation_id: int,
+    message_id: int | None,
+    inspiration_payload: dict[str, Any],
+    idempotency_key: str | None = None,
+    commit: bool = True,
+) -> dict[str, Any]:
+    """Create a private draft from trusted URLs and validated Agent content."""
+    started_at = perf_counter()
+    payload = {**inspiration_payload, "status": "draft"}
+    preparation = prepare_tool_execution(
+        db,
+        tool_name="create_inspiration_draft",
+        tool_input=payload,
+        user_id=user_id,
+        conversation_id=conversation_id,
+        confirmation_count=0,
+        idempotency_key=idempotency_key,
+    )
+    if preparation.existing_log:
+        return replay_tool_call(preparation.existing_log)
+    tool_input = preparation.normalized_input
+    try:
+        inspiration = inspiration_service.create_inspiration(
+            db, user_id, InspirationCreate.model_validate(tool_input), commit=commit
+        )
+        result = {
+            "created": True,
+            "inspiration_id": inspiration.id,
+            "status": "draft",
+            "title": inspiration.title,
+            "cover_url": inspiration.cover_url,
+        }
+        call_status = "success"
+    except (HTTPException, ValueError, TypeError) as exc:
+        result = {"created": False, "error": getattr(exc, "detail", None) or str(exc)}
+        call_status = "failed"
+    log_agent_action(
+        db,
+        user_id=user_id,
+        conversation_id=conversation_id,
+        message_id=message_id,
+        tool_name="create_inspiration_draft",
+        tool_input=tool_input,
+        tool_result=result,
+        status=call_status,
+        preparation=preparation,
+        confirmation_count=0,
+        duration_ms=round((perf_counter() - started_at) * 1000),
+        error_code=str(result.get("error")) if call_status == "failed" else None,
+        commit=commit,
+    )
+    return {
+        "tool": "create_inspiration_draft",
+        "status": call_status,
+        "input": tool_input,
+        "result": result,
+        "policy": _policy_metadata(preparation, confirmation_count=0),
     }

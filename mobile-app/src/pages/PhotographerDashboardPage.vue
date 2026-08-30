@@ -141,7 +141,7 @@
               </div>
               <div v-if="dashboard.schedule.next_order" class="next-order">
                 <span class="next-order-label">下一个预约</span>
-                <span class="next-order-time">{{ formatTime(dashboard.schedule.next_order.appointment_time) }}</span>
+                <span class="next-order-time">{{ formatDate(dashboard.schedule.next_order.appointment_time) }}</span>
               </div>
               <div v-if="dashboard.schedule.upcoming_orders.length > 0" class="upcoming-list">
                 <div
@@ -149,7 +149,7 @@
                   :key="order.id"
                   class="upcoming-item"
                 >
-                  <span class="upcoming-time">{{ formatTime(order.appointment_time) }}</span>
+                  <span class="upcoming-time">{{ formatDate(order.appointment_time) }}</span>
                   <span class="upcoming-id">#{{ order.id }}</span>
                 </div>
               </div>
@@ -373,14 +373,12 @@ function formatRating(value: number | null): string {
   return value.toFixed(1)
 }
 
-function formatTime(iso: string): string {
+function formatDate(iso: string): string {
   if (!iso) return ''
   const d = new Date(iso)
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
-  const hour = String(d.getHours()).padStart(2, '0')
-  const min = String(d.getMinutes()).padStart(2, '0')
-  return `${month}-${day} ${hour}:${min}`
+  return `${month}-${day}`
 }
 
 function formatPrice(price: number | null): string {

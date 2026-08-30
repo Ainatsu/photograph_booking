@@ -37,9 +37,9 @@
       </div>
     </div>
 
-    <!-- 选择时间 -->
+    <!-- 选择日期 -->
     <div class="section-card">
-      <div class="section-header"><span>选择时间</span></div>
+      <div class="section-header"><span>选择日期</span></div>
       <div class="section-body">
         <div v-if="availability" class="availability-meta">
           <span>时区：{{ availability.timezone }}</span>
@@ -53,27 +53,15 @@
             type="button"
             class="day-option"
             :class="{ active: selectedDate === day.date }"
-            :disabled="!day.slots.length"
+            :disabled="!day.bookable"
             @click="selectDate(day.date)"
           >
             <strong>{{ formatSlotDate(day.date) }}</strong>
             <span>{{ day.weekday }}</span>
-            <small>{{ day.slots.length ? '可预约' : (day.unavailable_reason || '暂无档期') }}</small>
+            <small>{{ day.bookable ? '可预约' : (day.unavailable_reason || '暂无档期') }}</small>
           </button>
         </div>
-        <div v-if="selectedDay?.slots?.length" class="booking-date-hint">该日期可预约</div>
-        <div v-if="false" class="slot-options" aria-label="可预约时间">
-          <button
-            v-for="slot in selectedDay.slots"
-            :key="slot.start_at"
-            type="button"
-            class="slot-option"
-            :class="{ active: selectedSlot?.start_at === slot.start_at }"
-            @click="selectedSlot = slot"
-          >
-            {{ slot.label }}
-          </button>
-        </div>
+        <div v-if="selectedDay?.bookable" class="booking-date-hint">该日期可预约，不需要选择具体时刻</div>
         <el-empty v-else-if="!loadingAvailability" description="当前日期范围暂无可容纳该套餐的档期，请联系摄影师或稍后再看" />
       </div>
     </div>
@@ -142,7 +130,6 @@ const selectedPackageIndex = ref(-1)
 const availability = ref(null)
 const loadingAvailability = ref(false)
 const selectedDate = ref('')
-const selectedSlot = ref(null)
 const notes = ref('')
 const submitting = ref(false)
 const activePackage = computed(() => (
@@ -154,13 +141,12 @@ const selectedDay = computed(() => (
 
 const canSubmit = computed(() => {
     const hasPackage = isPackageLocked.value ? !!selectedPkg.value : selectedPackageIndex.value >= 0
-    return hasPackage && !!selectedSlot.value
+    return hasPackage && !!selectedDate.value
 })
 
 const formatSlotDate = value => new Date(`${value}T00:00:00`).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
 const selectDate = value => {
   selectedDate.value = value
-  selectedSlot.value = selectedDay.value?.slots?.[0] || null
 }
 
 const fetchAvailability = async () => {
@@ -172,7 +158,6 @@ const fetchAvailability = async () => {
   }
   loadingAvailability.value = true
   selectedDate.value = ''
-  selectedSlot.value = null
   try {
     const { data } = await getPhotographerAvailableSlots(userId, {
       days: 365,
@@ -180,8 +165,7 @@ const fetchAvailability = async () => {
       buffer_minutes: Number(pkg.buffer_minutes || 30),
     })
     availability.value = data
-    selectedDate.value = data.days?.find(day => day.slots?.length)?.date || ''
-    selectedSlot.value = data.days?.find(day => day.date === selectedDate.value)?.slots?.[0] || null
+    selectedDate.value = data.days?.find(day => day.bookable)?.date || ''
   } finally {
     loadingAvailability.value = false
   }
@@ -209,18 +193,17 @@ const submitOrder = async () => {
         ElMessage.warning('请选择一个方案')
         return
     }
-    if (!selectedSlot.value) {
-        ElMessage.warning('请选择一个真实可用档期')
+    if (!selectedDate.value) {
+        ElMessage.warning('请选择一个可预约日期')
         return
     }
 
     submitting.value = true
     try {
-        const isoTime = new Date(selectedSlot.value.start_at).toISOString()
         const res = await createOrder({
             package_id: pkg.id,
             photographer_id: profile.value.user_id,
-            appointment_time: isoTime,
+            appointment_date: selectedDate.value,
             notes: notes.value || undefined
         })
         ElMessage.success('预约提交成功，等待摄影师确认')
@@ -332,8 +315,7 @@ watch(selectedPackageIndex, fetchAvailability)
   gap: 8px;
 }
 
-.day-option,
-.slot-option {
+.day-option {
   min-height: 44px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -355,8 +337,7 @@ watch(selectedPackageIndex, fetchAvailability)
   color: var(--color-ink-secondary);
 }
 
-.day-option.active,
-.slot-option.active {
+.day-option.active {
   border-color: var(--color-brand);
   background: var(--color-brand-light);
 }
@@ -364,17 +345,6 @@ watch(selectedPackageIndex, fetchAvailability)
 .day-option:disabled {
   cursor: not-allowed;
   opacity: 0.5;
-}
-
-.slot-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.slot-option {
-  padding: 8px 14px;
 }
 
 </style>

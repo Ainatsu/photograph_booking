@@ -118,4 +118,12 @@ describe('mobile navigation', () => {
     expect(route?.path).toBe('/notifications')
     expect(route?.meta.requiresAuth).toBe(true)
   })
+
+  it('exposes authenticated inspiration repository routes', () => {
+    const routes = router.getRoutes()
+    expect(routes.find((route) => route.name === 'inspirations')?.path).toBe('/inspirations')
+    expect(routes.find((route) => route.name === 'inspirations')?.meta.requiresAuth).toBe(true)
+    expect(routes.find((route) => route.name === 'inspiration-new')?.path).toBe('/inspirations/new')
+    expect(routes.find((route) => route.name === 'inspiration-detail')?.path).toBe('/inspirations/:inspirationId')
+  })
 })

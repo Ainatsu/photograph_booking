@@ -67,11 +67,6 @@ export interface AvailabilityException {
   location?: string
 }
 
-export interface AvailableHoursEntry {
-  day: string
-  slots: string[]
-}
-
 export interface PhotographerProfile {
   id: number
   user_id: number
@@ -87,7 +82,6 @@ export interface PhotographerProfile {
   styles?: string[] | null
   equipment?: string | null
   packages?: PackageOffer[] | null
-  available_hours?: AvailableHoursEntry[] | null
   availability_exceptions?: AvailabilityException[] | null
   advance_notice?: number | null
   max_daily_bookings?: number | null

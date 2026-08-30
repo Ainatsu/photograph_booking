@@ -183,19 +183,13 @@ def _diversify_candidates(candidates: list[dict], first_screen_size: int = 6, pe
 
 
 def _matching_availability(snapshot: dict | None, query: PackageRecommendationQuery) -> dict | None:
-    """从可约快照中筛出匹配查询时间窗的时段。"""
+    """从可约快照中筛出匹配查询日期的结果。"""
     if not query.shoot_date:
         return None
     if not snapshot:
         return None
-    slots = (snapshot.get("days") or [{}])[0].get("slots") or []
-    start_limit, end_limit = _time_minutes(query.time_start), _time_minutes(query.time_end)
-    if start_limit is not None and end_limit is not None:
-        slots = [
-            slot for slot in slots
-            if datetime.fromisoformat(slot["start_at"]).hour * 60 + datetime.fromisoformat(slot["start_at"]).minute >= start_limit
-            and datetime.fromisoformat(slot["end_at"]).hour * 60 + datetime.fromisoformat(slot["end_at"]).minute <= end_limit
-        ]
+    day = (snapshot.get("days") or [{}])[0]
+    slots = [{"date": query.shoot_date.isoformat(), "label": "可预约日期"}] if day.get("bookable") else []
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=90)
     return {
         "date": query.shoot_date.isoformat(),
@@ -296,7 +290,7 @@ def _rank_package_candidates(
     elif query.sort_mode == "lowest_price":
         candidates.sort(key=lambda x: (x["price"], -x["rank_score"], str(x["id"])))
     elif query.sort_mode == "earliest_available":
-        candidates.sort(key=lambda x: (((x["availability"] or {}).get("matching_slots") or [{"start_at": "9999"}])[0]["start_at"], -x["rank_score"], str(x["id"])))
+        candidates.sort(key=lambda x: (((x["availability"] or {}).get("matching_slots") or [{"date": "9999-99-99"}])[0]["date"], -x["rank_score"], str(x["id"])))
     else:
         candidates.sort(key=lambda x: (-x["rank_score"], -x["trend_score"], str(x["id"])))
     if metrics is not None:
@@ -330,7 +324,7 @@ def _fallback_attempts(query: PackageRecommendationQuery) -> list[tuple[int, Pac
         attempts.append((2, fallback_query, enforce_style, 1.0, list(relaxations)))
     if query.shoot_date and query.time_start and query.time_end:
         fallback_query = fallback_query.model_copy(update={"time_start": None, "time_end": None})
-        relaxations.append({"code": "same_date_other_times", "label": "已改为查看同日其他可预约时间"})
+        relaxations.append({"code": "same_date_other_dates", "label": "已改为查看同日可预约日期"})
         attempts.append((3, fallback_query, enforce_style, 1.0, list(relaxations)))
     return attempts
 
@@ -354,7 +348,7 @@ def _serialize_package_items(page: list[dict], query: PackageRecommendationQuery
         if package["distance_km"] is not None:
             recommendation_reasons.append(f"距拍摄地点{distance_label(package['distance_km']).removeprefix('约')}")
         if package["availability"] and package["availability"]["matching_slots"]:
-            recommendation_reasons.append(f"指定日期有 {len(package['availability']['matching_slots'])} 个匹配时段")
+            recommendation_reasons.append("指定日期可预约")
         match_public = {key: round(float(value), 4) for key, value in package["match"].items() if value is not None and key in {"style_score", "budget_score", "availability_score", "distance_score", "quality_score"}}
         match_public["overall_score"] = round(package["rank_score"], 4)
         public.update(candidate_source=package["candidate_source"], recommendation_reason=reasons[package["candidate_source"]], distance_km=round(package["distance_km"], 1) if package["distance_km"] is not None else None, distance_label=distance_label(package["distance_km"]), distance_confidence="exact" if package["distance_km"] is not None else "unknown", availability=package["availability"], match=match_public, recommendation_reasons=recommendation_reasons or [reasons[package["candidate_source"]]], warnings=warnings)
@@ -421,8 +415,8 @@ def recommend_packages(db: Session, viewer_user_id: int | None, cursor: str | No
                 candidates = alternate_candidates
                 fallback_level = 4
                 relaxations = [
-                    item for item in base_relaxations if item["code"] != "same_date_other_times"
-                ] + [{"code": "nearby_dates", "label": "已查看前后 3 天的相同时间窗", "from": query.shoot_date.isoformat(), "range_days": 3}]
+                item for item in base_relaxations if item["code"] != "same_date_other_dates"
+                ] + [{"code": "nearby_dates", "label": "已查看前后 3 天的可预约日期", "from": query.shoot_date.isoformat(), "range_days": 3}]
         if not candidates and query.budget_max is not None and not query.budget_strict:
             budget_candidates = _rank_package_candidates(
                 db, packages, profile, query,

@@ -586,7 +586,6 @@ async function saveSettings() {
     const profile = await savePhotographerSettings({
       equipment: form.equipment.trim(),
       styles: [...styles.value],
-      available_hours: [],
       availability_exceptions: buildAvailabilityExceptions(availabilityDays.value, today),
       advance_notice: Number(form.advance_notice),
       max_daily_bookings: Number(form.max_daily_bookings),

@@ -1,4 +1,5 @@
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
+from types import SimpleNamespace
 
 from sqlalchemy import event
 
@@ -10,18 +11,17 @@ def _future_saturday() -> date:
     return today + timedelta(days=(5 - today.weekday()) % 7 + 14)
 
 
-def test_compute_bookable_slots_respects_weekly_hours(photographer_profile):
+def test_compute_bookable_slots_returns_date_level_availability(photographer_profile):
     target = _future_saturday()
-    photographer_profile.available_hours = [{"day": "周六", "slots": ["14:00-18:00"]}]
     result = compute_bookable_slots(photographer_profile, target, 1, 120, [])
-    labels = [slot["label"] for slot in result["days"][0]["slots"]]
-    assert "14:00–16:00" in labels
-    assert all(not label.startswith("09:") for label in labels)
+    day = result["days"][0]
+    assert day["bookable"] is True
+    assert day["slots"] == [{"date": target.isoformat(), "label": "可预约"}]
+    assert all("start_at" not in slot and "end_at" not in slot for slot in day["slots"])
 
 
 def test_batch_availability_loads_orders_once(db, photographer_profile):
     target = _future_saturday()
-    photographer_profile.available_hours = [{"day": "周六", "slots": ["09:00-18:00"]}]
     db.commit()
     order_selects = 0
 
@@ -39,4 +39,33 @@ def test_batch_availability_loads_orders_once(db, photographer_profile):
     finally:
         event.remove(db.get_bind(), "before_cursor_execute", count_orders)
     assert order_selects == 1
-    assert len(results["short"]["days"][0]["slots"]) > len(results["long"]["days"][0]["slots"])
+    assert results["short"]["days"][0]["bookable"] is True
+    assert results["long"]["days"][0]["bookable"] is True
+    assert results["short"]["days"][0]["slots"] == results["long"]["days"][0]["slots"]
+
+
+def test_compute_bookable_slots_marks_busy_date(photographer_profile):
+    target = _future_saturday()
+    photographer_profile.availability_exceptions = [
+        {"date": target.isoformat(), "status": "busy"},
+    ]
+
+    day = compute_bookable_slots(photographer_profile, target, 1, 120, [])["days"][0]
+
+    assert day["bookable"] is False
+    assert day["slots"] == []
+    assert day["unavailable_reason"] == "摄影师已标记全天不可预约"
+
+
+def test_compute_bookable_slots_uses_daily_booking_limit(photographer_profile):
+    target = _future_saturday()
+    photographer_profile.max_daily_bookings = 1
+    order = SimpleNamespace(
+        appointment_time=datetime.combine(target, time(12)),
+        duration_minutes=120,
+    )
+
+    day = compute_bookable_slots(photographer_profile, target, 1, 120, [order])["days"][0]
+
+    assert day["bookable"] is False
+    assert day["unavailable_reason"] == "当日预约数量已满"

@@ -187,11 +187,6 @@ class PhotographerProfileCreate(BaseModel):
         None,
         description="摄影套餐列表",
     )
-    available_hours: Optional[list[dict]] = Field(
-        None,
-        description="可预约时间段",
-        example=[{"day": "周一", "slots": ["09:00-12:00", "14:00-18:00"]}],
-    )
     availability_exceptions: Optional[list[dict]] = Field(
         None,
         description="每日档期设置，默认空闲，仅需标记忙碌日期；可附带当天所在地",
@@ -269,11 +264,6 @@ class PhotographerProfileResponse(BaseModel):
     packages: Optional[list[PackageSchema]] = Field(
         None,
         description="摄影套餐列表",
-    )
-    available_hours: Optional[list[dict]] = Field(
-        None,
-        description="可预约时间段",
-        example=[{"day": "周一", "slots": ["09:00-12:00", "14:00-18:00"]}],
     )
     availability_exceptions: Optional[list[dict]] = Field(
         None,

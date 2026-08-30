@@ -19,15 +19,15 @@
         <span v-for="style in item.styles.slice(0, 3)" :key="style">{{ style }}</span>
       </div>
       <p v-if="snapshotExpired" class="warning"><AlertTriangle :size="14" aria-hidden="true" />档期快照已过期，需要刷新</p>
-      <p v-else-if="firstSlot" class="availability"><CalendarCheck2 :size="15" aria-hidden="true" />最近可约：{{ firstSlot.label }}</p>
-      <p v-else class="availability availability--unknown"><CalendarX2 :size="15" aria-hidden="true" />暂未返回匹配时段</p>
+      <p v-else-if="firstSlot" class="availability"><CalendarCheck2 :size="15" aria-hidden="true" />最近可约：{{ firstSlot.date || firstSlot.label }}</p>
+      <p v-else class="availability availability--unknown"><CalendarX2 :size="15" aria-hidden="true" />暂未返回匹配日期</p>
       <p v-if="primaryReason" class="reason">{{ primaryReason }}</p>
       <p v-for="warning in item.warnings || []" :key="warning" class="warning"><AlertTriangle :size="14" aria-hidden="true" />{{ warning }}</p>
     </div>
 
     <footer class="bookable-card__actions">
       <button type="button" class="secondary" @click="$emit('details', item)">查看详情</button>
-      <button type="button" class="primary" @click="primaryAction">{{ snapshotExpired ? '刷新档期' : '选择时间' }}</button>
+      <button type="button" class="primary" @click="primaryAction">{{ snapshotExpired ? '刷新档期' : '选择日期' }}</button>
     </footer>
   </article>
 </template>

@@ -262,8 +262,10 @@ class TestCreateOrder:
                 duration_minutes=-60,
             )
 
-    def test_time_conflict_detected(self, db, customer_user, photographer_user):
-        """异常场景：时间冲突（完全重叠）"""
+    def test_same_date_limit_detected(self, db, customer_user, photographer_user, photographer_profile):
+        """异常场景：同一天达到每日预约上限"""
+        photographer_profile.max_daily_bookings = 1
+        db.commit()
         # 先创建第一个订单
         data1 = OrderCreateRequest(
             photographer_id=photographer_user.id,

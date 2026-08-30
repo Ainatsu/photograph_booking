@@ -276,7 +276,7 @@
                 @click="goOrderDetail(schedule.next_order)"
               >
                 <span class="next-label">下一场拍摄</span>
-                <strong>{{ formatDateTime(schedule.next_order.appointment_time) }}</strong>
+                <strong>{{ formatShortDate(schedule.next_order.appointment_time) }}</strong>
                 <span>{{ schedule.next_order.package_snapshot }}</span>
               </button>
               <div v-else class="next-order is-empty">

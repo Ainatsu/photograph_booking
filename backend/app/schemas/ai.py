@@ -6,7 +6,6 @@ from uuid import UUID, uuid4
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
-
 class AIConversationCreate(BaseModel):
     """创建 AI 会话请求"""
 
@@ -46,6 +45,7 @@ class AITaskSubmission(BaseModel):
         "publish_work",
         "project_application",
         "create_booking",
+        "create_inspiration",
     ]
     action: Literal["publish", "save_draft", "cancel"]
     revision: int = Field(default=1, ge=1)
@@ -131,6 +131,20 @@ class AgentTaskComplete(BaseModel):
 class AgentTaskCommit(BaseModel):
     revision: int = Field(ge=0)
     idempotency_key: UUID = Field(default_factory=uuid4)
+
+
+class PublishPolishRequest(BaseModel):
+    """Text-only publishing form payload sent to the agent for polishing."""
+
+    content_type: Literal["project", "package", "work"]
+    fields: dict[str, Any] = Field(min_length=1, max_length=20)
+
+
+class PublishPolishResponse(BaseModel):
+    """Sanitized fields returned by the publishing polish agent."""
+
+    fields: dict[str, Any]
+    polished_field_count: int = Field(ge=0)
 
 
 class AIChatResponse(BaseModel):

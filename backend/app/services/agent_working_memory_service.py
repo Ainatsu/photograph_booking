@@ -39,6 +39,7 @@ RESOURCE_INSPECTION_TERMS = (
 TASK_EXIT_TERMS = (
     "取消搜索", "不找了", "不用找了", "结束这个任务", "结束任务", "退出任务", "换个话题",
 )
+BOOKING_REFERENCE_TERMS = ("\u9884\u7ea6", "\u9884\u8ba2")
 
 
 def active_task_key(user_id: int, conversation_id: int) -> str:
@@ -248,7 +249,7 @@ def resolve_resource_reference(
             break
 
     explicit_reference = requested_index is not None
-    if requested_index is None and any(term in text for term in RESOURCE_REFERENCE_TERMS):
+    if requested_index is None and any(term in text for term in (*RESOURCE_REFERENCE_TERMS, *BOOKING_REFERENCE_TERMS)):
         selected = memory.get("selected_resource") or {}
         requested_index = selected.get("index")
         if requested_index is None and len(resources) == 1:
@@ -256,7 +257,7 @@ def resolve_resource_reference(
 
     if requested_index is None:
         return None
-    if not explicit_reference and not any(term in text for term in RESOURCE_INSPECTION_TERMS):
+    if not explicit_reference and not any(term in text for term in (*RESOURCE_INSPECTION_TERMS, *BOOKING_REFERENCE_TERMS)):
         return None
 
     matched = next(

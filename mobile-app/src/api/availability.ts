@@ -2,14 +2,12 @@ import { AxiosError } from 'axios'
 import api from './client'
 import type {
   AvailabilityException,
-  AvailableHoursEntry,
   PhotographerProfile,
 } from '@/types/discovery'
 
 export interface PhotographerSettingsPayload {
   equipment: string
   styles: string[]
-  available_hours: AvailableHoursEntry[]
   availability_exceptions: AvailabilityException[]
   advance_notice: number
   max_daily_bookings: number

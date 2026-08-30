@@ -2,13 +2,15 @@ import type { AgentTask, AgentTaskType } from '@/types/agentTask'
 
 type RouteConfig = { name: string; requires?: string[] }
 
-export const agentTaskRouteMap: Record<AgentTaskType, RouteConfig> = {
+export const agentTaskRouteMap: Record<AgentTaskType, RouteConfig | null> = {
   create_project: { name: 'publish-project' },
   publish_package: { name: 'publish-package' },
   publish_work: { name: 'publish-work' },
   project_application: { name: 'project-apply', requires: ['project_id'] },
   // Missing fields are validated by the destination page, not by navigation.
-  create_booking: { name: 'booking' },
+  create_booking: { name: 'booking', requires: ['photographer_id', 'package_id'] },
+  // Inspiration creation is completed in chat and opened from its quick-entry card.
+  create_inspiration: null,
 }
 
 export function getAgentTaskRoute(task: AgentTask): { name: string; params?: Record<string, string>; query?: Record<string, string> } | null {

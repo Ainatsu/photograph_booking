@@ -5,13 +5,12 @@ from typing import Any
 
 
 TASK_PLAN_SCHEMA_VERSION = "agent_task_plan_v1"
-DEFAULT_BOOKING_TIME = "12:00"
 
 BOOKING_PLAN_STEP_IDS = (
     "vision_analysis",
     "search_packages",
     "select_package",
-    "select_time",
+    "select_date",
     "confirm_booking",
     "create_booking",
 )
@@ -59,9 +58,9 @@ def booking_plan_result(
     tool_calls = _planner_tool_calls(retrieval, vision_analysis, vision_reused_context)
 
     content = (
-        "我先把这次拍摄拆成几个步骤：参考图分析、套餐筛选、确认拍摄时间，最后创建预约。\n\n"
+        "我先把这次拍摄拆成几个步骤：参考图分析、套餐筛选、确认拍摄日期，最后创建预约。\n\n"
         f"目前先选到一个匹配方案：{package_display}。\n"
-        f"你想约哪一天？如果不指定具体时间，我会默认按 {DEFAULT_BOOKING_TIME} 帮你整理确认信息。"
+        "你想约哪一天？选择日期后我会帮你整理确认信息。"
     )
 
     return {
@@ -161,10 +160,10 @@ def _booking_plan(
             "summary": selected_package.get("package_name") if selected_package else "等待用户补充条件",
         },
         {
-            "id": "select_time",
+            "id": "select_date",
             "agent": "booking",
             "status": "pending" if selected_package else "blocked",
-            "summary": f"等待用户选择日期；未指定具体时间时默认 {DEFAULT_BOOKING_TIME}",
+            "summary": "等待用户选择日期",
         },
         {
             "id": "confirm_booking",

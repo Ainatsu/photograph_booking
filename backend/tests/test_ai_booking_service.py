@@ -62,32 +62,30 @@ class TestUtilityFunctions:
         slots_data = {
             "date_label": "6月30日 (周二)",
             "slots": [
-                {"start": "09:00", "end": "12:00", "duration_minutes": 180},
-                {"start": "14:00", "end": "17:00", "duration_minutes": 180},
+                {"date": "2026-06-30", "label": "可预约"},
             ],
             "total_available": 2,
         }
         result = _format_slot_summary(slots_data)
         assert "6月30日" in result
-        assert "09:00-12:00" in result
-        assert "14:00-17:00" in result
+        assert "可以预约" in result
+        assert "09:00" not in result
 
     def test_format_slot_summary_empty(self):
         slots_data = {"date_label": "6月30日 (周二)", "slots": [], "total_available": 0}
         result = _format_slot_summary(slots_data)
-        assert "暂无可用时段" in result
+        assert "暂无可预约日期" in result
 
     def test_booking_summary_text(self):
         result = _booking_summary_text(
             photographer_name="测试摄影师",
             package_display="「个人写真」价格 699 元 时长 120 分钟",
             appointment_date="6月30日",
-            appointment_time="14:00",
         )
         assert "测试摄影师" in result
         assert "个人写真" in result
         assert "6月30日" in result
-        assert "14:00" in result
+        assert "14:00" not in result
 
     def test_format_package_for_display(self):
         pkg = {"name": "个人写真", "price": 699, "duration": 120, "image_count": 30}
@@ -129,13 +127,13 @@ class TestExtractBookingSlots:
         result = _extract_booking_slots("我想约6月15日拍摄")
         assert result.get("date") == "06-15"
 
-    def test_extract_time(self):
+    def test_extract_time_is_ignored(self):
         result = _extract_booking_slots("下午2点可以吗")
-        assert result.get("time") == "14:00"
+        assert result.get("time") is None
 
-    def test_extract_time_with_minutes(self):
+    def test_extract_time_with_minutes_is_ignored(self):
         result = _extract_booking_slots("14:30")
-        assert result.get("time") == "14:30"
+        assert result.get("time") is None
 
     def test_extract_photographer_name(self):
         result = _extract_booking_slots("测试摄影师1")
@@ -144,7 +142,7 @@ class TestExtractBookingSlots:
     def test_extract_date_and_time(self):
         result = _extract_booking_slots("7月3日 14:00")
         assert result.get("date") == "07-03"
-        assert result.get("time") == "14:00"
+        assert result.get("time") is None
 
     def test_empty_text(self):
         result = _extract_booking_slots("")
@@ -236,13 +234,7 @@ class TestGetAvailableSlots:
         result = get_available_slots(db, photographer_id=photographer_user.id, date_str=query_date.isoformat())
         assert result["total_available"] > 0
         assert result["date"] == query_date.strftime("%m-%d")
-        all_start_times = {s["start"] for s in result["slots"]}
-        for slot in result["slots"]:
-            assert slot["duration_minutes"] == 120
-        assert "09:00" in all_start_times
-        assert "10:00" in all_start_times
-        assert "14:00" in all_start_times
-        assert "16:00" in all_start_times
+        assert result["slots"] == [{"date": query_date.isoformat(), "label": "可预约"}]
 
     def test_slots_excludes_occupied(self, db, photographer_user, customer_user):
         """已有已确认订单的时间段不应出现在可用列表中"""
@@ -271,8 +263,7 @@ class TestGetAvailableSlots:
         assert result["total_available"] > 0
         # 10:00-12:00 被占用 → 09:30-11:30 也冲突
         # 09:00-11:00 是唯一可用的上午时段
-        for slot in result["slots"]:
-            assert slot["start"] not in ("10:00", "10:30", "11:00", "11:30", "09:30")
+        assert result["slots"] == [{"date": query_date.isoformat(), "label": "可预约"}]
 
     def test_busy_day_has_no_available_slots(self, db, photographer_user):
         query_date = datetime.now(timezone.utc).date() + timedelta(days=7)
@@ -289,7 +280,7 @@ class TestGetAvailableSlots:
 
         result = get_available_slots(db, photographer_id=photographer_user.id, date_str=query_date.isoformat())
         assert result["total_available"] == 0
-        assert result["info"] == "该日档期忙碌"
+        assert result["unavailable_reason"] == "摄影师已标记全天不可预约"
         assert result["location"] == "外部拍摄"
 
     def test_free_day_with_location_preserves_location(self, db, photographer_user):
@@ -312,7 +303,6 @@ class TestGetAvailableSlots:
     def test_invalid_date_format(self, db, photographer_user):
         profile = PhotographerProfile(
             user_id=photographer_user.id,
-            available_hours=[{"day": "Monday", "slots": ["09:00-12:00"]}],
         )
         db.add(profile)
         db.commit()
@@ -479,8 +469,8 @@ class TestBookingAgentResult:
         task_state = result["metadata"]["task_state"]
         assert task_state["task_type"] == "create_booking"
         assert task_state["status"] == "awaiting_confirmation"
-        assert task_state["slots"]["time"] == "12:00"
-        assert "时间：12:00" in result["content"]
+        assert "time" not in task_state["slots"]
+        assert "时间：12:00" not in result["content"]
 
     def test_date_prompt_lists_dates_without_specific_time_ranges(self, db, photographer_profile):
         """询问日期时只展示日期，不列出具体可用时段"""
@@ -521,7 +511,7 @@ class TestBookingAgentResult:
         )
 
         assert result["metadata"]["task_state"]["status"] == "awaiting_date"
-        assert "默认约 12:00" in result["content"]
+        assert "不需要选择具体时刻" in result["content"]
         assert "09:00-" not in result["content"]
 
     @pytest.mark.skip(reason="需要完整的上下文 references + slots 设置")

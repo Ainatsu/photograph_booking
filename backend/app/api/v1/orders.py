@@ -190,7 +190,7 @@ async def request_reschedule(
         db,
         order,
         current_user.id,
-        data.appointment_time,
+        data.appointment_date or data.appointment_time,
         data.reason,
     )
     await push_order_event_update(get_latest_order_event(db, order.id), order)
@@ -286,7 +286,7 @@ async def counter_reschedule_request(
     if not order:
         raise HTTPException(status_code=404, detail="订单不存在")
     order = counter_order_reschedule(
-        db, order, current_user.id, data.appointment_time, data.reason, request_id
+        db, order, current_user.id, data.appointment_date or data.appointment_time, data.reason, request_id
     )
     await push_order_event_update(get_latest_order_event(db, order.id), order)
     return order

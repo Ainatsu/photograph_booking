@@ -23,7 +23,7 @@
               <p>{{ profile.location || '具体拍摄地点将在订单中确认' }}</p>
             </div>
           </section>
-          <p v-if="agentTask" class="agent-source-note" role="status">已载入 Agent 整理的预约信息；档期仍以实时可用时段为准。</p>
+          <p v-if="agentTask" class="agent-source-note" role="status">已载入 Agent 整理的预约信息；档期仍以实时可预约日期为准。</p>
 
           <section class="form-section">
             <div class="section-heading">
@@ -97,31 +97,18 @@
                   type="button"
                   class="date-option pressable"
                   :class="{ selected: selectedDate === day.date }"
-                  :disabled="!day.slots.length"
+                  :disabled="!day.bookable"
                   role="radio"
                   :aria-checked="selectedDate === day.date"
                   @click="selectDate(day.date)"
                 >
                   <small>{{ day.weekday }}</small>
                   <strong>{{ formatDateChip(day.date) }}</strong>
-                  <em>{{ day.slots.length ? `${day.slots.length} 个` : '已满' }}</em>
+                  <em>{{ day.bookable ? '可预约' : '已满' }}</em>
                 </button>
               </div>
 
-              <div v-if="selectedDay?.slots.length" class="slot-options" role="radiogroup" aria-label="可预约时间">
-                <button
-                  v-for="slot in selectedDay.slots"
-                  :key="slot.start_at"
-                  type="button"
-                  class="slot-option pressable"
-                  :class="{ selected: selectedSlot?.start_at === slot.start_at }"
-                  role="radio"
-                  :aria-checked="selectedSlot?.start_at === slot.start_at"
-                  @click="selectSlot(slot)"
-                >
-                  {{ slot.label }}
-                </button>
-              </div>
+              <p v-if="selectedDay?.bookable" class="slot-hint">该日期可预约，不需要选择具体时刻。</p>
               <p v-else class="slot-hint">请先选择一个仍有空档的日期。</p>
             </template>
           </section>
@@ -166,14 +153,14 @@
             </div>
           </div>
           <p class="booking-task-editor-description">
-            目前还没有选定摄影师或方案。已收集的信息会保留在任务中，你可以先编辑时间和备注，再返回聊天选择可预约的方案。
+            目前还没有选定摄影师或方案。已收集的信息会保留在任务中，你可以先编辑日期和备注，再返回聊天选择可预约的方案。
           </p>
           <label class="task-editor-field">
-            <span>预约时间</span>
+            <span>预约日期</span>
             <input
-              v-model="taskAppointmentTime"
-              type="datetime-local"
-              @change="persistTaskField('appointment_time', taskAppointmentTime)"
+              v-model="taskAppointmentDate"
+              type="date"
+              @change="persistTaskField('appointment_date', taskAppointmentDate)"
             />
           </label>
           <label class="task-editor-field">
@@ -220,7 +207,7 @@ import { getPhotographerDetail } from '@/api/discovery'
 import { createOrder as createOrderRequest, getAvailableSlots } from '@/api/orders'
 import { trackRecommendationEvents, type RecommendationEvent } from '@/api/recommendations'
 import type { PackageOffer, PhotographerProfile } from '@/types/discovery'
-import type { AvailabilityDay, AvailabilityResponse, AvailableSlot } from '@/types/orders'
+import type { AvailabilityDay, AvailabilityResponse } from '@/types/orders'
 import { formatCurrency, formatDuration, getPackageName } from '@/utils/format'
 import { isPackageActive } from '@/utils/package'
 
@@ -236,11 +223,9 @@ const availability = ref<AvailabilityResponse | null>(null)
 const loadingAvailability = ref(false)
 const availabilityError = ref('')
 const selectedDate = ref('')
-const selectedSlot = ref<AvailableSlot | null>(null)
 const notes = ref('')
 const desiredAppointmentDate = ref('')
-const desiredAppointmentTime = ref('')
-const taskAppointmentTime = ref('')
+const taskAppointmentDate = ref('')
 const taskNotes = ref('')
 const submitting = ref(false)
 const submitError = ref('')
@@ -255,7 +240,7 @@ const selectedDay = computed<AvailabilityDay | null>(() => (
   availability.value?.days.find((day) => day.date === selectedDate.value) || null
 ))
 const isFromPackageDetail = computed(() => route.query.locked === '1')
-const canSubmit = computed(() => Boolean(activePackage.value && selectedSlot.value) && !submitting.value)
+const canSubmit = computed(() => Boolean(activePackage.value && selectedDate.value) && !submitting.value)
 const jointRecommendation = computed(() => {
   const recommendationId = String(route.query.recommendationId || '')
   if (!recommendationId) return null
@@ -290,33 +275,17 @@ function formatDateChip(value: string) {
   return new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric' }).format(date)
 }
 
-function toLocalDateTimeValue(value: unknown) {
-  const raw = String(value || '')
-  if (!raw) return ''
-  const date = new Date(raw)
-  if (Number.isNaN(date.getTime())) return raw.slice(0, 16)
-  const pad = (part: number) => String(part).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
-
 function selectDate(value: string) {
   selectedDate.value = value
-  selectedSlot.value = null
-}
-
-function selectSlot(slot: AvailableSlot) {
-  selectedSlot.value = slot
   if (route.query.agentTaskId) {
-    const appointmentTime = new Date(slot.start_at).toISOString()
     void agentHandoff.saveOperations([
-      { field: 'appointment_date', op: 'set', value: slot.start_at.slice(0, 10) },
-      { field: 'appointment_time', op: 'set', value: appointmentTime },
+      { field: 'appointment_date', op: 'set', value },
     ]).catch((error) => {
       submitError.value = getApiErrorMessage(error)
     })
   }
-  const event = jointEvent('joint_rec_select_slot', { start_at: slot.start_at, end_at: slot.end_at })
-  if (event) trackJointOnce(`slot:${jointRecommendation.value?.recommendationId}:${slot.start_at}`, event)
+  const event = jointEvent('joint_rec_select_date', { date: value })
+  if (event) trackJointOnce(`date:${jointRecommendation.value?.recommendationId}:${value}`, event)
 }
 
 async function loadProfile() {
@@ -347,7 +316,6 @@ async function loadAvailability() {
   const photographerId = Number(route.params.userId)
   availability.value = null
   selectedDate.value = ''
-  selectedSlot.value = null
   availabilityError.value = ''
   loadingAvailability.value = false
   if (!offer || !photographerId) return
@@ -361,13 +329,8 @@ async function loadAvailability() {
     })
     if (requestId !== availabilityRequestId) return
     availability.value = result
-    const requestedTime = desiredAppointmentTime.value ? new Date(desiredAppointmentTime.value).getTime() : NaN
-    const matched = Number.isFinite(requestedTime)
-      ? result.days.flatMap((day) => day.slots.map((slot) => ({ day, slot }))).find(({ slot }) => new Date(slot.start_at).getTime() === requestedTime)
-      : null
-    const requestedDay = result.days.find((day) => day.date === desiredAppointmentDate.value && day.slots.length)
-    selectedDate.value = matched?.day.date || requestedDay?.date || result.days.find((day) => day.slots.length)?.date || ''
-    selectedSlot.value = matched?.slot || null
+    const requestedDay = result.days.find((day) => day.date === desiredAppointmentDate.value && day.bookable)
+    selectedDate.value = requestedDay?.date || result.days.find((day) => day.bookable)?.date || ''
   } catch (error) {
     if (requestId !== availabilityRequestId) return
     availabilityError.value = getApiErrorMessage(error)
@@ -378,7 +341,7 @@ async function loadAvailability() {
 
 async function submitOrder() {
   const offer = activePackage.value
-  if (!offer || !selectedSlot.value || !profile.value || submitting.value) return
+  if (!offer || !selectedDate.value || !profile.value || submitting.value) return
 
   submitError.value = ''
   submitting.value = true
@@ -386,7 +349,7 @@ async function submitOrder() {
     const order = await createOrderRequest({
       package_id: String(offer.id),
       photographer_id: profile.value.user_id,
-      appointment_time: new Date(selectedSlot.value.start_at).toISOString(),
+      appointment_date: selectedDate.value,
       notes: notes.value || undefined,
     })
     if (agentTask.value) await agentHandoff.complete({ order_id: order.id })
@@ -400,7 +363,7 @@ async function submitOrder() {
   }
 }
 
-async function persistTaskField(field: 'appointment_time' | 'notes', value: string) {
+async function persistTaskField(field: 'appointment_date' | 'notes', value: string) {
   if (!agentTask.value) return
   try {
     const normalized = value.trim()
@@ -426,15 +389,10 @@ onMounted(async () => {
   await loadProfile()
   const task = await agentHandoff.load('create_booking')
   if (task) {
-    taskAppointmentTime.value = toLocalDateTimeValue(task.fields.appointment_time)
+    taskAppointmentDate.value = String(task.fields.appointment_date || '')
     taskNotes.value = String(task.fields.notes || '')
     notes.value = String(task.fields.notes || '')
     desiredAppointmentDate.value = String(task.fields.appointment_date || '')
-    desiredAppointmentTime.value = String(task.fields.appointment_time || '')
-    if (!desiredAppointmentDate.value && desiredAppointmentTime.value) {
-      const isoDate = desiredAppointmentTime.value.match(/^\d{4}-\d{2}-\d{2}/)?.[0]
-      if (isoDate) desiredAppointmentDate.value = isoDate.slice(5)
-    }
     const packageId = String(task.target.package_id || task.fields.package_id || '')
     if (packageId && packages.value.some((offer) => String(offer.id) === packageId)) selectedPackageId.value = packageId
     await loadAvailability()
@@ -478,9 +436,6 @@ onUnmounted(() => { if (taskNotesTimer !== null) window.clearTimeout(taskNotesTi
 .date-option.selected { background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); border: 0; }
 .date-option.selected small, .date-option.selected em { color: var(--white); }
 .date-option:disabled { opacity: .42; }
-.slot-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2); margin-top: var(--space-2); }
-.slot-option { min-height: var(--touch-target); border: 0; border-radius: var(--radius-md); background: var(--neu-surface); box-shadow: var(--neu-raise-sm); color: var(--ink-secondary); font-size: var(--text-sm); font-weight: 650; }
-.slot-option.selected { border-color: var(--brand); background: var(--paper); box-shadow: var(--neu-inset); color: var(--brand); border: 0; }
 .slot-hint { margin: var(--space-3) 0 0; padding: var(--space-4); border: 0; border-radius: var(--radius-md); background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink-tertiary); font-size: var(--text-sm); text-align: center; }
 .notes-field { width: 100%; min-height: 132px; padding: var(--space-3) var(--space-4); resize: vertical; border: 0; border-radius: var(--radius-md); background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink); font-size: var(--text-base); line-height: 1.65; outline: none; }
 .notes-field:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px rgba(45, 90, 39, 0.26); }

@@ -182,14 +182,25 @@
 .mobile-publish-footer { background: var(--paper); }
 .mobile-publish-actions { display: grid; grid-template-columns: minmax(112px, .72fr) minmax(0, 1.28fr); gap: var(--space-3); width: min(100%, 720px); margin: 0 auto; padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom)); background: var(--paper); }
 .mobile-publish-actions button { display: inline-flex; min-height: var(--touch-target); align-items: center; justify-content: center; gap: var(--space-2); border: 0; border-radius: var(--radius-md); font-weight: 750; transition: box-shadow var(--motion-fast) ease; }
+.mobile-publish-actions.with-agent { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mobile-publish-actions.with-agent.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mobile-publish-actions.with-agent button { min-width: 0; padding-inline: var(--space-2); font-size: var(--text-xs); white-space: nowrap; }
 .mobile-publish-actions button:first-child { background: var(--neu-surface); box-shadow: var(--neu-raise-sm); color: var(--brand); }
 .mobile-publish-actions button:last-child { background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); }
+.mobile-publish-actions.with-agent .publish-agent-action { background: var(--paper); box-shadow: var(--neu-inset); color: var(--brand); }
+.mobile-publish-actions.with-agent .publish-agent-action:active { box-shadow: var(--neu-inset-deep); }
 .mobile-publish-actions button:first-child:active { box-shadow: var(--neu-inset); }
 .mobile-publish-actions button:last-child:active { box-shadow: var(--neu-inset-brand); }
 .mobile-publish-actions button:disabled { background: var(--paper-deep); box-shadow: none; color: var(--ink-tertiary); opacity: .72; }
 .mobile-publish-actions ion-spinner { width: 20px; height: 20px; }
 
+@media (max-width: 359px) {
+  .mobile-publish-actions.with-agent { gap: var(--space-1); }
+  .mobile-publish-actions.with-agent button { gap: var(--space-1); padding-inline: var(--space-1); font-size: 11px; }
+}
+
 @media (min-width: 640px) {
+  .mobile-publish-actions.with-agent button { font-size: var(--text-sm); }
   .publish-field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .existing-media-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

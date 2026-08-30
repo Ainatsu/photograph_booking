@@ -240,7 +240,7 @@ def form_fields(task_type: str, values: dict[str, Any]) -> dict[str, Any]:
     return {
         "package_id": values.get("package_id"),
         "photographer_id": values.get("photographer_id"),
-        "appointment_time": values.get("appointment_time"),
+        "appointment_date": values.get("appointment_date"),
         "notes": str(values.get("notes") or "")[:500],
     }
 

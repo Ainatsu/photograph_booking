@@ -95,8 +95,8 @@
             </div>
             <div v-show="!isCardCollapsed('reschedule')" id="order-card-reschedule" class="card-body">
               <dl class="notice-facts">
-                <div><dt>原预约</dt><dd>{{ formatDateTime(activeReschedule.original_appointment_time) }}</dd></div>
-                <div><dt>候选时间</dt><dd>{{ formatDateTime(activeReschedule.requested_appointment_time) }}</dd></div>
+                <div><dt>原预约日期</dt><dd>{{ formatDate(activeReschedule.original_appointment_time) }}</dd></div>
+                <div><dt>候选日期</dt><dd>{{ formatDate(activeReschedule.requested_appointment_time) }}</dd></div>
                 <div><dt>原因</dt><dd>{{ activeReschedule.reason }}</dd></div>
                 <div><dt>响应期限</dt><dd>{{ formatDateTime(activeReschedule.expires_at) }}</dd></div>
               </dl>
@@ -226,7 +226,7 @@
             </div>
             <div v-show="!isCardCollapsed('summary')" id="order-card-summary" class="card-body">
               <div class="facts-grid">
-                <div><CalendarDays :size="18" /><span>预约时间</span><strong>{{ formatDateTime(order.appointment_time) }}</strong></div>
+                <div><CalendarDays :size="18" /><span>预约日期</span><strong>{{ formatDate(order.appointment_time) }}</strong></div>
                 <div><Clock3 :size="18" /><span>服务时长</span><strong>{{ formatDuration(order.duration_minutes) }}</strong></div>
                 <div><MapPin :size="18" /><span>服务地点</span><strong>{{ order.service_location || '地点待确认' }}</strong></div>
                 <div><WalletCards :size="18" /><span>订单金额</span><strong>{{ orderAmount }}</strong></div>
@@ -503,9 +503,9 @@
       <ion-content class="modal-content">
         <form class="form-shell" @submit.prevent="submitActiveForm">
           <template v-if="activeForm === 'reschedule' || activeForm === 'counter'">
-            <label for="reschedule-time">新的预约时间 <span>必填</span></label>
-            <input id="reschedule-time" v-model="formDateTime" type="datetime-local" :min="minimumDateTime" required />
-            <p class="field-hint">原预约为 {{ formatDateTime(order?.appointment_time) }}，提交后仍需对方接受。</p>
+            <label for="reschedule-date">新的预约日期 <span>必填</span></label>
+            <input id="reschedule-date" v-model="formDateTime" type="date" required />
+            <p class="field-hint">原预约日期为 {{ formatDate(order?.appointment_time) }}，提交后仍需对方接受。</p>
             <label for="reschedule-reason">改期原因 <span>必填</span></label>
             <textarea id="reschedule-reason" v-model.trim="formText" rows="5" maxlength="500" placeholder="说明行程变化及希望调整的原因" required />
             <span class="character-count">{{ formText.length }}/500</span>
@@ -957,6 +957,17 @@ function formatDateTime(value?: string | null) {
   }).format(date)
 }
 
+function formatDate(value?: string | null) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+}
+
 function toLocalDateTimeInput(date: Date) {
   const shifted = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
   return shifted.toISOString().slice(0, 16)
@@ -1286,12 +1297,14 @@ async function submitActiveForm() {
   const mode = activeForm.value
 
   let appointmentTime = ''
+  let appointmentDate = ''
   if (['reschedule', 'counter', 'revision-schedule'].includes(mode)) {
     const date = new Date(formDateTime.value)
     if (!formDateTime.value || Number.isNaN(date.getTime()) || date.getTime() <= Date.now()) {
       formError.value = '请选择晚于当前时间的有效日期。'
       return
     }
+    appointmentDate = formDateTime.value
     appointmentTime = date.toISOString()
   }
   if (['reschedule', 'counter'].includes(mode) && !formText.value.trim()) {
@@ -1332,11 +1345,11 @@ async function submitActiveForm() {
   let submitted = false
   try {
     if (mode === 'reschedule') {
-      await requestOrderReschedule(order.value.id, { appointment_time: appointmentTime, reason: formText.value.trim() })
+      await requestOrderReschedule(order.value.id, { appointment_date: appointmentDate, reason: formText.value.trim() })
       toastMessage.value = '改期申请已提交。'
     }
     if (mode === 'counter' && activeReschedule.value) {
-      await counterOrderReschedule(order.value.id, activeReschedule.value.id, { appointment_time: appointmentTime, reason: formText.value.trim() })
+      await counterOrderReschedule(order.value.id, activeReschedule.value.id, { appointment_date: appointmentDate, reason: formText.value.trim() })
       toastMessage.value = '新的候选时间已提交。'
     }
     if (mode === 'delivery') {

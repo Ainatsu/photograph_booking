@@ -21,7 +21,12 @@ TASK_FIELDS: dict[str, set[str]] = {
     },
     "publish_work": {"title", "tags", "description"},
     "project_application": {"proposal_text", "price_quote", "package_snapshot", "portfolio_refs", "revision_note"},
-    "create_booking": {"appointment_date", "appointment_time", "duration_minutes", "notes"},
+    "create_booking": {"appointment_date", "duration_minutes", "notes"},
+    "create_inspiration": {
+        "inspiration_id", "reference_text", "title", "summary", "tags", "cover_url",
+        "location_name", "location_address", "latitude", "longitude", "place_id",
+        "provider", "coordinate_system", "location_precision", "generation_metadata",
+    },
 }
 
 _MONEY = r"(?P<value>\d+(?:\.\d+)?)"
@@ -228,8 +233,6 @@ def extract_task_patch(
     if date_value and "appointment_date" in allowed:
         add("appointment_date", date_value, date_value)
     if datetime_value:
-        if "appointment_time" in allowed:
-            add("appointment_time", datetime_value, datetime_value)
         if "shoot_date_start" in allowed:
             add("shoot_date_start", datetime_value, datetime_value)
 

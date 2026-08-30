@@ -50,8 +50,9 @@ export interface PackageRecommendationQuery {
 }
 
 export interface RecommendationSlot {
-  start_at: string
-  end_at: string
+  date?: string
+  start_at?: string
+  end_at?: string
   label: string
 }
 

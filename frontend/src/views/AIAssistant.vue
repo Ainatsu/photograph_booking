@@ -480,16 +480,53 @@
       </div>
 
       <div class="chat-input-area">
-        <div v-if="quickPromptList.length" class="quick-prompts">
+        <div class="quick-prompt-shell">
           <button
-            v-for="prompt in quickPromptList"
-            :key="prompt"
+            v-if="quickPromptOverflow"
             type="button"
-            class="quick-prompt"
-            :disabled="sending || loadingMessages"
-            @click="sendPresetPrompt(prompt)"
+            class="quick-prompt-nav"
+            aria-label="向左查看更多快捷工具"
+            :disabled="!canScrollQuickPromptsLeft"
+            @click="scrollQuickPrompts(-1)"
           >
-            {{ prompt }}
+            <ChevronLeft aria-hidden="true" />
+          </button>
+          <div
+            ref="quickPromptScroller"
+            class="quick-prompts"
+            role="list"
+            aria-label="快捷工具"
+            @scroll="updateQuickPromptScrollState"
+          >
+            <button
+              type="button"
+              class="quick-prompt quick-prompt--inspiration"
+              :disabled="sending || loadingMessages"
+              @click="activateInspirationTool"
+            >
+              <Sparkles aria-hidden="true" />
+              <span>创作灵感</span>
+            </button>
+            <button
+              v-for="prompt in quickPromptList"
+              :key="prompt"
+              type="button"
+              class="quick-prompt"
+              :disabled="sending || loadingMessages"
+              @click="sendPresetPrompt(prompt)"
+            >
+              {{ prompt }}
+            </button>
+          </div>
+          <button
+            v-if="quickPromptOverflow"
+            type="button"
+            class="quick-prompt-nav"
+            aria-label="向右查看更多快捷工具"
+            :disabled="!canScrollQuickPromptsRight"
+            @click="scrollQuickPrompts(1)"
+          >
+            <ChevronRight aria-hidden="true" />
           </button>
         </div>
 
@@ -578,6 +615,7 @@ import {
   Image as Picture,
   LoaderCircle as Loading,
   Send as Position,
+  Sparkles,
   Upload,
   X as Close,
 } from 'lucide-vue-next'
@@ -638,6 +676,11 @@ const taskDateEditor = ref(null)
 const savingTaskDraft = ref(false)
 const publishingTask = ref(false)
 const clientActionLoading = ref({})
+const quickPromptScroller = ref(null)
+const quickPromptOverflow = ref(false)
+const canScrollQuickPromptsLeft = ref(false)
+const canScrollQuickPromptsRight = ref(false)
+let quickPromptResizeObserver = null
 
 const embedded = computed(() => props.embedded)
 const normalizedPageContext = computed(() => {
@@ -680,7 +723,6 @@ const STATUS_TEXT = {
   awaiting_reference_images: '等待参考图',
   awaiting_package: '筛选套餐',
   awaiting_date: '选择日期',
-  awaiting_time: '选择时间',
   awaiting_confirmation: '待确认',
   completed: '已完成',
   failed: '失败',
@@ -692,7 +734,6 @@ const STATUS_TONE = {
   awaiting_reference_images: 'warning',
   awaiting_package: 'warning',
   awaiting_date: 'warning',
-  awaiting_time: 'warning',
   awaiting_confirmation: 'primary',
   completed: 'success',
   failed: 'danger',
@@ -709,7 +750,7 @@ const STEP_LABELS = {
   vision_analysis: '分析参考图',
   search_packages: '筛选套餐',
   select_package: '选择套餐',
-  select_time: '确定时间',
+  select_date: '确定日期',
   confirm_booking: '确认预约',
   create_booking: '创建预约',
 }
@@ -821,7 +862,6 @@ const TASK_FIELD_CONFIG = {
     { key: 'photographer_name', label: '摄影师' },
     { key: ['package_name', 'package_display'], label: '套餐' },
     { key: 'date', label: '日期' },
-    { key: 'time', label: '时间' },
     { key: 'city', label: '城市', optional: true },
     { key: 'location_text', label: '地点', optional: true },
     { key: 'people_count', label: '人数', optional: true },
@@ -1074,7 +1114,7 @@ const getTaskSteps = (taskType, status, plan) => {
     ],
     create_booking: [
       ['search_packages', ['awaiting_package'].includes(status) ? 'in_progress' : 'completed'],
-      ['select_time', ['awaiting_date', 'awaiting_time'].includes(status) ? 'in_progress' : stepDoneAfterTime(status)],
+      ['select_date', status === 'awaiting_date' ? 'in_progress' : stepDoneAfterDate(status)],
       ['confirm_booking', status === 'awaiting_confirmation' ? 'in_progress' : finalStepStatus(status)],
       ['create_booking', status === 'completed' ? 'completed' : status === 'failed' ? 'failed' : 'pending'],
     ],
@@ -1092,7 +1132,7 @@ const stepDoneAfterDetails = (status) => {
   return ['awaiting_confirmation', 'completed', 'failed'].includes(status) ? 'completed' : 'pending'
 }
 
-const stepDoneAfterTime = (status) => {
+const stepDoneAfterDate = (status) => {
   return ['awaiting_confirmation', 'completed', 'failed'].includes(status) ? 'completed' : 'pending'
 }
 
@@ -1831,6 +1871,31 @@ const sendPresetPrompt = async (prompt) => {
   await handleSend()
 }
 
+const activateInspirationTool = () => {
+  if (sending.value || loadingMessages.value) return
+  inputText.value = '请根据我上传的参考图片创建灵感'
+  openImagePicker()
+}
+
+const updateQuickPromptScrollState = () => {
+  const scroller = quickPromptScroller.value
+  if (!scroller) return
+  const maxScrollLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth)
+  quickPromptOverflow.value = maxScrollLeft > 1
+  canScrollQuickPromptsLeft.value = scroller.scrollLeft > 1
+  canScrollQuickPromptsRight.value = scroller.scrollLeft < maxScrollLeft - 1
+}
+
+const scrollQuickPrompts = (direction) => {
+  const scroller = quickPromptScroller.value
+  if (!scroller) return
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  scroller.scrollBy({
+    left: direction * Math.max(180, scroller.clientWidth * 0.72),
+    behavior: reduceMotion ? 'auto' : 'smooth',
+  })
+}
+
 const handleSuggestedAction = async (action) => {
   if (!conversationId.value || sending.value) return
 
@@ -1868,6 +1933,13 @@ const fetchUserInfo = async () => {
 }
 
 onMounted(async () => {
+  await nextTick()
+  updateQuickPromptScrollState()
+  if (typeof ResizeObserver !== 'undefined' && quickPromptScroller.value) {
+    quickPromptResizeObserver = new ResizeObserver(updateQuickPromptScrollState)
+    quickPromptResizeObserver.observe(quickPromptScroller.value)
+  }
+
   if (!embedded.value) {
     document.documentElement.style.overflow = 'hidden'
     document.body.style.overflow = 'hidden'
@@ -1882,6 +1954,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  quickPromptResizeObserver?.disconnect()
   revealTimers.forEach(timer => window.clearTimeout(timer))
   revealTimers.clear()
   if (!embedded.value) {
@@ -1963,12 +2036,22 @@ onUnmounted(() => {
   flex: 0 0 auto;
 }
 
+.quick-prompt-shell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 6px var(--space-3) 2px;
+  background: var(--color-paper);
+}
+
 .quick-prompts {
   display: flex;
   gap: var(--space-2);
-  padding: 8px var(--space-3) 4px;
-  background: var(--color-paper);
+  min-width: 0;
+  padding: 2px;
   overflow-x: auto;
+  scroll-behavior: smooth;
   scrollbar-color: var(--color-divider) transparent;
   scrollbar-width: thin;
 }
@@ -1987,10 +2070,14 @@ onUnmounted(() => {
 }
 
 .quick-prompt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   flex: 0 0 auto;
   max-width: 180px;
-  height: 30px;
-  padding: 0 10px;
+  min-height: 44px;
+  padding: 0 12px;
   border: var(--border-default);
   border-radius: var(--radius-sm);
   background: var(--color-brand-light);
@@ -2002,6 +2089,46 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   transition: background 0.15s, border-color 0.15s;
+}
+
+.quick-prompt svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.quick-prompt--inspiration {
+  border-color: color-mix(in srgb, var(--color-brand) 48%, var(--color-divider));
+  font-weight: 700;
+}
+
+.quick-prompt-nav {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  padding: 0;
+  border: var(--border-default);
+  border-radius: 50%;
+  background: var(--color-paper-light);
+  color: var(--color-brand);
+  cursor: pointer;
+}
+
+.quick-prompt-nav svg {
+  width: 18px;
+  height: 18px;
+}
+
+.quick-prompt-nav:disabled {
+  cursor: default;
+  opacity: 0.38;
+}
+
+.quick-prompt:focus-visible,
+.quick-prompt-nav:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 .quick-prompt:hover:not(:disabled) {

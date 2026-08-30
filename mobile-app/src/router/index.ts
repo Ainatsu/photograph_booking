@@ -228,6 +228,10 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/SocialPage.vue'),
     meta: { requiresAuth: true },
   },
+  { path: '/inspirations', name: 'inspirations', component: () => import('@/pages/InspirationsPage.vue'), meta: { requiresAuth: true } },
+  { path: '/inspirations/new', name: 'inspiration-new', component: () => import('@/pages/InspirationEditPage.vue'), meta: { requiresAuth: true } },
+  { path: '/inspirations/:inspirationId/edit', name: 'inspiration-edit', component: () => import('@/pages/InspirationEditPage.vue'), meta: { requiresAuth: true } },
+  { path: '/inspirations/:inspirationId', name: 'inspiration-detail', component: () => import('@/pages/InspirationDetailPage.vue'), meta: { requiresAuth: true } },
 ]
 
 const router = createRouter({

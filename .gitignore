@@ -49,6 +49,9 @@ assets/resume-photo.jpg
 
 # Local models and temporary artifacts
 Models/
+!backend/app/models/
+backend/app/models/*
+!backend/app/models/inspiration.py
 .tmp/
 .pytest-joint-rec-*/
 

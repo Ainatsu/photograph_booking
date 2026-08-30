@@ -56,7 +56,7 @@ describe('API Modules - Order', () => {
   })
 
   it('createOrder calls POST', () => {
-    const data = { package_id: 'package-1', photographer_id: 1, appointment_time: '', notes: 'test' }
+    const data = { package_id: 'package-1', photographer_id: 1, appointment_date: '2026-07-02', notes: 'test' }
     orderAPI.createOrder(data)
     expect(api.post).toHaveBeenCalledWith('/orders/', data)
   })
@@ -102,7 +102,7 @@ describe('API Modules - Order', () => {
   })
 
   it('requestReschedule calls PUT', () => {
-    const data = { appointment_time: '2026-07-02T15:00:00', reason: '临时有事' }
+    const data = { appointment_date: '2026-07-02', reason: '临时有事' }
     orderAPI.requestReschedule(42, data)
     expect(api.put).toHaveBeenCalledWith('/orders/42/reschedule/request', data)
   })

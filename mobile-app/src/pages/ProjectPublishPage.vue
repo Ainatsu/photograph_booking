@@ -230,12 +230,20 @@
     </ion-content>
 
     <ion-footer v-if="!loadingProject && !loadError" class="mobile-publish-footer">
-      <div class="mobile-publish-actions" :class="{ single: isEditMode && !canPublishEditedProject }">
-        <button type="button" class="pressable" :disabled="submitting" @click="submitProject(false)">
+      <div class="mobile-publish-actions with-agent" :class="{ two: isEditMode && !canPublishEditedProject }">
+        <button type="button" class="pressable" :disabled="submitting || agentPolishing" @click="submitProject(false)">
           <ion-spinner v-if="submitting && submitMode === 'draft'" name="crescent" aria-hidden="true" />
           <Save v-else :size="18" aria-hidden="true" />{{ isEditMode ? '保存修改' : '保存草稿' }}
         </button>
-        <button v-if="!isEditMode || canPublishEditedProject" type="button" class="pressable" :disabled="submitting" @click="submitProject(true)">
+        <PublishAgentPolishButton
+          content-type="project"
+          :fields="projectPolishFields"
+          :disabled="submitting"
+          @busy-change="agentPolishing = $event"
+          @error="requestError = $event"
+          @polished="applyPolishedProject"
+        />
+        <button v-if="!isEditMode || canPublishEditedProject" type="button" class="pressable" :disabled="submitting || agentPolishing" @click="submitProject(true)">
           <ion-spinner v-if="submitting && submitMode === 'publish'" name="crescent" aria-hidden="true" />
           <Send v-else :size="18" aria-hidden="true" />{{ isEditMode && editingProject?.status === 'expired' ? '保存并重新发布' : '发布企划' }}
         </button>
@@ -253,6 +261,7 @@ import DetailHeader from '@/components/DetailHeader.vue'
 import LocationMap from '@/components/location/LocationMap.vue'
 import LocationPickerModal from '@/components/location/LocationPickerModal.vue'
 import PublishMediaPicker from '@/components/PublishMediaPicker.vue'
+import PublishAgentPolishButton from '@/components/PublishAgentPolishButton.vue'
 import StatePanel from '@/components/StatePanel.vue'
 import TagEditor from '@/components/TagEditor.vue'
 import { getApiErrorMessage } from '@/api/client'
@@ -339,6 +348,7 @@ const referenceFiles = ref<File[]>([])
 const errors = reactive<Record<string, string>>({})
 const requestError = ref('')
 const submitting = ref(false)
+const agentPolishing = ref(false)
 const submitMode = ref<'draft' | 'publish'>('publish')
 const uploadProgress = ref(0)
 const progressText = ref('正在准备提交…')
@@ -347,6 +357,26 @@ const draftTime = ref('')
 const toastMessage = ref('')
 const currentDraftId = ref('')
 let draftTimer: number | null = null
+
+const projectPolishFields = computed(() => ({
+  title: form.title,
+  description: form.description,
+  deliverables: form.deliverables,
+  city: form.city,
+  location_text: form.location_text,
+  style_tags: [...styleTags.value],
+}))
+
+function applyPolishedProject(fields: Record<string, unknown>, changedCount: number) {
+  if (typeof fields.title === 'string') form.title = fields.title
+  if (typeof fields.description === 'string') form.description = fields.description
+  if (typeof fields.deliverables === 'string') form.deliverables = fields.deliverables
+  if (typeof fields.city === 'string') form.city = fields.city
+  if (typeof fields.location_text === 'string') form.location_text = fields.location_text
+  if (Array.isArray(fields.style_tags)) styleTags.value = fields.style_tags.map(String).slice(0, 12)
+  requestError.value = ''
+  toastMessage.value = changedCount ? `Agent 已润色 ${changedCount} 项文字内容。` : '当前文字已经很清晰，无需调整。'
+}
 
 // 地点选择器
 const showLocationPicker = ref(false)
@@ -725,6 +755,5 @@ onUnmounted(() => { if (draftTimer !== null) window.clearTimeout(draftTimer) })
 .existing-reference-grid img { width: 100%; height: 100%; object-fit: cover; }
 .existing-reference-grid button { position: absolute; top: 4px; right: 4px; display: grid; width: 44px; height: 44px; place-items: center; border: 0; border-radius: 50%; background: rgba(26, 26, 26, .68); color: var(--white); }
 .existing-reference-grid button:disabled { opacity: .55; }
-.mobile-publish-actions.single { grid-template-columns: 1fr; }
 @media (min-width: 640px) { .existing-reference-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 </style>

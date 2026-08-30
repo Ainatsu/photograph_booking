@@ -165,6 +165,11 @@
                   <small>{{ myProjects.length }} 个企划</small>
                 </div>
               </button>
+
+              <button type="button" class="content-card pressable inspiration-content-card" @click="goTo('inspirations', 'content_inspirations')">
+                <div class="inspiration-card-icon"><Lightbulb :size="28" aria-hidden="true" /></div>
+                <div class="content-card-label"><strong>灵感</strong><small>记录下一次拍摄的起点</small></div>
+              </button>
             </div>
           </template>
 
@@ -258,6 +263,7 @@ import {
   FileBadge2,
   Heart,
   ImageIcon,
+  Lightbulb,
   LogOut,
   Moon,
   Package,
@@ -436,7 +442,7 @@ async function loadContentData() {
   loadingContent.value = true
   try {
     const [profile, projects] = await Promise.all([
-      getPhotographerDetail(auth.user.id).catch(() => null),
+      auth.isPhotographer ? getPhotographerDetail(auth.user.id).catch(() => null) : Promise.resolve(null),
       getMyProjects().catch(() => [] as ProjectBrief[]),
     ])
     portfolioWorks.value = profile?.portfolio || []
@@ -530,6 +536,8 @@ onIonViewWillEnter(async () => {
 .content-card-label { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); }
 .content-card-label strong { font-size: var(--text-sm); color: var(--ink); }
 .content-card-label small { font-size: var(--text-xs); color: var(--ink-tertiary); }
+.inspiration-content-card { min-height: 118px; }
+.inspiration-card-icon { display: grid; min-height: 72px; place-items: center; background: linear-gradient(135deg, var(--brand-soft), var(--surface-secondary)); color: var(--brand); }
 
 .menu-section { margin-top: var(--space-6); }
 .menu-section h2 { margin: 0 0 var(--space-3); font-family: var(--font-serif); font-size: var(--text-lg); }

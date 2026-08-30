@@ -20,9 +20,9 @@
           <div class="order-number">订单 #{{ order.id }}</div>
           <h1>{{ order.package_snapshot }}</h1>
           <div class="summary-meta">
-            <span>预约时间：{{ formatTime(order.appointment_time) }}</span>
+            <span>预约日期：{{ formatDate(order.appointment_time) }}</span>
             <span v-if="activeReschedule" class="pending-time">
-              改期候选：{{ formatTime(activeReschedule.requested_appointment_time) }}
+              改期候选日期：{{ formatDate(activeReschedule.requested_appointment_time) }}
             </span>
             <span>服务时长：{{ order.duration_minutes }} 分钟</span>
           </div>
@@ -274,12 +274,12 @@
         </div>
         <div class="change-grid">
           <div>
-            <span>原预约时间</span>
-            <strong>{{ formatTime(order.appointment_time) }}</strong>
+            <span>原预约日期</span>
+            <strong>{{ formatDate(order.appointment_time) }}</strong>
           </div>
           <div>
-            <span>申请改到</span>
-            <strong>{{ formatTime(activeReschedule.requested_appointment_time) }}</strong>
+            <span>申请改到日期</span>
+            <strong>{{ formatDate(activeReschedule.requested_appointment_time) }}</strong>
           </div>
         </div>
         <p class="change-reason">{{ activeReschedule.reason }}</p>
@@ -407,12 +407,12 @@
 
     <el-dialog v-model="showRescheduleDialog" :title="rescheduleDialogTitle" width="500px" @closed="resetRescheduleForm">
       <el-form label-width="90px">
-        <el-form-item label="新预约时间">
+        <el-form-item label="新预约日期">
           <el-date-picker
             v-model="rescheduleTime"
-            type="datetime"
-            placeholder="选择新的拍摄时间"
-            format="YYYY-MM-DD HH:mm"
+            type="date"
+            placeholder="选择新的拍摄日期"
+            format="YYYY-MM-DD"
             style="width: 100%"
           />
         </el-form-item>
@@ -423,7 +423,7 @@
             :rows="4"
             maxlength="500"
             show-word-limit
-            placeholder="请说明候选时间和调整原因，对方接受后才会生效"
+            placeholder="请说明候选日期和调整原因，对方接受后才会生效"
           />
         </el-form-item>
       </el-form>
@@ -822,7 +822,7 @@ const formatPolicy = (policy) => {
   if (Array.isArray(policy.rules)) {
     return policy.rules.map(item => item?.description).filter(Boolean).join('；')
   }
-  if (policy.response_hours) return `需在 ${policy.response_hours} 小时内响应，原预约时间继续保留。`
+  if (policy.response_hours) return `需在 ${policy.response_hours} 小时内响应，原预约日期继续保留。`
   return ''
 }
 
@@ -1098,7 +1098,7 @@ const resetRescheduleForm = () => {
 
 const submitReschedule = async () => {
   if (!rescheduleTime.value) {
-    ElMessage.warning('请选择新的预约时间')
+    ElMessage.warning('请选择新的预约日期')
     return
   }
   const reason = rescheduleReason.value.trim()
@@ -1108,13 +1108,14 @@ const submitReschedule = async () => {
   }
   submittingReschedule.value = true
   try {
+    const appointmentDate = new Date(rescheduleTime.value).toISOString().slice(0, 10)
     const payload = {
-      appointment_time: rescheduleTime.value,
+      appointment_date: appointmentDate,
       reason,
     }
     if (rescheduleMode.value === 'counter') {
       await counterReschedule(order.value.id, activeReschedule.value.id, payload)
-      ElMessage.success('已提出新的候选时间')
+      ElMessage.success('已提出新的候选日期')
     } else {
       await requestReschedule(order.value.id, payload)
       ElMessage.success('改期申请已提交')
@@ -1141,7 +1142,7 @@ const acceptRescheduleAction = async () => {
 const rejectRescheduleAction = async () => {
   let note
   try {
-    const { value } = await ElMessageBox.prompt('可填写拒绝原因，原预约时间会继续保留。', '拒绝改期', {
+    const { value } = await ElMessageBox.prompt('可填写拒绝原因，原预约日期会继续保留。', '拒绝改期', {
       inputType: 'textarea',
       inputPlaceholder: '如：该时间已有其他安排。',
       confirmButtonText: '确认拒绝',
@@ -1160,7 +1161,7 @@ const rejectRescheduleAction = async () => {
 }
 
 const withdrawRescheduleAction = async () => {
-  try { await ElMessageBox.confirm('撤回后候选时间将释放，原预约保持不变。', '撤回改期', { type: 'warning' }) } catch { return }
+  try { await ElMessageBox.confirm('撤回后候选日期将释放，原预约保持不变。', '撤回改期', { type: 'warning' }) } catch { return }
   acting.value = true
   try {
     await withdrawReschedule(order.value.id, activeReschedule.value.id)
@@ -1552,6 +1553,17 @@ const formatTime = (value) => {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
+  })
+}
+
+const formatDate = (value) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
   })
 }
 

@@ -1,14 +1,8 @@
-export interface AvailableSlot {
-  start_at: string
-  end_at: string
-  label: string
-}
-
 export interface AvailabilityDay {
   date: string
   weekday: string
   location?: string | null
-  slots: AvailableSlot[]
+  bookable: boolean
   unavailable_reason?: string | null
 }
 
@@ -210,7 +204,7 @@ export interface OrderDetailResponse {
 export interface CreateOrderPayload {
   package_id: string
   photographer_id: number
-  appointment_time: string
+  appointment_date: string
   notes?: string
 }
 
@@ -226,7 +220,7 @@ export interface PaymentRecord {
 }
 
 export interface ReschedulePayload {
-  appointment_time: string
+  appointment_date: string
   reason: string
 }
 

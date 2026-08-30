@@ -26,6 +26,7 @@ from backend.app.api.v1.recommendations import router as recommendations_router
 from backend.app.api.v1.payments import router as payments_router
 from backend.app.api.v1.notifications import router as notifications_router
 from backend.app.api.v1.auth import router as auth_router
+from backend.app.api.v1.inspirations import router as inspirations_router
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
@@ -90,6 +91,14 @@ async def lifespan(app: FastAPI):
     if settings.AI_INDEX_WORKER_ENABLED:
         from backend.app.services.ai_index_job_service import run_ai_index_worker
         ai_index_task = asyncio.create_task(run_ai_index_worker())
+    inspiration_generation_task = None
+    if settings.INSPIRATION_GENERATION_WORKER_ENABLED:
+        from backend.app.services.inspiration_generation_service import run_inspiration_generation_worker
+        inspiration_generation_task = asyncio.create_task(
+            run_inspiration_generation_worker(
+                poll_interval_seconds=settings.INSPIRATION_GENERATION_WORKER_POLL_SECONDS,
+            )
+        )
     try:
         from backend.app.services.ai_embedding_service import warmup_image_embedding_provider
 
@@ -109,6 +118,8 @@ async def lifespan(app: FastAPI):
         outbox_task.cancel()
         if ai_index_task:
             ai_index_task.cancel()
+        if inspiration_generation_task:
+            inspiration_generation_task.cancel()
         with suppress(asyncio.CancelledError):
             await reschedule_expiry_task
         with suppress(asyncio.CancelledError):
@@ -122,6 +133,9 @@ async def lifespan(app: FastAPI):
         if ai_index_task:
             with suppress(asyncio.CancelledError):
                 await ai_index_task
+        if inspiration_generation_task:
+            with suppress(asyncio.CancelledError):
+                await inspiration_generation_task
 
 app = FastAPI(
     title="摄影师智能预约平台",
@@ -197,6 +211,7 @@ app.include_router(recommendations_router, prefix="/api/v1")
 app.include_router(payments_router, prefix="/api/v1")
 app.include_router(notifications_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(inspirations_router, prefix="/api/v1")
 
 
 @app.get(

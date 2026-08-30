@@ -21,7 +21,10 @@ from backend.app.schemas.ai import (
     AgentTaskCommit,
     AgentTaskComplete,
     AgentTaskPatch,
+    PublishPolishRequest,
+    PublishPolishResponse,
 )
+from backend.app.services.ai_publish_polish_service import polish_publish_fields
 from backend.app.services.ai_service import (
     create_conversation,
     get_conversation_or_404,
@@ -41,6 +44,16 @@ from backend.app.services.agent_task_service import (
 from backend.app.utils.file_upload import save_upload_file
 
 router = APIRouter(prefix="/ai", tags=["AI 摄影助手"])
+
+
+@router.post("/publish/polish", response_model=PublishPolishResponse)
+async def polish_publish_form(
+    data: PublishPolishRequest,
+    current_user: User = Depends(get_current_active_user),
+):
+    """Polish allow-listed publishing text fields without accepting media."""
+    del current_user
+    return await polish_publish_fields(data.content_type, data.fields)
 
 
 @router.post(

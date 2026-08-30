@@ -15,6 +15,7 @@ from backend.app.models.ai_conversation import AgentActionLog
 from backend.app.schemas.photographer import PackageSchema
 from backend.app.schemas.recommendation import PackageRecommendationQuery
 from backend.app.schemas.project import ProjectCreate
+from backend.app.schemas.inspiration import InspirationCreate
 from backend.app.services.ai_agent_contracts import TOOL_SCHEMA_VERSION
 from backend.app.services.ai_agent_decision_contracts import (
     GetShootContextInput,
@@ -66,7 +67,8 @@ class CreateBookingInput(BaseModel):
     package_description: str | None = None
     package_display: str | None = None
     appointment_date: str | None = None
-    appointment_time: str
+    # Kept optional solely for old callers; new booking requests must use appointment_date.
+    appointment_time: str | None = None
     duration_minutes: int = Field(default=120, gt=0)
     notes: str | None = None
 
@@ -312,12 +314,24 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         timeout_seconds=20,
         retryable=False,
         idempotent=True,
-        audit_fields=("photographer_id", "package_id", "appointment_time", "duration_minutes"),
+        audit_fields=("photographer_id", "package_id", "appointment_date", "duration_minutes"),
         compensation="cancel_pending_booking",
         description="创建预约订单。写操作：只能提出，套餐与摄影师 ID 由后端从上一轮真实候选补全，并必须经用户确认。",
-        argument_hint=("package_id / photographer_id / appointment_time 由后端补全，不要自己填",),
+        argument_hint=("package_id / photographer_id / appointment_date 由后端补全，不要自己填",),
         llm_selectable=True,
         proposal_only=True,
+    ),
+    "create_inspiration_draft": ToolSpec(
+        name="create_inspiration_draft",
+        input_model=InspirationCreate,
+        risk_level=ToolRiskLevel.REVERSIBLE_WRITE,
+        confirmation_policy=ConfirmationPolicy.NONE,
+        timeout_seconds=20,
+        retryable=True,
+        idempotent=True,
+        audit_fields=("title", "tags", "status"),
+        compensation="archive_inspiration",
+        description="Create a private inspiration draft from validated Agent output.",
     ),
 }
 

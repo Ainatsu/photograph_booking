@@ -133,13 +133,21 @@
     </ion-content>
 
     <ion-footer v-if="(!auth.initialized || auth.isPhotographer) && (!isEditMode || (!editLoading && !editError))" class="mobile-publish-footer">
-      <div class="mobile-publish-actions">
-        <button type="button" class="pressable" :disabled="submitting || editLoading || Boolean(editError)" @click="isEditMode ? cancelEdit() : saveDraftNow()">
+      <div class="mobile-publish-actions with-agent">
+        <button type="button" class="pressable" :disabled="submitting || agentPolishing || editLoading || Boolean(editError)" @click="isEditMode ? cancelEdit() : saveDraftNow()">
           <ArrowLeft v-if="isEditMode" :size="18" aria-hidden="true" />
           <Save v-else :size="18" aria-hidden="true" />
           {{ isEditMode ? '取消编辑' : '保存本机' }}
         </button>
-        <button type="button" class="pressable" :disabled="submitting || editLoading || Boolean(editError)" @click="submitPackage">
+        <PublishAgentPolishButton
+          content-type="package"
+          :fields="packagePolishFields"
+          :disabled="submitting || editLoading || Boolean(editError)"
+          @busy-change="agentPolishing = $event"
+          @error="requestError = $event"
+          @polished="applyPolishedPackage"
+        />
+        <button type="button" class="pressable" :disabled="submitting || agentPolishing || editLoading || Boolean(editError)" @click="submitPackage">
           <ion-spinner v-if="submitting" name="crescent" aria-hidden="true" />
           <Save v-else-if="isEditMode" :size="18" aria-hidden="true" />
           <PackageCheck v-else :size="18" aria-hidden="true" />
@@ -167,6 +175,7 @@ import {
 import DetailHeader from '@/components/DetailHeader.vue'
 import FeedSkeleton from '@/components/FeedSkeleton.vue'
 import PublishMediaPicker from '@/components/PublishMediaPicker.vue'
+import PublishAgentPolishButton from '@/components/PublishAgentPolishButton.vue'
 import StatePanel from '@/components/StatePanel.vue'
 import TagEditor from '@/components/TagEditor.vue'
 import { getApiErrorMessage } from '@/api/client'
@@ -223,6 +232,7 @@ const editError = ref('')
 const errors = reactive<Record<string, string>>({})
 const requestError = ref('')
 const submitting = ref(false)
+const agentPolishing = ref(false)
 const uploadProgress = ref(0)
 const progressText = ref('正在准备发布…')
 const draftRestored = ref(false)
@@ -230,6 +240,30 @@ const draftTime = ref('')
 const toastMessage = ref('')
 const currentDraftId = ref('')
 let draftTimer: number | null = null
+
+const packagePolishFields = computed(() => ({
+  name: form.name,
+  city: form.city,
+  service_location: form.service_location,
+  description: form.description,
+  styles: [...styles.value],
+  includes: [...includes.value],
+  delivery_formats: [...deliveryFormats.value],
+  terms_rules: form.terms_rules,
+}))
+
+function applyPolishedPackage(fields: Record<string, unknown>, changedCount: number) {
+  if (typeof fields.name === 'string') form.name = fields.name
+  if (typeof fields.city === 'string') form.city = fields.city
+  if (typeof fields.service_location === 'string') form.service_location = fields.service_location
+  if (typeof fields.description === 'string') form.description = fields.description
+  if (typeof fields.terms_rules === 'string') form.terms_rules = fields.terms_rules
+  if (Array.isArray(fields.styles)) styles.value = fields.styles.map(String).slice(0, 12)
+  if (Array.isArray(fields.includes)) includes.value = fields.includes.map(String).slice(0, 20)
+  if (Array.isArray(fields.delivery_formats)) deliveryFormats.value = fields.delivery_formats.map(String).slice(0, 8)
+  requestError.value = ''
+  toastMessage.value = changedCount ? `Agent 已润色 ${changedCount} 项文字内容。` : '当前文字已经很清晰，无需调整。'
+}
 
 function validateRequired(field: 'name') {
   errors[field] = form[field].trim() ? '' : '请填写方案名称。'

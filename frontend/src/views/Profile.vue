@@ -70,6 +70,19 @@
 
     <!-- Tab 切换 -->
     <el-tabs v-model="activeTab" class="profile-tabs">
+      <el-tab-pane label="灵感" name="inspirations">
+        <section class="inspiration-entry">
+          <div>
+            <span class="inspiration-entry-kicker">私人创作空间</span>
+            <h2>把零散画面，整理成下一次拍摄的起点</h2>
+            <p>收藏参考图片、构图笔记与拍摄地点，并在仓库和地图之间自由浏览。</p>
+          </div>
+          <div class="inspiration-entry-actions">
+            <router-link to="/inspirations"><el-button type="primary">进入灵感仓库</el-button></router-link>
+            <router-link to="/inspirations/map"><el-button>打开灵感地图</el-button></router-link>
+          </div>
+        </section>
+      </el-tab-pane>
       <el-tab-pane label="作品" name="works">
         <div class="works-grid" v-loading="loadingWorks || loadingWorkDrafts">
           <div
@@ -204,7 +217,7 @@
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="预约时间" width="210">
+            <el-table-column label="预约日期" width="210">
               <template #default="{ row }">
                 <div class="time-cell">
                   <strong>{{ formatDate(row.appointment_time) }}</strong>
@@ -1106,8 +1119,8 @@ const projectFilter = ref('all')
 const { getOrPreload } = useImageAspectRatio()
 
 const ROLE_PROFILE_TABS = {
-  photographer: new Set(['works', 'orders', 'applications', 'pkg-mgmt', 'availability', 'stats']),
-  customer: new Set(['works', 'orders', 'my-projects', 'favorites', 'likes']),
+  photographer: new Set(['works', 'inspirations', 'orders', 'applications', 'pkg-mgmt', 'availability', 'stats']),
+  customer: new Set(['works', 'inspirations', 'orders', 'my-projects', 'favorites', 'likes']),
 }
 const FAVORITE_TABS = new Set(['works', 'packages'])
 
@@ -2274,7 +2287,6 @@ const saveAvailability = async () => {
   savingAvailability.value = true
   try {
     await api.post('/photographers/profile', {
-      available_hours: [],
       availability_exceptions: exceptions,
       max_booking_date: maxBookingDate.value || null
     })
@@ -2743,6 +2755,23 @@ watch(favTab, (tab) => {
 .profile-tabs :deep(.el-tabs__active-bar) {
   display: none;
 }
+
+.inspiration-entry {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-8);
+  min-height: 230px;
+  padding: clamp(24px, 5vw, 52px);
+  border: var(--border-default);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-brand-light), var(--color-paper-light) 70%);
+}
+.inspiration-entry-kicker { color: var(--color-brand); font-size: var(--text-sm); font-weight: 700; }
+.inspiration-entry h2 { max-width: 650px; margin: var(--space-2) 0; font-size: clamp(24px, 3vw, 38px); line-height: 1.25; }
+.inspiration-entry p { max-width: 640px; margin: 0; color: var(--color-ink-secondary); }
+.inspiration-entry-actions { display: flex; flex-shrink: 0; gap: var(--space-2); }
+@media (max-width: 700px) { .inspiration-entry { align-items: stretch; flex-direction: column; } .inspiration-entry-actions { display: grid; } }
 
 /* 管理型工作台 */
 .workspace-panel {

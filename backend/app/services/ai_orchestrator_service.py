@@ -162,8 +162,6 @@ def recognize_intent_by_rules(content: str | None, attachments: list[dict] | Non
         missing_slots = []
         if not slots.get("date"):
             missing_slots.append("date")
-        if not slots.get("time"):
-            missing_slots.append("time")
         sub_intents = ["search_package", "create_booking"]
         if has_image:
             sub_intents.insert(0, "vision_analysis")
@@ -175,6 +173,16 @@ def recognize_intent_by_rules(content: str | None, attachments: list[dict] | Non
             requires_confirmation=True,
             route="booking",
             confidence=0.85,
+        )
+
+    if _is_create_inspiration_intent(text):
+        return AgentIntent(
+            intent="create_inspiration_flow",
+            sub_intents=["vision_analysis", "generate_inspiration", "select_location", "save_inspiration"] if has_image else [],
+            slots=slots,
+            missing_slots=[] if has_image else ["reference_images"],
+            route="inspiration",
+            confidence=0.94,
         )
 
     if has_image and _is_image_driven_retrieval_intent(text):
@@ -484,6 +492,19 @@ def _is_package_publish_intent(text: str) -> bool:
         term in text
         for term in ("发布方案", "发布套餐", "上架方案", "上架套餐", "新增方案", "新增套餐", "创建方案", "创建套餐")
     )
+
+
+def _is_create_inspiration_intent(text: str) -> bool:
+    """Require explicit creation language so ordinary image analysis stays read-only."""
+    if not text or _is_negated(text, "创建") or _is_negated(text, "保存"):
+        return False
+    direct_phrases = (
+        "创建灵感", "生成灵感", "保存成拍摄灵感", "保存为拍摄灵感",
+        "整理成灵感笔记", "做成拍摄灵感", "做成灵感", "灵感笔记",
+    )
+    if any(phrase in text for phrase in direct_phrases):
+        return True
+    return "灵感" in text and any(term in text for term in ("创建", "生成", "保存", "整理", "做成"))
 
 
 def _is_booking_intent(text: str) -> bool:

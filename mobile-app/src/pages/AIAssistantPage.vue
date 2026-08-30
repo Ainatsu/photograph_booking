@@ -71,6 +71,12 @@
                       class="shoot-context-message-card"
                       @select-candidate="selectShootContextCandidate($event, msg)"
                     />
+                    <InspirationQuickEntryCard
+                      v-if="inspirationEntry(msg)"
+                      :entry="inspirationEntry(msg)!"
+                      @open="openInspiration(inspirationEntry(msg)!.inspiration_id)"
+                      @edit="editInspiration(inspirationEntry(msg)!.inspiration_id)"
+                    />
                     <div v-if="hasReferences(msg.metadata?.references)" class="references-wrap">
                       <div class="references-header">
                         <Sparkles :size="16" aria-hidden="true" />
@@ -225,7 +231,7 @@
         />
       </div>
 
-      <div class="input-bar-shell">
+        <div class="input-bar-shell">
         <div v-if="pageContext" class="pending-context-wrap">
           <AIPageContextCard
             :context="pageContext"
@@ -244,47 +250,120 @@
         </div>
 
         <form class="input-bar" @submit.prevent="submitMessage">
-          <button
-            type="button"
-            class="attach-button pressable"
-            aria-label="上传图片"
-            :disabled="sending"
-            @click="triggerFileInput"
-          >
-            <Paperclip :size="20" aria-hidden="true" />
-          </button>
-          <input
-            ref="fileInputRef"
-            type="file"
-            accept="image/*"
-            multiple
-            class="sr-only"
-            @change="handleFileSelect"
-          />
-          <label for="ai-message-draft" class="sr-only">输入消息</label>
-          <textarea
-            id="ai-message-draft"
-            ref="messageInputRef"
-            v-model="draft"
-            rows="1"
-            maxlength="2000"
-            :placeholder="inputPlaceholder"
-            :disabled="sending"
-            @keydown.enter.prevent="submitMessage"
-          />
-          <button
-            type="submit"
-            class="send-button pressable"
-            :class="{ 'send-button--revealing': !!activeRevealMessageId }"
-            aria-label="发送"
-            :disabled="sending || (!draft.trim() && !uploadedImages.length)"
-          >
-            <template v-if="activeRevealMessageId">
-              <RotateCw :size="20" class="spin-icon" aria-hidden="true" />
-            </template>
-            <ion-spinner v-else-if="sending" name="crescent" aria-hidden="true" />
-            <ArrowUp v-else :size="20" aria-hidden="true" />
-          </button>
+          <div class="composer-heading">
+            <span class="composer-kicker">小龟J Agent</span>
+            <span class="composer-hint">选择 Agent 能力或联网工具</span>
+          </div>
+          <div v-if="selectedAgent" class="agent-brief-card">
+            <div class="agent-brief-title">
+              <span class="agent-brief-icon"><component :is="selectedAgent.icon" :size="16" aria-hidden="true" /></span>
+              <strong>{{ selectedAgent.label }}</strong>
+              <button type="button" class="agent-clear-btn pressable" aria-label="取消选择能力" @click="clearAgentSelection"><X :size="15" /></button>
+            </div>
+            <div class="agent-field-grid">
+              <label v-for="field in selectedAgent.fields" :key="field.key" class="agent-field" :class="{ 'agent-field--wide': field.wide }">
+                <span>{{ field.label }}</span>
+                <input v-model="agentForm[field.key]" :type="field.type || 'text'" :placeholder="field.placeholder" :disabled="sending" />
+              </label>
+            </div>
+          </div>
+          <div class="composer-controls">
+            <button
+              type="button"
+              class="attach-button pressable"
+              aria-label="上传图片"
+              :disabled="sending"
+              @click="triggerFileInput"
+            >
+              <Paperclip :size="20" aria-hidden="true" />
+            </button>
+            <input
+              ref="fileInputRef"
+              type="file"
+              accept="image/*"
+              multiple
+              class="sr-only"
+              @change="handleFileSelect"
+            />
+            <label for="ai-message-draft" class="sr-only">输入消息</label>
+            <textarea
+              id="ai-message-draft"
+              ref="messageInputRef"
+              v-model="draft"
+              rows="1"
+              maxlength="2000"
+              :placeholder="inputPlaceholder"
+              :disabled="sending"
+              @keydown.enter.prevent="submitMessage"
+            />
+            <button
+              type="submit"
+              class="send-button pressable"
+              :class="{ 'send-button--revealing': !!activeRevealMessageId }"
+              aria-label="发送"
+              :disabled="sending || !hasComposerContent"
+            >
+              <template v-if="activeRevealMessageId">
+                <RotateCw :size="20" class="spin-icon" aria-hidden="true" />
+              </template>
+              <ion-spinner v-else-if="sending" name="crescent" aria-hidden="true" />
+              <ArrowUp v-else :size="20" aria-hidden="true" />
+            </button>
+          </div>
+          <div class="agent-capability-shell">
+            <button
+              v-if="capabilityOverflow"
+              type="button"
+              class="capability-nav pressable"
+              aria-label="向左查看更多 Agent 能力"
+              :disabled="!canScrollCapabilitiesLeft"
+              @click="scrollCapabilities(-1)"
+            >
+              <ChevronLeft :size="18" aria-hidden="true" />
+            </button>
+            <div
+              ref="capabilityScrollerRef"
+              class="agent-capability-row"
+              role="list"
+              aria-label="Agent 能力"
+              @scroll="updateCapabilityScrollState"
+            >
+              <button
+                type="button"
+                class="agent-capability pressable"
+                :class="{ 'agent-capability--active': webSearchEnabled }"
+                :aria-pressed="webSearchEnabled"
+                :disabled="sending"
+                @click="toggleWebSearch"
+              >
+                <Globe2 :size="17" aria-hidden="true" />
+                <span>联网搜索</span>
+              </button>
+              <button
+                v-for="agent in agentCapabilities"
+                :key="agent.key"
+                type="button"
+                class="agent-capability pressable"
+                :class="{ 'agent-capability--active': selectedAgent?.key === agent.key }"
+                :aria-pressed="selectedAgent?.key === agent.key"
+                :disabled="sending"
+                @click="selectAgent(agent)"
+              >
+                <component :is="agent.icon" :size="17" aria-hidden="true" />
+                <span>{{ agent.label }}</span>
+              </button>
+            </div>
+            <button
+              v-if="capabilityOverflow"
+              type="button"
+              class="capability-nav pressable"
+              aria-label="向右查看更多 Agent 能力"
+              :disabled="!canScrollCapabilitiesRight"
+              @click="scrollCapabilities(1)"
+            >
+              <ChevronRight :size="18" aria-hidden="true" />
+            </button>
+          </div>
         </form>
       </div>
     </div>
@@ -300,16 +379,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { IonContent, IonPage, IonSpinner, IonToast, alertController } from '@ionic/vue'
-import { AlertCircle, ArrowUp, Bot, ChevronLeft, Clock, MapPin, Paperclip, RotateCw, Sparkles, X } from 'lucide-vue-next'
+import { AlertCircle, ArrowUp, Bot, CalendarPlus, ChevronLeft, ChevronRight, Clock, FilePlus2, Globe2, Images, MapPin, PackagePlus, Paperclip, RotateCw, Send, Sparkles, X } from 'lucide-vue-next'
 import AIPageContextCard from '@/components/AIPageContextCard.vue'
 import AIShootContextCard from '@/components/AIShootContextCard.vue'
 import AIWebReferenceImages from '@/components/AIWebReferenceImages.vue'
 import BookablePackageCard from '@/components/BookablePackageCard.vue'
 import JointRecommendationFilters from '@/components/JointRecommendationFilters.vue'
 import AgentTaskSummaryCard from '@/components/AgentTaskSummaryCard.vue'
+import InspirationQuickEntryCard, { type InspirationQuickEntry } from '@/components/InspirationQuickEntryCard.vue'
 import AppTopBar from '@/components/AppTopBar.vue'
 import FeedSkeleton from '@/components/FeedSkeleton.vue'
 import MediaPlaceholder from '@/components/MediaPlaceholder.vue'
@@ -352,10 +432,94 @@ const uploadedImages = ref<{ url: string; thumbUrl?: string; file: File }[]>([])
 const messageListRef = ref<HTMLElement | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const messageInputRef = ref<HTMLTextAreaElement | null>(null)
+const capabilityScrollerRef = ref<HTMLElement | null>(null)
+const capabilityOverflow = ref(false)
+const canScrollCapabilitiesLeft = ref(false)
+const canScrollCapabilitiesRight = ref(false)
+let capabilityResizeObserver: ResizeObserver | null = null
 const pageContext = ref<AIPageContext | null>(null)
 const activeTask = ref<AgentTask | null>(null)
 const taskActionBusy = ref(false)
 const trackedJointEvents = new Set<string>()
+
+interface AgentCapabilityField {
+  key: string
+  label: string
+  placeholder: string
+  type?: string
+  wide?: boolean
+}
+
+interface AgentCapability {
+  key: AgentTask['task_type']
+  label: string
+  icon: Component
+  fields: AgentCapabilityField[]
+}
+
+const agentCapabilities: AgentCapability[] = [
+  {
+    key: 'create_inspiration',
+    label: '创作灵感',
+    icon: Sparkles,
+    fields: [],
+  },
+  {
+    key: 'create_project',
+    label: '发布企划',
+    icon: FilePlus2,
+    fields: [
+      { key: 'title', label: '企划标题', placeholder: '例如：香港街拍招募', wide: true },
+      { key: 'city', label: '拍摄城市', placeholder: '香港' },
+      { key: 'shoot_date', label: '拍摄日期', placeholder: '', type: 'date' },
+      { key: 'budget', label: '预算', placeholder: '例如：1500-2500' },
+    ],
+  },
+  {
+    key: 'publish_package',
+    label: '发布方案',
+    icon: PackagePlus,
+    fields: [
+      { key: 'name', label: '方案名称', placeholder: '例如：城市人像轻旅拍', wide: true },
+      { key: 'price', label: '价格', placeholder: '例如：1280', type: 'number' },
+      { key: 'duration', label: '拍摄时长', placeholder: '例如：120 分钟' },
+      { key: 'city', label: '服务城市', placeholder: '香港' },
+    ],
+  },
+  {
+    key: 'publish_work',
+    label: '发布作品',
+    icon: Images,
+    fields: [
+      { key: 'title', label: '作品标题', placeholder: '给这组作品起个名字', wide: true },
+      { key: 'tags', label: '风格标签', placeholder: '胶片、街拍、纪实', wide: true },
+    ],
+  },
+  {
+    key: 'project_application',
+    label: '申请企划',
+    icon: Send,
+    fields: [
+      { key: 'project', label: '目标企划', placeholder: '输入企划名称或链接', wide: true },
+      { key: 'price_quote', label: '报价', placeholder: '例如：1800', type: 'number' },
+      { key: 'proposal', label: '应邀说明', placeholder: '简述你的拍摄方案', wide: true },
+    ],
+  },
+  {
+    key: 'create_booking',
+    label: '预约拍摄',
+    icon: CalendarPlus,
+    fields: [
+      { key: 'target', label: '摄影师或方案', placeholder: '输入名称', wide: true },
+      { key: 'appointment_date', label: '预约日期', placeholder: '', type: 'date', wide: true },
+      { key: 'notes', label: '拍摄备注', placeholder: '地点、人数或特殊要求', wide: true },
+    ],
+  },
+]
+
+const selectedAgent = ref<AgentCapability | null>(null)
+const agentForm = reactive<Record<string, string>>({})
+const webSearchEnabled = ref(false)
 
 // ── 渐进显示状态 ──
 const visibleSegmentCounts = reactive<Record<string, number>>({})
@@ -384,12 +548,91 @@ watch(
 
 const inputPlaceholder = computed(() => {
   if (activeTask.value?.summary.next_question) return activeTask.value.summary.next_question
+  if (selectedAgent.value?.key === 'create_inspiration') return '上传参考图，并补充想要的风格或拍摄方向'
+  if (selectedAgent.value) return `补充${selectedAgent.value.label}的需求，Agent 会继续引导你`
+  if (webSearchEnabled.value) return '输入需要联网查找的最新信息…'
   if (pageContext.value?.title) {
     const title = pageContext.value.title
     return `围绕「${title.length > 20 ? title.slice(0, 20) + '…' : title}」问小龟J`
   }
-  return '输入消息…'
+  return '给小龟J发送消息…'
 })
+
+const hasComposerContent = computed(() => Boolean(
+  draft.value.trim()
+  || uploadedImages.value.length
+  || (selectedAgent.value && Object.values(agentForm).some((value) => value.trim())),
+))
+
+function selectAgent(agent: AgentCapability) {
+  if (selectedAgent.value?.key === agent.key) {
+    clearAgentSelection()
+    return
+  }
+  webSearchEnabled.value = false
+  selectedAgent.value = agent
+  Object.keys(agentForm).forEach((key) => delete agentForm[key])
+  void nextTick(() => {
+    if (agent.key === 'create_inspiration' && !uploadedImages.value.length) triggerFileInput()
+    else messageInputRef.value?.focus()
+  })
+}
+
+function toggleWebSearch() {
+  webSearchEnabled.value = !webSearchEnabled.value
+  if (webSearchEnabled.value) clearAgentSelection()
+  void nextTick(() => messageInputRef.value?.focus())
+}
+
+function clearAgentSelection() {
+  selectedAgent.value = null
+  Object.keys(agentForm).forEach((key) => delete agentForm[key])
+}
+
+function structuredAgentMessage(): string {
+  if (webSearchEnabled.value) {
+    const query = draft.value.trim()
+    return query
+      ? `请联网搜索并仅根据最新公开网页资料回答：${query}\n请附上来源，并明确区分网页事实与推断。`
+      : '请结合我上传的图片进行联网搜索，查找相关的最新公开资料，并附上来源。'
+  }
+  if (!selectedAgent.value) return draft.value.trim()
+  if (selectedAgent.value.key === 'create_inspiration') {
+    const reference = draft.value.trim()
+    return reference
+      ? `请根据我上传的参考图片创建灵感。补充说明：${reference}`
+      : '请根据我上传的参考图片创建灵感'
+  }
+  const details = selectedAgent.value.fields
+    .map((field) => ({ label: field.label, value: agentForm[field.key]?.trim() }))
+    .filter((item) => item.value)
+  const lines = [`我想让 Agent 帮我${selectedAgent.value.label}。`]
+  if (details.length) {
+    lines.push('已填写信息：', ...details.map((item) => `- ${item.label}：${item.value}`))
+  }
+  if (draft.value.trim()) lines.push(`补充说明：${draft.value.trim()}`)
+  lines.push('请根据以上信息创建结构化任务，并继续询问尚缺的必要信息。')
+  return lines.join('\n')
+}
+
+function updateCapabilityScrollState() {
+  const scroller = capabilityScrollerRef.value
+  if (!scroller) return
+  const maxScrollLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth)
+  capabilityOverflow.value = maxScrollLeft > 1
+  canScrollCapabilitiesLeft.value = scroller.scrollLeft > 1
+  canScrollCapabilitiesRight.value = scroller.scrollLeft < maxScrollLeft - 1
+}
+
+function scrollCapabilities(direction: number) {
+  const scroller = capabilityScrollerRef.value
+  if (!scroller) return
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  scroller.scrollBy({
+    left: direction * Math.max(180, scroller.clientWidth * 0.72),
+    behavior: reduceMotion ? 'auto' : 'smooth',
+  })
+}
 
 type MessageAttachment = string | { type: string; url: string; mime_type?: string }
 
@@ -842,7 +1085,7 @@ async function loadMessages() {
 }
 
 async function submitMessage() {
-  const content = draft.value.trim()
+  const content = structuredAgentMessage()
   if (!content && !uploadedImages.value.length) return
   if (!conversation.value || sending.value) return
 
@@ -854,11 +1097,16 @@ async function submitMessage() {
   }))
   const prevImages = [...uploadedImages.value]
   const ctx = pageContext.value
+  const previousAgent = selectedAgent.value
+  const previousAgentForm = { ...agentForm }
+  const previousWebSearchEnabled = webSearchEnabled.value
 
   // Optimistically clear input
   draft.value = ''
   uploadedImages.value = []
   pageContext.value = null
+  clearAgentSelection()
+  webSearchEnabled.value = false
 
   // Build an optimistic user message so it appears in the chat immediately
   const optimisticMsg: AIMessage = {
@@ -893,6 +1141,9 @@ async function submitMessage() {
     toastMessage.value = getApiErrorMessage(error)
     uploadedImages.value = prevImages
     pageContext.value = ctx
+    selectedAgent.value = previousAgent
+    Object.assign(agentForm, previousAgentForm)
+    webSearchEnabled.value = previousWebSearchEnabled
   } finally {
     sending.value = false
   }
@@ -907,7 +1158,28 @@ async function scrollToBottom(smooth = true) {
   })
 }
 
+function inspirationEntry(msg: AIMessage): InspirationQuickEntry | null {
+  const entry = msg.metadata?.inspiration_flow?.entry
+  if (!entry || !Number(entry.inspiration_id) || !String(entry.title || '').trim()) return null
+  return entry as InspirationQuickEntry
+}
+
+function openInspiration(inspirationId: number) {
+  void router.push({ name: 'inspiration-detail', params: { inspirationId: String(inspirationId) } })
+}
+
+function editInspiration(inspirationId: number) {
+  void router.push({ name: 'inspiration-edit', params: { inspirationId: String(inspirationId) } })
+}
+
 onMounted(async () => {
+  await nextTick()
+  updateCapabilityScrollState()
+  if (typeof ResizeObserver !== 'undefined' && capabilityScrollerRef.value) {
+    capabilityResizeObserver = new ResizeObserver(updateCapabilityScrollState)
+    capabilityResizeObserver.observe(capabilityScrollerRef.value)
+  }
+
   await auth.initialize()
 
   try {
@@ -924,6 +1196,7 @@ onMounted(async () => {
 
 // ── 页面卸载时清理计时器 ──
 onBeforeUnmount(() => {
+  capabilityResizeObserver?.disconnect()
   clearRevealState()
 })
 </script>
@@ -1154,10 +1427,8 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
   width: 100%;
   margin: 0;
-  padding: var(--space-2) var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom));
+  padding: var(--space-2) var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom));
   background: var(--paper);
-  box-shadow: var(--neu-inset);
-  border: 0;
 }
 
 .image-preview-list {
@@ -1196,10 +1467,37 @@ onBeforeUnmount(() => {
 
 .input-bar {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 44px;
-  align-items: end;
-  gap: var(--space-2);
+  gap: 10px;
+  padding: 16px 14px 12px;
+  border: 1px solid color-mix(in srgb, var(--brand) 16%, var(--divider));
+  border-radius: 24px;
+  background: var(--surface-solid);
+  box-shadow: 0 8px 28px rgba(45, 90, 39, 0.08);
 }
+
+.composer-heading { display: flex; align-items: center; gap: 8px; padding: 0 2px; }
+.composer-kicker { color: var(--ink); font-size: 13px; font-weight: 700; }
+.composer-hint { color: var(--ink-tertiary); font-size: 11px; }
+.agent-capability-shell { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px; min-width: 0; }
+.agent-capability-row { display: flex; min-width: 0; gap: 8px; overflow-x: auto; padding: 1px 2px 3px; scroll-behavior: smooth; scrollbar-width: none; }
+.agent-capability-row::-webkit-scrollbar { display: none; }
+.agent-capability { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; flex: 0 0 auto; padding: 9px 13px; border: 1px solid var(--divider); border-radius: 999px; background: var(--paper); color: var(--ink-secondary); font: inherit; font-size: 12px; white-space: nowrap; transition: color .18s, border-color .18s, background .18s, transform .18s; }
+.agent-capability--active { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
+.agent-capability:active { transform: scale(.97); }
+.capability-nav { display: grid; width: 44px; height: 44px; place-items: center; padding: 0; border: 1px solid var(--divider); border-radius: 50%; background: var(--paper); color: var(--brand); }
+.capability-nav:disabled { opacity: .38; }
+.agent-capability:focus-visible, .capability-nav:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.agent-brief-card { padding: 10px 11px; border: 1px solid color-mix(in srgb, var(--brand) 20%, var(--divider)); border-radius: 16px; background: color-mix(in srgb, var(--brand-soft) 45%, var(--surface-solid)); }
+.agent-brief-title { display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: 13px; }
+.agent-brief-icon { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 8px; background: var(--brand); color: #fff; }
+.agent-clear-btn { display: grid; width: 44px; height: 44px; margin: -7px -7px -7px auto; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--ink-tertiary); }
+.agent-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.agent-field { display: grid; gap: 4px; min-width: 0; }
+.agent-field--wide { grid-column: 1 / -1; }
+.agent-field > span { color: var(--ink-secondary); font-size: 11px; }
+.agent-field input { width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--divider); border-radius: 10px; background: var(--surface-solid); color: var(--ink); font: inherit; font-size: 16px; outline: none; }
+.agent-field input:focus { border-color: var(--brand); box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 18%, transparent); }
+.composer-controls { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: end; gap: 8px; }
 
 .attach-button {
   display: grid;
@@ -1221,7 +1519,7 @@ onBeforeUnmount(() => {
   padding: 10px 12px;
   resize: vertical;
   border: 0;
-  border-radius: var(--radius-md);
+  border-radius: 14px;
   background: var(--paper);
   box-shadow: var(--neu-inset);
   color: var(--ink);

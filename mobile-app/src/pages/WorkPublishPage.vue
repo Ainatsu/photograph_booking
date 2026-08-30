@@ -53,9 +53,17 @@
     </ion-content>
 
     <ion-footer class="mobile-publish-footer">
-      <div class="mobile-publish-actions">
-        <button type="button" class="pressable" :disabled="submitting" @click="saveDraftNow"><Save :size="18" aria-hidden="true" />保存本机</button>
-        <button type="button" class="pressable" :disabled="submitting || !mediaFiles.length" @click="publishWork">
+      <div class="mobile-publish-actions with-agent">
+        <button type="button" class="pressable" :disabled="submitting || agentPolishing" @click="saveDraftNow"><Save :size="18" aria-hidden="true" />保存本机</button>
+        <PublishAgentPolishButton
+          content-type="work"
+          :fields="workPolishFields"
+          :disabled="submitting"
+          @busy-change="agentPolishing = $event"
+          @error="requestError = $event"
+          @polished="applyPolishedWork"
+        />
+        <button type="button" class="pressable" :disabled="submitting || agentPolishing || !mediaFiles.length" @click="publishWork">
           <ion-spinner v-if="submitting" name="crescent" aria-hidden="true" /><Upload v-else :size="18" aria-hidden="true" />发布作品
         </button>
       </div>
@@ -70,6 +78,7 @@ import { IonContent, IonFooter, IonPage, IonSpinner, IonToast } from '@ionic/vue
 import { CircleAlert, FileClock, ImagePlus, Save, Upload } from 'lucide-vue-next'
 import DetailHeader from '@/components/DetailHeader.vue'
 import PublishMediaPicker from '@/components/PublishMediaPicker.vue'
+import PublishAgentPolishButton from '@/components/PublishAgentPolishButton.vue'
 import TagEditor from '@/components/TagEditor.vue'
 import { getApiErrorMessage } from '@/api/client'
 import { useAgentTaskHandoff } from '@/composables/useAgentTaskHandoff'
@@ -88,6 +97,7 @@ const mediaFiles = ref<File[]>([])
 const coverFiles = ref<File[]>([])
 const requestError = ref('')
 const submitting = ref(false)
+const agentPolishing = ref(false)
 const uploadProgress = ref(0)
 const progressText = ref('正在准备上传…')
 const draftRestored = ref(false)
@@ -95,6 +105,20 @@ const draftTime = ref('')
 const toastMessage = ref('')
 const currentDraftId = ref('')
 let draftTimer: number | null = null
+
+const workPolishFields = computed(() => ({
+  title: form.title,
+  description: form.description,
+  tags: [...tags.value],
+}))
+
+function applyPolishedWork(fields: Record<string, unknown>, changedCount: number) {
+  if (typeof fields.title === 'string') form.title = fields.title
+  if (typeof fields.description === 'string') form.description = fields.description
+  if (Array.isArray(fields.tags)) tags.value = fields.tags.map(String).slice(0, 12)
+  requestError.value = ''
+  toastMessage.value = changedCount ? `Agent 已润色 ${changedCount} 项文字内容。` : '当前文字已经很清晰，无需调整。'
+}
 
 const videoExtensions = new Set(['mp4', 'avi', 'mov', 'wmv', 'webm', 'mkv', 'flv'])
 const workKind = computed<'image' | 'video'>(() => {

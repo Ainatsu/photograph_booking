@@ -237,7 +237,7 @@
                   <div class="rule-item"><strong>{{ profile.max_daily_bookings || 5 }} 单</strong><span>每日最多接单</span></div>
                   <div class="rule-item"><strong>{{ formatMaxBookingDate }}</strong><span>最远可预约日期</span></div>
                 </div>
-                <p class="service-note">档期日历展示摄影师公开标记的忙碌日期；具体可预约时间还会结合方案时长与已有订单实时校验。</p>
+                <p class="service-note">档期日历展示摄影师公开标记的忙碌日期；可预约日期还会结合每日接单上限与已有订单实时校验。</p>
               </div>
 
               <div class="service-card calendar-card">

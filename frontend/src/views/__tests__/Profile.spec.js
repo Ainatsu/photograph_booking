@@ -159,6 +159,19 @@ describe('Profile', () => {
     expect(panes.length).toBeGreaterThanOrEqual(2)
   })
 
+  it('exposes the inspirations tab and restores it from the profile query', async () => {
+    mockRoute.path = '/profile'
+    mockRoute.fullPath = '/profile?tab=inspirations'
+    mockRoute.query = { tab: 'inspirations' }
+
+    const wrapper = mountProfile()
+    await flushPromises()
+
+    expect(wrapper.vm.activeTab).toBe('inspirations')
+    expect(wrapper.find('.inspiration-entry').exists()).toBe(true)
+    expect(wrapper.text()).toContain('进入灵感仓库')
+  })
+
   it('renders edit button', () => {
     const wrapper = mountProfile()
     expect(wrapper.findAll('.el-btn').length).toBeGreaterThan(0)

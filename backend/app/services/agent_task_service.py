@@ -10,12 +10,13 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from backend.app.models.agent_task import AgentTaskDraft
+from backend.app.models.ai_conversation import AIMessage
 from backend.app.models.order import Order
 from backend.app.models.photographer import PhotographerProfile
 from backend.app.models.project import ProjectApplication, ShootProject
 from backend.app.services.agent_task_extraction_service import TASK_FIELDS, apply_operations
 
-ACTIVE_STATUSES = {"collecting", "editing_page", "submitting"}
+ACTIVE_STATUSES = {"collecting", "editing_page", "submitting", "generating", "saving", "failed"}
 TERMINAL_STATUSES = {"completed", "cancelled", "expired"}
 TASK_TYPES = set(TASK_FIELDS)
 
@@ -24,7 +25,8 @@ REQUIRED_TASK_FIELDS: dict[str, tuple[str, ...]] = {
     "publish_package": ("name", "price", "duration"),
     "publish_work": ("media_assets",),
     "project_application": ("project_id", "proposal_text", "price_quote"),
-    "create_booking": ("photographer_id", "package_id", "appointment_time"),
+    "create_booking": ("photographer_id", "package_id", "appointment_date"),
+    "create_inspiration": ("inspiration_id",),
 }
 
 FIELD_LABELS = {
@@ -32,7 +34,7 @@ FIELD_LABELS = {
     "budget_max": "预算", "name": "方案名称", "price": "价格", "duration": "拍摄时长",
     "media_assets": "作品素材", "project_id": "目标企划", "proposal_text": "应邀说明",
     "price_quote": "报价", "photographer_id": "摄影师", "package_id": "摄影方案",
-    "appointment_time": "可用档期",
+    "appointment_date": "预约日期",
 }
 
 NEXT_QUESTIONS = {
@@ -50,7 +52,7 @@ NEXT_QUESTIONS = {
     "price_quote": "这次应邀报价是多少？",
     "photographer_id": "请先选择一位摄影师。",
     "package_id": "请先选择一个真实可预约的摄影方案。",
-    "appointment_time": "请选择一个实时可用档期。",
+    "appointment_date": "请选择一个可预约日期。",
 }
 
 COMMIT_LABELS = {
@@ -58,6 +60,7 @@ COMMIT_LABELS = {
     "publish_package": "确认发布方案",
     "project_application": "提交应邀",
     "create_booking": "提交预约申请",
+    "create_inspiration": "保存灵感",
 }
 
 
@@ -135,7 +138,8 @@ def _summary(task: AgentTaskDraft) -> dict[str, Any]:
         "publish_package": [("方案名", "name"), ("价格", "price"), ("时长", "duration"), ("城市", "city")],
         "publish_work": [("标题", "title"), ("标签", "tags"), ("说明", "description")],
         "project_application": [("报价", "price_quote"), ("申请说明", "proposal_text"), ("关联方案", "package_snapshot")],
-        "create_booking": [("方案", "package_id"), ("预约日期", "appointment_date"), ("预约时间", "appointment_time"), ("备注", "notes")],
+        "create_booking": [("方案", "package_id"), ("预约日期", "appointment_date"), ("备注", "notes")],
+        "create_inspiration": [("标题", "title"), ("摘要", "summary"), ("标签", "tags")],
     }.get(task.task_type, [])
     lines = []
     for label, field in priority:
@@ -160,7 +164,7 @@ def _summary(task: AgentTaskDraft) -> dict[str, Any]:
     return {
         "title": {
             "create_project": "发布企划", "publish_package": "发布方案", "publish_work": "发布作品",
-            "project_application": "申请企划", "create_booking": "预约拍摄",
+            "project_application": "申请企划", "create_booking": "预约拍摄", "create_inspiration": "创建灵感",
         }.get(task.task_type, "Agent 任务"),
         "lines": lines[:4], "collected_count": collected,
         "missing_required_count": len(missing),
@@ -181,7 +185,7 @@ def serialize_task(task: AgentTaskDraft | None) -> dict[str, Any] | None:
     return {
         "task_id": task.id, "conversation_id": task.conversation_id, "task_type": task.task_type,
         "status": task.status, "schema_version": task.schema_version, "revision": task.revision,
-        "target": task.target or {}, "fields": task.fields or {}, "summary": _summary(task),
+        "target": task.target or {}, "fields": task.fields or {}, "media_assets": task.media_assets or [], "summary": _summary(task),
         "result": task.result, "updated_at": task.updated_at.isoformat() if task.updated_at else None,
     }
 
@@ -311,7 +315,7 @@ def commit_task(
             payload = {
                 "photographer_id": target["photographer_id"],
                 "package_id": target["package_id"],
-                "appointment_time": fields["appointment_time"],
+                "appointment_date": fields["appointment_date"],
                 "duration_minutes": fields.get("duration_minutes") or target.get("duration_minutes") or 120,
                 "notes": fields.get("notes"),
             }
@@ -368,6 +372,35 @@ def cancel_task(db: Session, *, user_id: int, conversation_id: int, task_id: str
     if task.status not in TERMINAL_STATUSES:
         task.status = "cancelled"
         task.updated_at = _now()
+    # The task draft is authoritative for the task card, but older assistant
+    # messages also contain workflow snapshots used by the legacy orchestrator.
+    # Mark the latest snapshot closed as well; otherwise the next ordinary
+    # message can resurrect the cancelled flow from stale metadata.
+    message = (
+        db.query(AIMessage)
+        .filter(AIMessage.conversation_id == conversation_id, AIMessage.role == "assistant")
+        .order_by(AIMessage.created_at.desc(), AIMessage.id.desc())
+        .first()
+    )
+    if message:
+        metadata = dict(message.message_metadata or {})
+        task_state = metadata.get("task_state")
+        if isinstance(task_state, dict) and (
+            str(task_state.get("task_id") or "") == str(task.id)
+            or task_state.get("task_type") == task.task_type
+        ):
+            metadata["task_state"] = {
+                **task_state,
+                "task_id": task.id,
+                "status": "cancelled",
+                "missing_slots": [],
+                "pending_action": None,
+            }
+            metadata["active_task"] = None
+            card = metadata.get("agent_form_card")
+            if isinstance(card, dict):
+                metadata["agent_form_card"] = {**card, "status": "cancelled", "actions": []}
+            message.message_metadata = metadata
     return task
 
 

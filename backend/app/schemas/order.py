@@ -7,7 +7,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 from decimal import Decimal
 from typing import Any, Optional
-from datetime import datetime
+from datetime import date, datetime
 
 
 class OrderCreateRequest(BaseModel):
@@ -29,10 +29,15 @@ class OrderCreateRequest(BaseModel):
         description="旧内部调用兼容字段；用户端不得以此指定价格或套餐",
         example="个人写真 - ¥699/120分钟",
     )
-    appointment_time: datetime = Field(
-        ...,
-        description="预约拍摄时间（ISO 8601 格式）",
-        example="2026-06-15T14:00:00",
+    appointment_date: Optional[date] = Field(
+        None,
+        description="预约拍摄日期",
+        example="2026-06-15",
+    )
+    appointment_time: Optional[datetime] = Field(
+        None,
+        description="旧客户端兼容字段；预约不再要求具体时刻",
+        exclude=True,
     )
     duration_minutes: Optional[int] = Field(
         None,
@@ -60,10 +65,15 @@ class OrderRejectRequest(BaseModel):
 
 class OrderRescheduleRequest(BaseModel):
     """客户申请改期请求"""
-    appointment_time: datetime = Field(
-        ...,
-        description="希望改到的新预约时间（ISO 8601 格式）",
-        example="2026-07-02T15:00:00",
+    appointment_date: Optional[date] = Field(
+        None,
+        description="希望改到的新预约日期",
+        example="2026-07-02",
+    )
+    appointment_time: Optional[datetime] = Field(
+        None,
+        description="旧客户端兼容字段；改期不再要求具体时刻",
+        exclude=True,
     )
     reason: str = Field(
         ...,
@@ -86,7 +96,12 @@ class OrderRescheduleResponseRequest(BaseModel):
 
 class OrderRescheduleCounterRequest(BaseModel):
     """对改期请求提出新的候选时间。"""
-    appointment_time: datetime = Field(..., description="反提的新预约时间")
+    appointment_date: Optional[date] = Field(None, description="反提的新预约日期")
+    appointment_time: Optional[datetime] = Field(
+        None,
+        description="旧客户端兼容字段；反提不再要求具体时刻",
+        exclude=True,
+    )
     reason: str = Field(..., min_length=1, max_length=500, description="反提原因")
 
 

@@ -133,6 +133,36 @@ const routes = [
         component: () => import('../views/Profile.vue'),
     },
     {
+        path: '/inspirations',
+        name: 'Inspirations',
+        component: () => import('../views/InspirationRepository.vue'),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: '/inspirations/map',
+        name: 'InspirationMap',
+        component: () => import('../views/InspirationMap.vue'),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: '/inspirations/new',
+        name: 'InspirationCreate',
+        component: () => import('../views/InspirationEditor.vue'),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: '/inspirations/:inspirationId/edit',
+        name: 'InspirationEdit',
+        component: () => import('../views/InspirationEditor.vue'),
+        meta: { requiresAuth: true },
+    },
+    {
+        path: '/inspirations/:inspirationId',
+        name: 'InspirationDetail',
+        component: () => import('../views/InspirationDetail.vue'),
+        meta: { requiresAuth: true },
+    },
+    {
         path: '/favorites',
         name: 'Favorites',
         component: () => import('../views/Favorites.vue'),
@@ -162,9 +192,12 @@ const router = createRouter({
     },
 })
 
-router.beforeEach((_to, from) => {
+router.beforeEach((to, from) => {
     if (shouldRetainRouteScroll(from)) {
         rememberRouteScrollPosition(from, readWindowScrollPosition())
+    }
+    if (to.meta.requiresAuth && !localStorage.getItem('token')) {
+        return { name: 'Login', query: { redirect: to.fullPath } }
     }
 })
 
