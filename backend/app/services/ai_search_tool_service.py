@@ -34,6 +34,7 @@ from backend.app.services.project_recommendation_service import recommend_projec
 
 
 SEARCH_TOOL_SCHEMA_VERSION = "agent_search_tool_v1"
+JOINT_PHOTOGRAPHER_FUSION_VERSION = "photographer_portfolio_joint_v1"
 
 # 工具名 → metadata.references 里的资源键。
 SEARCH_TOOL_RESOURCE_KEYS = {
@@ -154,6 +155,19 @@ def _run_document_search(
     if vision_analysis:
         query_text = build_vision_search_text(query_text, vision_analysis)
 
+    if tool_name == "search_photographers":
+        return _run_joint_photographer_search(
+            db,
+            tool_name=tool_name,
+            arguments=effective_arguments,
+            query_text=query_text,
+            limit=limit,
+            vision_analysis=vision_analysis,
+            image_attachments=image_attachments,
+            criteria_overrides=criteria_overrides,
+            exclude_ids=exclude_ids,
+        )
+
     retrieval = retrieve_references(
         db,
         query_text,
@@ -177,6 +191,158 @@ def _run_document_search(
         diagnostics=retrieval.get("diagnostics") or {},
         retrieval=retrieval,
     )
+
+
+def _run_joint_photographer_search(
+    db: Session,
+    *,
+    tool_name: str,
+    arguments: dict[str, Any],
+    query_text: str,
+    limit: int,
+    vision_analysis: dict[str, Any] | None,
+    image_attachments: list[dict[str, Any]] | None,
+    criteria_overrides: dict[str, Any],
+    exclude_ids: list[str],
+) -> dict[str, Any]:
+    """一次召回档案与作品，只对通过档案硬过滤的 owner 做联合排序。"""
+    candidate_limit = 10
+    retrieval = retrieve_references(
+        db,
+        query_text,
+        limit=candidate_limit,
+        resource_types=["photographers", "portfolio_items"],
+        vision_analysis=vision_analysis,
+        image_attachments=image_attachments,
+        criteria_overrides=criteria_overrides or None,
+        exclude_resource_ids=exclude_ids,
+        soft_style_resource_types=["photographers"],
+    )
+    if not retrieval:
+        return _tool_failure(tool_name, arguments, "empty_query_text")
+
+    references = retrieval.get("references") or {}
+    photographers = list(references.get("photographers") or [])
+    portfolio_items = list(references.get("portfolio_items") or [])
+    ranked = _rank_joint_photographers(photographers, portfolio_items, limit)
+
+    references["photographers"] = ranked
+    references["portfolio_items"] = []
+    criteria = retrieval.get("criteria") or {}
+    criteria["resource_types"] = ["photographers"]
+    criteria["limit"] = limit
+    diagnostics = retrieval.get("diagnostics") or {}
+    diagnostics["joint_photographer_search"] = {
+        "fusion_mode": "photographer_portfolio_joint",
+        "fusion_version": JOINT_PHOTOGRAPHER_FUSION_VERSION,
+        "profile_candidate_count": len(photographers),
+        "portfolio_hit_count": len(portfolio_items),
+        "matched_owner_count": _matched_owner_count(photographers, portfolio_items),
+    }
+    result_counts = diagnostics.get("result_counts") or {}
+    result_counts["photographers"] = len(ranked)
+    result_counts["portfolio_items"] = 0
+    diagnostics["result_counts"] = result_counts
+
+    return _tool_success(
+        tool_name=tool_name,
+        arguments=arguments,
+        resource_key="photographers",
+        items=ranked,
+        criteria=criteria,
+        diagnostics=diagnostics,
+        retrieval=retrieval,
+    )
+
+
+def _rank_joint_photographers(
+    photographers: list[dict[str, Any]],
+    portfolio_items: list[dict[str, Any]],
+    limit: int,
+) -> list[dict[str, Any]]:
+    works_by_owner: dict[str, list[tuple[float, dict[str, Any]]]] = {}
+    portfolio_count = len(portfolio_items)
+    for index, work in enumerate(portfolio_items):
+        owner_id = _owner_user_id(work)
+        if owner_id is None:
+            continue
+        works_by_owner.setdefault(str(owner_id), []).append(
+            (_normalized_rank(index, portfolio_count), work)
+        )
+
+    scored: list[tuple[float, int, dict[str, Any]]] = []
+    has_matched_owner = False
+    profile_count = len(photographers)
+    for index, photographer in enumerate(photographers):
+        owner_id = _owner_user_id(photographer)
+        owner_works = works_by_owner.get(str(owner_id), []) if owner_id is not None else []
+        has_matched_owner = has_matched_owner or bool(owner_works)
+        profile_score = _normalized_rank(index, profile_count)
+        portfolio_score = owner_works[0][0] if owner_works else 0.0
+        portfolio_coverage = sum(score for score, _ in owner_works[:3]) / 3
+        existing_rag = photographer.get("_rag") or {}
+        business_score = max(0.0, min(1.0, float(existing_rag.get("business_score") or 0.0)))
+        combined_score = (
+            0.35 * profile_score
+            + 0.45 * portfolio_score
+            + 0.10 * portfolio_coverage
+            + 0.10 * business_score
+        )
+        item = {
+            **photographer,
+            "matched_works": [_matched_work_payload(work) for _, work in owner_works[:3]],
+            "_rag": {
+                **existing_rag,
+                "fusion_mode": "photographer_portfolio_joint",
+                "fusion_version": JOINT_PHOTOGRAPHER_FUSION_VERSION,
+                "profile_score": round(profile_score, 6),
+                "portfolio_score": round(portfolio_score, 6),
+                "portfolio_coverage": round(portfolio_coverage, 6),
+                "combined_score": round(combined_score, 6),
+            },
+        }
+        scored.append((combined_score, index, item))
+
+    if has_matched_owner:
+        scored.sort(key=lambda entry: (-entry[0], entry[1]))
+    results = [item for _, _, item in scored[:limit]]
+    for rank, item in enumerate(results, start=1):
+        item["_rag"]["rank"] = rank
+    return results
+
+
+def _owner_user_id(item: dict[str, Any]) -> Any:
+    return item.get("user_id") or item.get("owner_user_id")
+
+
+def _normalized_rank(index: int, count: int) -> float:
+    return (count - index) / count if count else 0.0
+
+
+def _matched_owner_count(
+    photographers: list[dict[str, Any]],
+    portfolio_items: list[dict[str, Any]],
+) -> int:
+    eligible_owners = {
+        str(owner_id)
+        for item in photographers
+        if (owner_id := _owner_user_id(item)) is not None
+    }
+    matched_owners = {
+        str(owner_id)
+        for item in portfolio_items
+        if (owner_id := _owner_user_id(item)) is not None
+    }
+    return len(eligible_owners & matched_owners)
+
+
+def _matched_work_payload(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": item.get("id"),
+        "title": item.get("title") or "",
+        "thumbnail_url": item.get("thumbnail_url") or "",
+        "tags": list(item.get("tags") or []),
+    }
 
 
 def _criteria_overrides(arguments: dict[str, Any]) -> dict[str, Any]:

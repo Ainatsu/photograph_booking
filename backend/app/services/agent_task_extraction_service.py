@@ -27,6 +27,7 @@ TASK_FIELDS: dict[str, set[str]] = {
         "location_name", "location_address", "latitude", "longitude", "place_id",
         "provider", "coordinate_system", "location_precision", "generation_metadata",
     },
+    "generate_image": {"prompt", "mode", "aspect_ratio", "count", "quality", "strength", "source"},
 }
 
 _MONEY = r"(?P<value>\d+(?:\.\d+)?)"

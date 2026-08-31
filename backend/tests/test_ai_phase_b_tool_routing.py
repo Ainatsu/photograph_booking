@@ -17,6 +17,7 @@ from backend.app.models.ai_production import AgentTrace
 from backend.app.models.order import Order
 from backend.app.models.photographer import PhotographerProfile
 from backend.app.models.project import ProjectStatus, ShootProject
+from backend.app.models.user import User
 from backend.app.services import ai_service
 from backend.app.services import ai_agent_decision_service as decision_service
 from backend.app.services import ai_search_tool_service as search_tool_service
@@ -614,6 +615,176 @@ class TestSearchToolExecution:
         assert tool_call["result"]["count"] == 0
         assert tool_call["result"]["items"] == []
 
+    def test_photographer_search_joins_matched_works_by_owner(self, db, monkeypatch):
+        calls = []
+
+        def fake_retrieve_references(*args, **kwargs):
+            calls.append(kwargs)
+            return {
+                "context_schema_version": "test",
+                "criteria": {"resource_types": ["photographers", "portfolio_items"]},
+                "references": {
+                    "photographers": [
+                        {"user_id": 1, "user_display_name": "档案优先", "_rag": {"business_score": 0.5}},
+                        {"user_id": 2, "user_display_name": "作品命中", "_rag": {"business_score": 0.5}},
+                    ],
+                    "portfolio_items": [
+                        {
+                            "id": "work-2",
+                            "user_id": 2,
+                            "title": "城市夜景人像",
+                            "thumbnail_url": "/static/work-2.jpg",
+                            "tags": ["电影感", "夜景"],
+                        }
+                    ],
+                    "packages": [],
+                    "projects": [],
+                },
+                "diagnostics": {"result_counts": {}},
+            }
+
+        monkeypatch.setattr(search_tool_service, "retrieve_references", fake_retrieve_references)
+        tool_call = run_search_tool(
+            db,
+            tool_name="search_photographers",
+            arguments={"query_text": "电影感夜景", "limit": 2},
+        )
+
+        items = tool_call["result"]["items"]
+        assert len(calls) == 1
+        assert calls[0]["resource_types"] == ["photographers", "portfolio_items"]
+        assert items[0]["user_id"] == 2
+        assert items[0]["_rag"]["rank"] == 1
+        assert items[0]["matched_works"] == [{
+            "id": "work-2",
+            "title": "城市夜景人像",
+            "thumbnail_url": "/static/work-2.jpg",
+            "tags": ["电影感", "夜景"],
+        }]
+        assert tool_call["payload"]["references"]["portfolio_items"] == []
+        assert tool_call["result"]["criteria"]["limit"] == 2
+        assert tool_call["result"]["diagnostics"]["joint_photographer_search"]["matched_owner_count"] == 1
+
+    def test_portfolio_hit_cannot_bypass_photographer_hard_filters(self, db, monkeypatch):
+        def fake_retrieve_references(*args, **kwargs):
+            return {
+                "context_schema_version": "test",
+                "criteria": {"city": "重庆", "resource_types": ["photographers", "portfolio_items"]},
+                "references": {
+                    "photographers": [{"user_id": 1, "user_display_name": "重庆摄影师", "_rag": {}}],
+                    "portfolio_items": [{"id": "wrong-city-work", "user_id": 99, "title": "夜景"}],
+                    "packages": [],
+                    "projects": [],
+                },
+                "diagnostics": {"result_counts": {}},
+            }
+
+        monkeypatch.setattr(search_tool_service, "retrieve_references", fake_retrieve_references)
+        tool_call = run_search_tool(
+            db,
+            tool_name="search_photographers",
+            arguments={"city": "重庆", "styles": ["夜景"], "limit": 3},
+        )
+
+        assert tool_call["result"]["resource_ids"] == [1]
+        assert tool_call["result"]["items"][0]["matched_works"] == []
+
+    def test_photographer_search_keeps_profile_order_without_work_hits(self, db, monkeypatch):
+        def fake_retrieve_references(*args, **kwargs):
+            return {
+                "context_schema_version": "test",
+                "criteria": {"resource_types": ["photographers", "portfolio_items"]},
+                "references": {
+                    "photographers": [
+                        {"user_id": 1, "user_display_name": "第一位", "_rag": {"business_score": 0.1}},
+                        {"user_id": 2, "user_display_name": "第二位", "_rag": {"business_score": 1.0}},
+                    ],
+                    "portfolio_items": [],
+                    "packages": [],
+                    "projects": [],
+                },
+                "diagnostics": {"result_counts": {}},
+            }
+
+        monkeypatch.setattr(search_tool_service, "retrieve_references", fake_retrieve_references)
+        tool_call = run_search_tool(
+            db,
+            tool_name="search_photographers",
+            arguments={"query_text": "自然光写真", "limit": 2},
+        )
+
+        assert tool_call["result"]["resource_ids"] == [1, 2]
+        assert all(item["matched_works"] == [] for item in tool_call["result"]["items"])
+
+    def test_real_joint_search_uses_work_style_and_keeps_city_budget_filters(self, db):
+        eligible_user = User(
+            email="joint-eligible@test.com",
+            phone="13800000101",
+            hashed_password="$2b$12$dummyhash",
+            display_name="重庆作品摄影师",
+            role="photographer",
+        )
+        wrong_city_user = User(
+            email="joint-wrong-city@test.com",
+            phone="13800000102",
+            hashed_password="$2b$12$dummyhash",
+            display_name="上海夜景摄影师",
+            role="photographer",
+        )
+        db.add_all([eligible_user, wrong_city_user])
+        db.flush()
+        eligible_profile = PhotographerProfile(
+            user_id=eligible_user.id,
+            location="重庆",
+            styles=["人像"],
+            packages=[{"id": "joint-cq-pkg", "name": "人像套餐", "price": 1800}],
+            portfolio=[{
+                "id": "joint-cq-night-work",
+                "url": "/static/joint-cq-night.jpg",
+                "thumbnail_url": "/static/joint-cq-night-thumb.jpg",
+                "title": "山城电影感夜景",
+                "description": "重庆街头霓虹与电影感人像",
+                "tags": ["夜景", "电影感"],
+            }],
+        )
+        wrong_city_profile = PhotographerProfile(
+            user_id=wrong_city_user.id,
+            location="上海",
+            styles=["夜景", "电影感"],
+            packages=[{"id": "joint-sh-pkg", "name": "夜景套餐", "price": 1000}],
+            portfolio=[{
+                "id": "joint-sh-night-work",
+                "url": "/static/joint-sh-night.jpg",
+                "title": "外滩夜景",
+                "tags": ["夜景", "电影感"],
+            }],
+        )
+        db.add_all([eligible_profile, wrong_city_profile])
+        db.commit()
+        rebuild_ai_resource_documents(db)
+
+        tool_call = run_search_tool(
+            db,
+            tool_name="search_photographers",
+            arguments={
+                "query_text": "电影感夜景人像",
+                "city": "重庆",
+                "styles": ["夜景"],
+                "budget_max": 2000,
+                "limit": 1,
+            },
+        )
+
+        assert tool_call["status"] == "success"
+        assert tool_call["result"]["count"] == 1
+        item = tool_call["result"]["items"][0]
+        assert item["user_id"] == eligible_user.id
+        assert item["matched_works"][0]["id"] == "joint-cq-night-work"
+        assert item["_rag"]["fusion_mode"] == "photographer_portfolio_joint"
+        assert item["_rag"]["rank"] == 1
+        assert tool_call["result"]["criteria"]["limit"] == 1
+        assert tool_call["result"]["criteria"]["resource_types"] == ["photographers"]
+
 
 class TestProjectSearchTool:
     def test_customer_cannot_execute_project_search(self, db, customer_user, open_project):
@@ -1046,6 +1217,69 @@ async def test_tool_loop_search_uses_real_candidates(
     assert {item["id"] for item in packages} == set(allowed)
     # 下一轮还能继承条件
     assert metadata["search_context"]["slots"]["city"] == "重庆"
+
+
+@pytest.mark.asyncio
+async def test_tool_loop_photographer_search_keeps_profile_citations_and_work_evidence(
+    db, customer_user, monkeypatch
+):
+    photographer = User(
+        email="joint-agent-photographer@test.com",
+        phone="13800000103",
+        hashed_password="$2b$12$dummyhash",
+        display_name="山城夜景摄影师",
+        role="photographer",
+    )
+    db.add(photographer)
+    db.flush()
+    profile = PhotographerProfile(
+        user_id=photographer.id,
+        location="重庆",
+        styles=["人像"],
+        packages=[{"id": "joint-agent-pkg", "name": "夜景人像套餐", "price": 1600}],
+        portfolio=[{
+            "id": "joint-agent-night-work",
+            "url": "/static/joint-agent-night.jpg",
+            "thumbnail_url": "/static/joint-agent-night-thumb.jpg",
+            "title": "洪崖洞电影感夜景",
+            "tags": ["夜景", "电影感"],
+        }],
+    )
+    db.add(profile)
+    db.commit()
+    rebuild_ai_resource_documents(db)
+
+    decision_provider = DecisionProvider(_search_decision(
+        tool="search_photographers",
+        arguments={
+            "query_text": "重庆电影感夜景摄影师",
+            "city": "重庆",
+            "styles": ["夜景"],
+            "budget_max": 2000,
+            "limit": 1,
+        },
+        reason="用户在找摄影师",
+    ))
+    final_provider = RecordingProvider("推荐山城夜景摄影师，作品很符合电影感夜景需求。")
+    _use_tool_loop(monkeypatch, decision_provider, final_provider)
+    conversation = ai_service.create_conversation(db, customer_user.id)
+
+    _, message = await ai_service.send_ai_message(
+        db, customer_user.id, conversation.id, "找一位重庆电影感夜景摄影师，预算两千以内"
+    )
+
+    metadata = message.message_metadata
+    photographers = metadata["references"]["photographers"]
+    assert len(photographers) == 1
+    assert photographers[0]["id"] == profile.id
+    assert photographers[0]["user_id"] == photographer.id
+    assert photographers[0]["matched_works"][0]["id"] == "joint-agent-night-work"
+    assert metadata["references"]["portfolio_items"] == []
+    assert metadata["citation_policy"]["allowed_resource_ids"]["photographers"] == [profile.id]
+    assert metadata["citation_policy"]["allowed_resource_ids"]["portfolio_items"] == []
+    assert metadata["search_context"]["recommended_resource_ids"] == [profile.id]
+    assert metadata["search_context"]["slots"]["resource_types"] == ["photographers"]
+    assert metadata["search_context"]["slots"]["limit"] == 1
 
 
 @pytest.mark.asyncio

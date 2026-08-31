@@ -749,7 +749,8 @@ class TestPromptInjection:
 class TestIntentPoliciesIntegrity:
     def test_all_intents_have_policy(self):
         expected_intents = {
-            "chat", "resource_search", "image_analysis",
+            "chat", "resource_search", "image_analysis", "image_generation_flow",
+            "create_inspiration_flow",
             "project_application",
             "project_flow", "package_publish_flow", "booking_flow",
             "follow_photographer", "work_publish_flow",
@@ -771,7 +772,10 @@ class TestIntentPoliciesIntegrity:
             )
 
     def test_read_intents_no_confirmation(self):
-        read_intents = {"chat", "resource_search", "image_analysis", "project_application", "work_publish_flow"}
+        read_intents = {
+            "chat", "resource_search", "image_analysis", "image_generation_flow",
+            "create_inspiration_flow", "project_application", "work_publish_flow",
+        }
         for intent_name in read_intents:
             assert INTENT_POLICIES[intent_name]["requires_confirmation"] is False, (
                 f"{intent_name} should not require confirmation"

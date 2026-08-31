@@ -59,6 +59,7 @@ services:
       dockerfile: backend/Dockerfile
       args:
         INSTALL_VISION_EMBEDDING: ${INSTALL_VISION_EMBEDDING:-false}
+        INSTALL_LOCAL_EMBEDDING: ${INSTALL_LOCAL_EMBEDDING:-true}
     environment:
       APP_ENV: production
       DATABASE_URL: postgresql+psycopg://photographer:photographer@postgres:5432/photographer_booking
@@ -81,13 +82,17 @@ services:
       MIMO_MAX_COMPLETION_TOKENS: ${MIMO_MAX_COMPLETION_TOKENS:-1024}
       MIMO_THINKING_MODE: ${MIMO_THINKING_MODE:-disabled}
       MIMO_RESPONSE_FORMAT_ENABLED: ${MIMO_RESPONSE_FORMAT_ENABLED:-false}
-      AI_EMBEDDING_PROVIDER: ${AI_EMBEDDING_PROVIDER:-mock}
-      AI_TEXT_EMBEDDING_PROVIDER: ${AI_TEXT_EMBEDDING_PROVIDER:-mock}
+      AI_EMBEDDING_PROVIDER: ${AI_EMBEDDING_PROVIDER:-local_bge}
+      AI_TEXT_EMBEDDING_PROVIDER: ${AI_TEXT_EMBEDDING_PROVIDER:-local_bge}
       AI_EMBEDDING_API_KEY: ${AI_EMBEDDING_API_KEY:-}
       AI_EMBEDDING_BASE_URL: ${AI_EMBEDDING_BASE_URL:-}
-      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-text-embedding-3-small}
-      AI_EMBEDDING_VERSION: ${AI_EMBEDDING_VERSION:-v1}
-      AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-1536}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-Models/bge-small-zh-v1.5}
+      AI_EMBEDDING_VERSION: ${AI_EMBEDDING_VERSION:-bge-small-zh-v1.5}
+      AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-512}
+      AI_EMBEDDING_DEVICE: ${AI_EMBEDDING_DEVICE:-cpu}
+      AI_EMBEDDING_MAX_LENGTH: ${AI_EMBEDDING_MAX_LENGTH:-512}
+      AI_EMBEDDING_QUERY_INSTRUCTION: ${AI_EMBEDDING_QUERY_INSTRUCTION:-为这个句子生成表示以用于检索相关文章：}
+      HF_HOME: /app/model-cache
       AI_IMAGE_EMBEDDING_PROVIDER: ${AI_IMAGE_EMBEDDING_PROVIDER:-disabled}
       AI_IMAGE_EMBEDDING_MODEL: ${AI_IMAGE_EMBEDDING_MODEL:-google/siglip-base-patch16-224}
       AI_IMAGE_EMBEDDING_DIMENSIONS: ${AI_IMAGE_EMBEDDING_DIMENSIONS:-768}
@@ -109,6 +114,8 @@ services:
       S3_PUBLIC_BASE_URL: http://localhost:9000/photographer-booking
     volumes:
       - backend_uploads:/app/uploads
+      - ./Models:/app/Models:ro
+      - backend_model_cache:/app/model-cache
     depends_on:
       postgres:
         condition: service_healthy
@@ -141,3 +148,4 @@ volumes:
   postgres_data:
   minio_data:
   backend_uploads:
+  backend_model_cache:

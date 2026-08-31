@@ -30,6 +30,7 @@ def legacy_mock_image_embedding(monkeypatch):
 
 
 def test_portfolio_image_embeddings_are_incremental(db, photographer_profile):
+    photographer_profile.packages = []
     photographer_profile.portfolio = [
         {
             "id": "visual-soft",
@@ -58,6 +59,66 @@ def test_portfolio_image_embeddings_are_incremental(db, photographer_profile):
     assert refreshed.embedded == 0
     row = db.query(AIResourceImageEmbedding).one()
     assert "warm cream" in row.visual_descriptor
+
+
+def test_package_sample_thumbnails_are_indexed_before_samples(db, photographer_profile):
+    photographer_profile.portfolio = []
+    photographer_profile.packages = [
+        {
+            "id": "visual-package",
+            "name": "城市轻旅拍",
+            "description": "自然光街拍",
+            "styles": ["自然光"],
+            "includes": ["精修 20 张"],
+            "city": "香港",
+            "sample_thumbnails": [
+                "/static/packages/thumb-1.jpg",
+                "/static/packages/thumb-1.jpg",
+                "/static/packages/preview.mp4",
+            ],
+            "samples": ["/static/packages/original-1.jpg"],
+        }
+    ]
+    db.commit()
+
+    rebuild_ai_resource_documents(db)
+
+    rows = db.query(AIResourceImageEmbedding).all()
+    assert [row.image_url for row in rows] == ["/static/packages/thumb-1.jpg"]
+    assert "城市轻旅拍" in rows[0].visual_descriptor
+    assert "香港" in rows[0].visual_descriptor
+
+
+def test_package_samples_fallback_and_removed_embeddings_are_cleaned(db, photographer_profile):
+    photographer_profile.portfolio = []
+    photographer_profile.packages = [
+        {
+            "id": "fallback-package",
+            "name": "室内肖像",
+            "samples": [
+                "/static/packages/sample-1.jpg",
+                "/static/packages/sample-2.jpg",
+            ],
+        }
+    ]
+    db.commit()
+    rebuild_ai_resource_documents(db)
+
+    assert {
+        row.image_url for row in db.query(AIResourceImageEmbedding).all()
+    } == {
+        "/static/packages/sample-1.jpg",
+        "/static/packages/sample-2.jpg",
+    }
+
+    updated_package = dict(photographer_profile.packages[0])
+    updated_package["samples"] = ["/static/packages/sample-2.jpg"]
+    photographer_profile.packages = [updated_package]
+    db.commit()
+    rebuild_ai_resource_documents(db)
+
+    rows = db.query(AIResourceImageEmbedding).all()
+    assert [row.image_url for row in rows] == ["/static/packages/sample-2.jpg"]
 
 
 def test_reference_image_ranks_similar_portfolio_first(db, photographer_profile):
@@ -135,6 +196,73 @@ def test_visual_match_propagates_to_owner_package(db, photographer_profile):
     assert packages[0]["id"] == "film-package"
     assert packages[0]["_rag"]["visual_score"] > 0
     assert retrieval["diagnostics"]["multimodal"]["matched_owners"] == 1
+
+
+def test_package_shadow_ranking_uses_package_samples_only(db, photographer_profile):
+    photographer_profile.portfolio = [{
+        "id": "owner-only-work",
+        "url": "/static/portfolio/owner-only-work.jpg",
+        "media_type": "image",
+        "title": "cinematic seaside sunset",
+        "description": "warm film grain documentary couple portrait",
+        "tags": ["cinematic", "sunset", "film grain"],
+    }]
+    photographer_profile.packages = [
+        {
+            "id": "owner-only-package",
+            "name": "普通套餐",
+            "description": "基础拍摄服务",
+            "styles": [],
+        },
+        {
+            "id": "sample-package",
+            "name": "电影感套餐",
+            "description": "cinematic documentary session",
+            "styles": ["cinematic"],
+            "samples": ["/static/packages/cinematic-sample.jpg"],
+        },
+    ]
+    db.commit()
+    rebuild_ai_resource_documents(db)
+
+    retrieval = retrieve_references(
+        db,
+        "find a package matching this reference",
+        resource_types=["packages"],
+        vision_analysis=_vision_analysis("cinematic", "seaside", "sunset", "film grain"),
+        limit=2,
+    )
+
+    shadow = retrieval["diagnostics"]["multimodal"]["package_shadow"]
+    assert shadow["enabled"] is True
+    assert shadow["ranked_ids"][0] == "sample-package"
+    assert [item["package_id"] for item in shadow["siglip_top_10"]] == ["sample-package"]
+    assert shadow["legacy_ranked_ids"]
+
+
+def test_package_image_search_flag_enables_shadow_results(db, photographer_profile, monkeypatch):
+    monkeypatch.setattr(ai_multimodal_embedding_service.settings, "AI_PACKAGE_IMAGE_SEARCH_ENABLED", True)
+    photographer_profile.portfolio = []
+    photographer_profile.packages = [{
+        "id": "enabled-package",
+        "name": "电影感套餐",
+        "description": "cinematic documentary session",
+        "styles": ["cinematic"],
+        "samples": ["/static/packages/cinematic-sample.jpg"],
+    }]
+    db.commit()
+    rebuild_ai_resource_documents(db)
+
+    retrieval = retrieve_references(
+        db,
+        "find a package matching this reference",
+        resource_types=["packages"],
+        vision_analysis=_vision_analysis("cinematic", "documentary"),
+        limit=1,
+    )
+
+    assert retrieval["references"]["packages"][0]["_rag"]["schema_version"] == "package_rrf_v1"
+    assert retrieval["diagnostics"]["multimodal"]["package_multimodal"]["online_enabled"] is True
 
 
 def test_native_image_query_uses_visual_primary_ranking_and_soft_style_terms():

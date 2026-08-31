@@ -11,6 +11,8 @@ export const agentTaskRouteMap: Record<AgentTaskType, RouteConfig | null> = {
   create_booking: { name: 'booking', requires: ['photographer_id', 'package_id'] },
   // Inspiration creation is completed in chat and opened from its quick-entry card.
   create_inspiration: null,
+  // Image generation stays in chat and is rendered by ImageGenerationCard.
+  generate_image: null,
 }
 
 export function getAgentTaskRoute(task: AgentTask): { name: string; params?: Record<string, string>; query?: Record<string, string> } | null {

@@ -26,6 +26,7 @@ from backend.app.models.ai_resource import AIResourceDocument
 from backend.app.models.chat_read_state import ChatReadState
 from backend.app.models.project import ProjectApplication, ProjectEvent, ShootProject
 from backend.app.models.photographer_application import PhotographerApplication
+from backend.app.core.config import settings
 
 # ---- 内存 SQLite 测试数据库 ----
 TEST_DATABASE_URL = "sqlite:///:memory:"
@@ -57,6 +58,13 @@ def setup_db():
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(autouse=True)
+def mock_text_embeddings(monkeypatch):
+    """单元测试使用确定性 mock，真实本地模型由专门集成验证覆盖。"""
+    monkeypatch.setattr(settings, "AI_EMBEDDING_PROVIDER", "mock")
+    monkeypatch.setattr(settings, "AI_TEXT_EMBEDDING_PROVIDER", "mock")
 
 
 @pytest.fixture(autouse=True)

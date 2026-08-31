@@ -77,6 +77,13 @@
                       @open="openInspiration(inspirationEntry(msg)!.inspiration_id)"
                       @edit="editInspiration(inspirationEntry(msg)!.inspiration_id)"
                     />
+                    <ImageGenerationCard
+                      v-if="imageGenerationRef(msg)"
+                      :reference="imageGenerationRef(msg)!"
+                      :prompt="imageGenerationPrompt(msg)"
+                      @regenerate="restoreImageGeneration"
+                      @error="toastMessage = $event"
+                    />
                     <div v-if="hasReferences(msg.metadata?.references)" class="references-wrap">
                       <div class="references-header">
                         <Sparkles :size="16" aria-hidden="true" />
@@ -260,6 +267,22 @@
               <strong>{{ selectedAgent.label }}</strong>
               <button type="button" class="agent-clear-btn pressable" aria-label="取消选择能力" @click="clearAgentSelection"><X :size="15" /></button>
             </div>
+            <button
+              v-if="isImageGenerationMode"
+              type="button"
+              class="generation-settings-toggle pressable"
+              :aria-expanded="generationSettingsOpen"
+              @click="generationSettingsOpen = !generationSettingsOpen"
+            >
+              <span>生成设置</span>
+              <ChevronRight :size="17" :class="{ 'settings-chevron-open': generationSettingsOpen }" aria-hidden="true" />
+            </button>
+            <div v-if="isImageGenerationMode && generationSettingsOpen" class="generation-settings">
+              <label><span>宽高比</span><select v-model="generationSettings.aspect_ratio" :disabled="sending"><option v-for="ratio in generationRatios" :key="ratio" :value="ratio">{{ ratio }}</option></select></label>
+              <label><span>数量</span><select v-model.number="generationSettings.count" :disabled="sending"><option :value="1">1 张</option><option :value="2">2 张</option></select></label>
+              <label><span>质量</span><select v-model="generationSettings.quality" :disabled="sending"><option value="standard">标准</option><option value="high">高</option></select></label>
+              <label v-if="selectedAgent?.key === 'image_to_image'" class="strength-field"><span>修改强度 {{ generationSettings.strength.toFixed(2) }}</span><input v-model.number="generationSettings.strength" type="range" min="0.1" max="1" step="0.05" :disabled="sending" /></label>
+            </div>
             <div class="agent-field-grid">
               <label v-for="field in selectedAgent.fields" :key="field.key" class="agent-field" :class="{ 'agent-field--wide': field.wide }">
                 <span>{{ field.label }}</span>
@@ -267,6 +290,7 @@
               </label>
             </div>
           </div>
+          <div v-if="generationValidationMessage" class="generation-validation" role="alert">{{ generationValidationMessage }}</div>
           <div class="composer-controls">
             <button
               type="button"
@@ -281,7 +305,7 @@
               ref="fileInputRef"
               type="file"
               accept="image/*"
-              multiple
+              :multiple="selectedAgent?.key !== 'image_to_image'"
               class="sr-only"
               @change="handleFileSelect"
             />
@@ -382,7 +406,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { IonContent, IonPage, IonSpinner, IonToast, alertController } from '@ionic/vue'
-import { AlertCircle, ArrowUp, Bot, CalendarPlus, ChevronLeft, ChevronRight, Clock, FilePlus2, Globe2, Images, MapPin, PackagePlus, Paperclip, RotateCw, Send, Sparkles, X } from 'lucide-vue-next'
+import { AlertCircle, ArrowUp, Bot, ChevronLeft, ChevronRight, Clock, Globe2, Images, MapPin, Paperclip, RotateCw, Sparkles, WandSparkles, X } from 'lucide-vue-next'
 import AIPageContextCard from '@/components/AIPageContextCard.vue'
 import AIShootContextCard from '@/components/AIShootContextCard.vue'
 import AIWebReferenceImages from '@/components/AIWebReferenceImages.vue'
@@ -390,6 +414,7 @@ import BookablePackageCard from '@/components/BookablePackageCard.vue'
 import JointRecommendationFilters from '@/components/JointRecommendationFilters.vue'
 import AgentTaskSummaryCard from '@/components/AgentTaskSummaryCard.vue'
 import InspirationQuickEntryCard, { type InspirationQuickEntry } from '@/components/InspirationQuickEntryCard.vue'
+import ImageGenerationCard from '@/components/ImageGenerationCard.vue'
 import AppTopBar from '@/components/AppTopBar.vue'
 import FeedSkeleton from '@/components/FeedSkeleton.vue'
 import MediaPlaceholder from '@/components/MediaPlaceholder.vue'
@@ -405,6 +430,8 @@ import {
   type AIPageContext,
   type AIConversation,
   type AIShootContextPlace,
+  type AIImageGenerationAspectRatio,
+  type AIImageGenerationRequest,
 } from '@/api/ai'
 import { cancelAgentTask, commitAgentTask, getActiveAgentTask, openAgentTask } from '@/api/agentTasks'
 import { useAuthStore } from '@/stores/auth'
@@ -451,7 +478,7 @@ interface AgentCapabilityField {
 }
 
 interface AgentCapability {
-  key: AgentTask['task_type']
+  key: AgentTask['task_type'] | 'text_to_image' | 'image_to_image'
   label: string
   icon: Component
   fields: AgentCapabilityField[]
@@ -465,61 +492,28 @@ const agentCapabilities: AgentCapability[] = [
     fields: [],
   },
   {
-    key: 'create_project',
-    label: '发布企划',
-    icon: FilePlus2,
-    fields: [
-      { key: 'title', label: '企划标题', placeholder: '例如：香港街拍招募', wide: true },
-      { key: 'city', label: '拍摄城市', placeholder: '香港' },
-      { key: 'shoot_date', label: '拍摄日期', placeholder: '', type: 'date' },
-      { key: 'budget', label: '预算', placeholder: '例如：1500-2500' },
-    ],
+    key: 'text_to_image',
+    label: '文生图',
+    icon: WandSparkles,
+    fields: [],
   },
   {
-    key: 'publish_package',
-    label: '发布方案',
-    icon: PackagePlus,
-    fields: [
-      { key: 'name', label: '方案名称', placeholder: '例如：城市人像轻旅拍', wide: true },
-      { key: 'price', label: '价格', placeholder: '例如：1280', type: 'number' },
-      { key: 'duration', label: '拍摄时长', placeholder: '例如：120 分钟' },
-      { key: 'city', label: '服务城市', placeholder: '香港' },
-    ],
-  },
-  {
-    key: 'publish_work',
-    label: '发布作品',
+    key: 'image_to_image',
+    label: '以图生图',
     icon: Images,
-    fields: [
-      { key: 'title', label: '作品标题', placeholder: '给这组作品起个名字', wide: true },
-      { key: 'tags', label: '风格标签', placeholder: '胶片、街拍、纪实', wide: true },
-    ],
-  },
-  {
-    key: 'project_application',
-    label: '申请企划',
-    icon: Send,
-    fields: [
-      { key: 'project', label: '目标企划', placeholder: '输入企划名称或链接', wide: true },
-      { key: 'price_quote', label: '报价', placeholder: '例如：1800', type: 'number' },
-      { key: 'proposal', label: '应邀说明', placeholder: '简述你的拍摄方案', wide: true },
-    ],
-  },
-  {
-    key: 'create_booking',
-    label: '预约拍摄',
-    icon: CalendarPlus,
-    fields: [
-      { key: 'target', label: '摄影师或方案', placeholder: '输入名称', wide: true },
-      { key: 'appointment_date', label: '预约日期', placeholder: '', type: 'date', wide: true },
-      { key: 'notes', label: '拍摄备注', placeholder: '地点、人数或特殊要求', wide: true },
-    ],
+    fields: [],
   },
 ]
 
 const selectedAgent = ref<AgentCapability | null>(null)
 const agentForm = reactive<Record<string, string>>({})
 const webSearchEnabled = ref(false)
+const generationRatios: AIImageGenerationAspectRatio[] = ['1:1', '3:4', '4:3', '9:16', '16:9']
+const generationSettings = reactive<{ aspect_ratio: AIImageGenerationAspectRatio; count: 1 | 2; quality: 'standard' | 'high'; strength: number }>({
+  aspect_ratio: '1:1', count: 1, quality: 'standard', strength: 0.65,
+})
+const generationSettingsOpen = ref(false)
+const createIdempotencyKey = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`
 
 // ── 渐进显示状态 ──
 const visibleSegmentCounts = reactive<Record<string, number>>({})
@@ -549,6 +543,8 @@ watch(
 const inputPlaceholder = computed(() => {
   if (activeTask.value?.summary.next_question) return activeTask.value.summary.next_question
   if (selectedAgent.value?.key === 'create_inspiration') return '上传参考图，并补充想要的风格或拍摄方向'
+  if (selectedAgent.value?.key === 'text_to_image') return '描述想要生成的场景、人物、光线和风格'
+  if (selectedAgent.value?.key === 'image_to_image') return '描述需要保留和修改的内容'
   if (selectedAgent.value) return `补充${selectedAgent.value.label}的需求，Agent 会继续引导你`
   if (webSearchEnabled.value) return '输入需要联网查找的最新信息…'
   if (pageContext.value?.title) {
@@ -556,6 +552,14 @@ const inputPlaceholder = computed(() => {
     return `围绕「${title.length > 20 ? title.slice(0, 20) + '…' : title}」问小龟J`
   }
   return '给小龟J发送消息…'
+})
+
+const isImageGenerationMode = computed(() => ['text_to_image', 'image_to_image'].includes(selectedAgent.value?.key || ''))
+const generationValidationMessage = computed(() => {
+  if (selectedAgent.value?.key === 'text_to_image' && uploadedImages.value.length) return '文生图不使用参考图片，请移除图片或切换到以图生图。'
+  if (selectedAgent.value?.key === 'image_to_image' && uploadedImages.value.length > 1) return '以图生图第一版只支持一张参考图。'
+  if (selectedAgent.value?.key === 'image_to_image' && !uploadedImages.value.length) return '请上传一张参考图，并填写修改指令。'
+  return ''
 })
 
 const hasComposerContent = computed(() => Boolean(
@@ -571,9 +575,10 @@ function selectAgent(agent: AgentCapability) {
   }
   webSearchEnabled.value = false
   selectedAgent.value = agent
+  generationSettingsOpen.value = false
   Object.keys(agentForm).forEach((key) => delete agentForm[key])
   void nextTick(() => {
-    if (agent.key === 'create_inspiration' && !uploadedImages.value.length) triggerFileInput()
+    if (['create_inspiration', 'image_to_image'].includes(agent.key) && !uploadedImages.value.length) triggerFileInput()
     else messageInputRef.value?.focus()
   })
 }
@@ -586,6 +591,7 @@ function toggleWebSearch() {
 
 function clearAgentSelection() {
   selectedAgent.value = null
+  generationSettingsOpen.value = false
   Object.keys(agentForm).forEach((key) => delete agentForm[key])
 }
 
@@ -597,6 +603,7 @@ function structuredAgentMessage(): string {
       : '请结合我上传的图片进行联网搜索，查找相关的最新公开资料，并附上来源。'
   }
   if (!selectedAgent.value) return draft.value.trim()
+  if (isImageGenerationMode.value) return draft.value.trim()
   if (selectedAgent.value.key === 'create_inspiration') {
     const reference = draft.value.trim()
     return reference
@@ -869,6 +876,14 @@ async function handleFileSelect(event: Event) {
   if (!files || !files.length) return
 
   for (const file of Array.from(files)) {
+    if (selectedAgent.value?.key === 'text_to_image') {
+      toastMessage.value = '文生图不使用参考图片，请切换到以图生图'
+      break
+    }
+    if (selectedAgent.value?.key === 'image_to_image' && uploadedImages.value.length >= 1) {
+      toastMessage.value = '以图生图第一版只支持一张参考图'
+      break
+    }
     const thumbUrl = URL.createObjectURL(file)
     try {
       const result = await uploadAIImage(file)
@@ -1088,6 +1103,10 @@ async function submitMessage() {
   const content = structuredAgentMessage()
   if (!content && !uploadedImages.value.length) return
   if (!conversation.value || sending.value) return
+  if (isImageGenerationMode.value && (!content || generationValidationMessage.value)) {
+    toastMessage.value = generationValidationMessage.value || '请填写图片生成描述'
+    return
+  }
 
   sending.value = true
   const attachments = uploadedImages.value.map((img) => ({
@@ -1100,6 +1119,18 @@ async function submitMessage() {
   const previousAgent = selectedAgent.value
   const previousAgentForm = { ...agentForm }
   const previousWebSearchEnabled = webSearchEnabled.value
+  const previousGenerationSettings = { ...generationSettings }
+  const generationMode = selectedAgent.value?.key
+  const generationRequest: AIImageGenerationRequest | undefined = isImageGenerationMode.value
+    ? {
+        mode: generationMode as AIImageGenerationRequest['mode'],
+        aspect_ratio: generationSettings.aspect_ratio,
+        count: generationSettings.count,
+        quality: generationSettings.quality,
+        ...(generationMode === 'image_to_image' ? { strength: generationSettings.strength } : {}),
+        idempotency_key: createIdempotencyKey(),
+      }
+    : undefined
 
   // Optimistically clear input
   draft.value = ''
@@ -1126,6 +1157,7 @@ async function submitMessage() {
       content,
       ...(attachments.length ? { attachments } : {}),
       ...(ctx ? { page_context: ctx } : {}),
+      ...(generationRequest ? { generation_request: generationRequest } : {}),
     })
     // Replace optimistic message with real server response
     const idx = messages.value.indexOf(optimisticMsg)
@@ -1144,6 +1176,7 @@ async function submitMessage() {
     selectedAgent.value = previousAgent
     Object.assign(agentForm, previousAgentForm)
     webSearchEnabled.value = previousWebSearchEnabled
+    Object.assign(generationSettings, previousGenerationSettings)
   } finally {
     sending.value = false
   }
@@ -1156,6 +1189,40 @@ async function scrollToBottom(smooth = true) {
     behavior: smooth && !reduceMotion ? 'smooth' : 'auto',
     block: 'end',
   })
+}
+
+function imageGenerationRef(msg: AIMessage): { job_id: number; mode: string; status?: string } | null {
+  const reference = msg.metadata?.image_generation
+  return reference?.job_id ? reference : null
+}
+
+function imageGenerationPrompt(msg: AIMessage): string {
+  const index = messages.value.findIndex((item) => item.id === msg.id)
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    if (messages.value[cursor]?.role === 'user') return messages.value[cursor].content || ''
+  }
+  return ''
+}
+
+function restoreImageGeneration(payload: { mode: string; prompt: string; parameters: Record<string, unknown>; sourceImages: Array<{ storage_url: string; thumbnail_url?: string | null; mime_type: string }> }) {
+  const target = agentCapabilities.find((agent) => agent.key === payload.mode)
+  if (!target) return
+  selectedAgent.value = target
+  generationSettingsOpen.value = false
+  draft.value = payload.prompt
+  generationSettings.aspect_ratio = generationRatios.includes(payload.parameters.aspect_ratio as AIImageGenerationAspectRatio) ? payload.parameters.aspect_ratio as AIImageGenerationAspectRatio : '1:1'
+  generationSettings.count = Number(payload.parameters.count) === 2 ? 2 : 1
+  generationSettings.quality = payload.parameters.quality === 'high' ? 'high' : 'standard'
+  generationSettings.strength = Number(payload.parameters.strength || 0.65)
+  uploadedImages.value.forEach((item) => { if (item.thumbUrl?.startsWith('blob:')) URL.revokeObjectURL(item.thumbUrl) })
+  uploadedImages.value = payload.mode === 'image_to_image'
+    ? payload.sourceImages.slice(0, 1).map((asset) => ({
+        url: asset.storage_url,
+        thumbUrl: asset.thumbnail_url || asset.storage_url,
+        file: new File([], 'reference.jpg', { type: asset.mime_type || 'image/jpeg' }),
+      }))
+    : []
+  void nextTick(() => messageInputRef.value?.focus())
 }
 
 function inspirationEntry(msg: AIMessage): InspirationQuickEntry | null {
@@ -1497,6 +1564,8 @@ onBeforeUnmount(() => {
 .agent-field > span { color: var(--ink-secondary); font-size: 11px; }
 .agent-field input { width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--divider); border-radius: 10px; background: var(--surface-solid); color: var(--ink); font: inherit; font-size: 16px; outline: none; }
 .agent-field input:focus { border-color: var(--brand); box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 18%, transparent); }
+.generation-settings-toggle { display: flex; width: 100%; min-height: 44px; margin-top: 8px; padding: 0; align-items: center; justify-content: space-between; border: 0; border-top: 1px solid var(--divider); background: transparent; color: var(--brand); font: inherit; font-size: var(--text-xs); font-weight: 700; }.generation-settings-toggle svg { transition: transform var(--motion-fast) var(--spring-ui); }.generation-settings-toggle .settings-chevron-open { transform: rotate(90deg); }
+.generation-settings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--divider); }.generation-settings label { display: grid; gap: 4px; color: var(--ink-secondary); font-size: var(--text-xs); }.generation-settings select { width: 100%; min-height: 44px; padding: 0 8px; border: 1px solid var(--divider); border-radius: var(--radius-sm); background: var(--surface-solid); color: var(--ink); font: inherit; }.generation-settings .strength-field { grid-column: 1 / -1; }.generation-settings input[type='range'] { min-height: 32px; accent-color: var(--brand); }.generation-validation { padding: 8px 10px; border-radius: var(--radius-sm); background: var(--warning-soft); color: var(--warning); font-size: var(--text-xs); line-height: 1.5; }
 .composer-controls { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: end; gap: 8px; }
 
 .attach-button {
@@ -1590,6 +1659,11 @@ onBeforeUnmount(() => {
   .message-content {
     max-width: 70%;
   }
+}
+
+@media (max-width: 420px) {
+  .generation-settings { grid-template-columns: 1fr; }
+  .generation-settings .strength-field { grid-column: 1; }
 }
 
 /* ── 推荐面板 ── */

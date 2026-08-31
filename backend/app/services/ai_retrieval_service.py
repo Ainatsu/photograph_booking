@@ -346,6 +346,7 @@ def retrieve_references(
     criteria_overrides: dict[str, Any] | None = None,
     inherited_criteria: dict[str, Any] | None = None,
     exclude_resource_ids: list[str] | tuple[str, ...] | None = None,
+    soft_style_resource_types: list[str] | tuple[str, ...] | None = None,
 ) -> dict[str, Any] | None:
     """执行资源检索主流程，返回命中引用、条件与诊断信息。"""
     if not should_retrieve(content):
@@ -424,6 +425,8 @@ def retrieve_references(
             for document in values:
                 direct_score = visual_document_scores.get(document.get("document_id"), 0.0)
                 owner_score = visual_owner_scores.get(document.get("owner_user_id"), 0.0)
+                if document.get("resource_type") == "package":
+                    document["package_shadow_visual_score"] = direct_score
                 # Portfolio fusion must use the actual work image. Owner fallback is
                 # useful for photographer/package discovery, but would pollute the
                 # independent image-retrieval list with unrelated works by the same owner.
@@ -436,6 +439,7 @@ def retrieve_references(
         key: _rank_documents(
             documents[key], criteria, criteria.limit, query_vector,
             image_query=bool(visual_vector),
+            soft_style_filter=key in set(soft_style_resource_types or []),
         )
         for key in REFERENCE_KEYS
     }
@@ -449,6 +453,17 @@ def retrieve_references(
             query_vector, content=content or "",
         )
         raw_references["portfolio_items"] = portfolio_rrf["items"]
+    package_rrf_shadow = None
+    if "packages" in resource_keys and visual_vector:
+        package_rrf_shadow = _rank_portfolio_rrf(
+            documents["packages"], criteria, criteria.limit,
+            query_vector, content=content or "",
+            visual_score_key="package_shadow_visual_score",
+            resource_label="package",
+        )
+        package_image_candidates = (package_rrf_shadow.get("candidate_counts") or {}).get("image", 0)
+        if settings.AI_PACKAGE_IMAGE_SEARCH_ENABLED and package_image_candidates:
+            raw_references["packages"] = package_rrf_shadow["items"]
     references = _filter_references(raw_references, resource_keys)
     diagnostics = {
         "document_counts": {
@@ -489,6 +504,31 @@ def retrieve_references(
             "fusion_candidate_counts": portfolio_rrf.get("candidate_counts") if portfolio_rrf else None,
             # Pure SigLIP order for debugging retrieval quality before text/RRF reranking.
             "siglip_top_10": portfolio_rrf.get("siglip_top_10") if portfolio_rrf else [],
+            "package_shadow": {
+                "enabled": bool(package_rrf_shadow),
+                "candidate_counts": package_rrf_shadow.get("candidate_counts") if package_rrf_shadow else None,
+                "weights": package_rrf_shadow.get("weights") if package_rrf_shadow else None,
+                "siglip_top_10": package_rrf_shadow.get("siglip_top_10") if package_rrf_shadow else [],
+                "ranked_ids": [
+                    str(item.get("id")) for item in (package_rrf_shadow or {}).get("items", [])
+                ],
+                "legacy_ranked_ids": [
+                    str(item.get("id")) for item in raw_references.get("packages", [])
+                ] if package_rrf_shadow else [],
+            },
+            "package_multimodal": {
+                "enabled": bool(package_rrf_shadow),
+                "online_enabled": bool(
+                    settings.AI_PACKAGE_IMAGE_SEARCH_ENABLED
+                    and package_rrf_shadow
+                    and (package_rrf_shadow.get("candidate_counts") or {}).get("image", 0)
+                ),
+                "image_candidates": (package_rrf_shadow or {}).get("candidate_counts", {}).get("image", 0),
+                "text_candidates": (package_rrf_shadow or {}).get("candidate_counts", {}).get("text", 0),
+                "union_candidates": (package_rrf_shadow or {}).get("candidate_counts", {}).get("union", 0),
+                "fused_results": len((package_rrf_shadow or {}).get("items", [])),
+                "matched_samples": len((package_rrf_shadow or {}).get("siglip_top_10", [])),
+            },
         },
         "score_weights": {
             "semantic": settings.AI_HYBRID_SEMANTIC_WEIGHT,
@@ -652,7 +692,7 @@ def build_retrieval_context(retrieval: dict[str, Any] | None) -> str | None:
         "如果 criteria.owner_display_name 不为空，回答只能围绕该摄影师名下的资源，不要推荐其他摄影师或其他摄影师的套餐。"
         "如果 criteria.limit 为 1，正文和下方可点击资源都只能推荐 1 个，不要补充第二个或其它备选。"
         "如果 references.packages 只有 1 条，正文也只能推荐这 1 个套餐，不要补充其它套餐。"
-        "可以使用 references 中的 user_bio、description、price_label、price_tags、equipment、package_summaries、portfolio_summaries 解释匹配理由。"
+        "可以使用 references 中的 user_bio、description、price_label、price_tags、equipment、package_summaries、portfolio_summaries、matched_works 解释匹配理由。"
         "每个具体推荐都必须明确写出 references 中的真实资源名称，并且只能推荐带有 _rag 排名信息的返回项。"
         "_rag 只用于排序与审计，不要向用户展示内部打分、embedding 模型或权重。"
         "推荐内容只能来自这些列表，不能编造其他资源。"
@@ -925,6 +965,8 @@ def _rank_portfolio_rrf(
     query_vector: list[float] | None,
     *,
     content: str,
+    visual_score_key: str = "visual_score",
+    resource_label: str = "portfolio_item",
 ) -> dict[str, Any]:
     """Fuse independent SigLIP and text retrieval lists with weighted RRF."""
     candidate_limit = max(
@@ -949,9 +991,9 @@ def _rank_portfolio_rrf(
 
     image_ranked = sorted(
         (
-            (max(0.0, float(document.get("visual_score") or 0.0)), document)
+            (max(0.0, float(document.get(visual_score_key) or 0.0)), document)
             for document in eligible
-            if float(document.get("visual_score") or 0.0) > 0
+            if float(document.get(visual_score_key) or 0.0) > 0
         ),
         key=lambda item: (-item[0], str(item[1].get("id", ""))),
     )[:candidate_limit]
@@ -998,7 +1040,7 @@ def _rank_portfolio_rrf(
     for image_rank, (visual_score, document) in enumerate(image_ranked[:10], start=1):
         entry = fused[document["document_id"]]
         siglip_top_10.append({
-            "portfolio_item_id": document.get("id") or (document.get("payload") or {}).get("id"),
+            f"{resource_label}_id": document.get("id") or (document.get("payload") or {}).get("id"),
             "visual_score": round(float(visual_score), 6),
             "image_rank": image_rank,
             "text_rank": entry.get("text_rank"),
@@ -1020,7 +1062,7 @@ def _rank_portfolio_rrf(
         payload = {
             **(document.get("payload") or {}),
             "_rag": {
-                "schema_version": "portfolio_rrf_v1",
+                "schema_version": f"{resource_label}_rrf_v1",
                 "rank": rank,
                 "fusion_mode": "weighted_rrf",
                 "rrf_score": round(entry["rrf"], 8),
@@ -1059,10 +1101,14 @@ def _rank_documents(
     query_vector: list[float] | None = None,
     *,
     image_query: bool = False,
+    soft_style_filter: bool = False,
 ) -> list[dict[str, Any]]:
     """对候选文档做混合打分排序，返回带 _rag 信息的 top 结果。"""
     scored = []
-    strict_style_filter = not image_query or "style_terms" in criteria.explicit_fields
+    strict_style_filter = (
+        not soft_style_filter
+        and (not image_query or "style_terms" in criteria.explicit_fields)
+    )
     exact_style_available = strict_style_filter and bool(criteria.style_terms) and any(
         _matches_filters(document, criteria)
         and _matches_style_terms(document, criteria.style_terms or [])

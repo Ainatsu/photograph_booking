@@ -160,6 +160,7 @@ class LLMIntentCandidate(BaseModel):
         "chat",
         "resource_search",
         "image_analysis",
+        "image_generation_flow",
         "create_inspiration_flow",
         "project_application",
         "project_flow",
@@ -201,6 +202,11 @@ INTENT_POLICIES: dict[str, dict[str, Any]] = {
     "image_analysis": {
         "route": "vision",
         "sub_intents": ["vision_analysis"],
+        "requires_confirmation": False,
+    },
+    "image_generation_flow": {
+        "route": "image_generation",
+        "sub_intents": ["text_to_image", "image_to_image"],
         "requires_confirmation": False,
     },
     "create_inspiration_flow": {

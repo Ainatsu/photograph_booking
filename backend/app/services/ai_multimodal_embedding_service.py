@@ -43,7 +43,9 @@ def sync_resource_image_embeddings(
     if provider is None:
         return ImageEmbeddingSyncResult(0, 0, 0, "disabled", settings.AI_IMAGE_EMBEDDING_VERSION, 0)
 
-    query = db.query(AIResourceDocument).filter(AIResourceDocument.resource_type == "portfolio_item")
+    query = db.query(AIResourceDocument).filter(
+        AIResourceDocument.resource_type.in_(["portfolio_item", "package"])
+    )
     if owner_user_id is not None:
         query = query.filter(AIResourceDocument.owner_user_id == owner_user_id)
     documents = query.order_by(AIResourceDocument.id.asc()).all()
@@ -239,17 +241,30 @@ def visual_query_descriptor(analysis: dict[str, Any] | None) -> str:
 def _document_image_assets(document: AIResourceDocument) -> list[dict[str, Any]]:
     """提取文档中的图片资源及对应描述与哈希。"""
     payload = document.payload or {}
-    if (payload.get("media_type") or "image") != "image":
+    if document.resource_type == "portfolio_item":
+        if (payload.get("media_type") or "image") != "image":
+            return []
+        urls = [payload.get("url"), payload.get("compressed_url"), payload.get("thumbnail_url")]
+    elif document.resource_type == "package":
+        thumbnails = [
+            url for url in (payload.get("sample_thumbnails") or [])
+            if str(url or "").strip() and not _is_video_url(str(url))
+        ]
+        urls = thumbnails or payload.get("samples") or []
+    else:
         return []
-    urls = [payload.get("url"), payload.get("compressed_url"), payload.get("thumbnail_url")]
-    unique_urls = list(dict.fromkeys(str(url).strip() for url in urls if str(url or "").strip()))
+    unique_urls = list(dict.fromkeys(
+        str(url).strip()
+        for url in urls
+        if str(url or "").strip() and not _is_video_url(str(url))
+    ))
     descriptor = "\n".join(
         part for part in (
             str(document.title or "").strip(),
             str(document.summary or "").strip(),
             " ".join(str(tag) for tag in (document.tags or [])),
             " ".join(str(tag) for tag in (payload.get("photographer_styles") or [])),
-            str(payload.get("photographer_location") or "").strip(),
+            str(document.city or payload.get("photographer_location") or "").strip(),
         ) if part
     )
     return [
@@ -265,6 +280,12 @@ def _document_image_assets(document: AIResourceDocument) -> list[dict[str, Any]]
         }
         for url in unique_urls
     ]
+
+
+def _is_video_url(url: str) -> bool:
+    return Path(urlparse(url).path).suffix.lower() in {
+        ".avi", ".flv", ".mkv", ".mov", ".mp4", ".webm", ".wmv",
+    }
 
 
 def _stored_image_hash(image_url: str) -> str:

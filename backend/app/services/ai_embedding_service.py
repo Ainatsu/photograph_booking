@@ -51,6 +51,62 @@ class MockEmbeddingProvider:
         return [_hashed_embedding(value, self.dimensions) for value in texts]
 
 
+class LocalBGEEmbeddingProvider:
+    """使用本地 BGE 模型生成归一化文本向量。"""
+
+    def __init__(self, *, model: str, dimensions: int, device: str, max_length: int):
+        self.model = model
+        self.dimensions = dimensions
+        self.device = device
+        self.max_length = max_length
+        self._tokenizer = None
+        self._model = None
+
+    def _load(self):
+        if self._tokenizer is not None and self._model is not None:
+            return self._tokenizer, self._model
+        try:
+            import torch
+            from transformers import AutoModel, AutoTokenizer
+        except ImportError as exc:
+            raise RuntimeError(
+                "local_bge_requires_torch_transformers: install backend/requirements-vision.txt"
+            ) from exc
+        tokenizer = AutoTokenizer.from_pretrained(self.model)
+        model = AutoModel.from_pretrained(self.model).to(self.device)
+        model.eval()
+        self._torch = torch
+        self._tokenizer = tokenizer
+        self._model = model
+        return tokenizer, model
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+        tokenizer, model = self._load()
+        inputs = tokenizer(
+            texts,
+            padding=True,
+            truncation=True,
+            max_length=self.max_length,
+            return_tensors="pt",
+        )
+        inputs = {key: value.to(self.device) for key, value in inputs.items()}
+        with self._torch.inference_mode():
+            outputs = model(**inputs)
+            embeddings = outputs.last_hidden_state[:, 0]
+            embeddings = embeddings / embeddings.norm(dim=-1, keepdim=True).clamp_min(1e-12)
+        vectors = embeddings.detach().cpu().tolist()
+        if any(len(vector) != self.dimensions for vector in vectors):
+            raise ValueError("embedding_dimension_mismatch")
+        return vectors
+
+    def embed_query(self, text: str) -> list[float]:
+        instruction = settings.AI_EMBEDDING_QUERY_INSTRUCTION.strip()
+        query = f"{instruction}{text}" if instruction else text
+        return self.embed([query])[0]
+
+
 class DisabledImageEmbeddingProvider:
     """显式关闭原生图片向量，避免误把文本哈希当成视觉向量。"""
 
@@ -212,6 +268,13 @@ def get_embedding_provider() -> EmbeddingProvider | None:
             model=f"mock-hash-{settings.AI_EMBEDDING_VERSION}",
             dimensions=settings.AI_EMBEDDING_DIMENSIONS,
         )
+    if provider in {"local_bge", "bge"}:
+        return _cached_local_text_provider(
+            settings.AI_EMBEDDING_MODEL,
+            settings.AI_EMBEDDING_DIMENSIONS,
+            settings.AI_EMBEDDING_DEVICE,
+            settings.AI_EMBEDDING_MAX_LENGTH,
+        )
     if provider == "openai_compatible":
         api_key = settings.AI_EMBEDDING_API_KEY or settings.AI_API_KEY
         base_url = settings.AI_EMBEDDING_BASE_URL or settings.AI_BASE_URL
@@ -264,6 +327,35 @@ def warmup_image_embedding_provider() -> dict[str, str | int] | None:
 @lru_cache(maxsize=4)
 def _cached_local_image_provider(model: str, dimensions: int, device: str) -> ImageEmbeddingProvider:
     return LocalSiglipImageEmbeddingProvider(model=model, dimensions=dimensions, device=device)
+
+
+@lru_cache(maxsize=4)
+def _cached_local_text_provider(
+    model: str,
+    dimensions: int,
+    device: str,
+    max_length: int,
+) -> EmbeddingProvider:
+    return LocalBGEEmbeddingProvider(
+        model=model,
+        dimensions=dimensions,
+        device=device,
+        max_length=max_length,
+    )
+
+
+def warmup_text_embedding_provider() -> dict[str, str | int] | None:
+    provider = get_embedding_provider()
+    if provider is None:
+        return None
+    loader = getattr(provider, "_load", None)
+    if callable(loader):
+        loader()
+    return {
+        "provider": settings.AI_TEXT_EMBEDDING_PROVIDER or settings.AI_EMBEDDING_PROVIDER,
+        "model": provider.model,
+        "dimensions": provider.dimensions,
+    }
 
 
 def sync_resource_embeddings(
@@ -339,9 +431,10 @@ def query_embedding(query_text: str) -> tuple[list[float] | None, dict[str, str 
     provider = get_embedding_provider()
     if provider is None or not query_text.strip():
         return None, {"provider": "disabled", "model": None, "dimensions": 0}
-    vector = provider.embed([query_text])[0]
+    embed_query = getattr(provider, "embed_query", None)
+    vector = embed_query(query_text) if callable(embed_query) else provider.embed([query_text])[0]
     return vector, {
-        "provider": settings.AI_EMBEDDING_PROVIDER,
+        "provider": settings.AI_TEXT_EMBEDDING_PROVIDER or settings.AI_EMBEDDING_PROVIDER,
         "model": provider.model,
         "version": settings.AI_EMBEDDING_VERSION,
         "dimensions": len(vector),

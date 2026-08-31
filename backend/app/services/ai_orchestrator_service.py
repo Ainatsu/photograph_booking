@@ -175,6 +175,17 @@ def recognize_intent_by_rules(content: str | None, attachments: list[dict] | Non
             confidence=0.85,
         )
 
+    if _is_image_generation_intent(text, has_image=has_image):
+        mode = "image_to_image" if _is_image_edit_intent(text, has_image=has_image) else "text_to_image"
+        return AgentIntent(
+            intent="image_generation_flow",
+            sub_intents=[mode],
+            slots={**slots, "mode": mode},
+            missing_slots=["reference_image"] if mode == "image_to_image" and not has_image else [],
+            route="image_generation",
+            confidence=0.94,
+        )
+
     if _is_create_inspiration_intent(text):
         return AgentIntent(
             intent="create_inspiration_flow",
@@ -505,6 +516,27 @@ def _is_create_inspiration_intent(text: str) -> bool:
     if any(phrase in text for phrase in direct_phrases):
         return True
     return "灵感" in text and any(term in text for term in ("创建", "生成", "保存", "整理", "做成"))
+
+
+def _is_image_edit_intent(text: str, *, has_image: bool = False) -> bool:
+    direct_phrases = (
+        "把这张图改", "把这张图片改", "把这张照片改", "修改这张图", "修改这张图片",
+        "根据这张参考图生成", "保留人物姿势", "保留主体位置", "维持构图",
+    )
+    if any(term in text for term in direct_phrases):
+        return True
+    edit_verbs = ("改成", "换成", "修改", "调整", "重新上色", "变成", "更清冷", "更温暖")
+    image_terms = ("这张图", "这张图片", "这张照片", "参考图", "原图", "照片")
+    return any(term in text for term in edit_verbs) and (has_image or any(term in text for term in image_terms))
+
+
+def _is_image_generation_intent(text: str, *, has_image: bool) -> bool:
+    if not text:
+        return False
+    if _is_image_edit_intent(text, has_image=has_image):
+        return True
+    generation_terms = ("生成一张", "生成图片", "生成摄影", "文生图", "画一张", "可视化", "概念图", "效果图", "灵感图")
+    return any(term in text for term in generation_terms)
 
 
 def _is_booking_intent(text: str) -> bool:

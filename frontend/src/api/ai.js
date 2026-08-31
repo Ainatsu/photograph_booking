@@ -25,3 +25,15 @@ export function uploadAIImage(file) {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 }
+
+export function getImageGeneration(jobId) {
+  return api.get(`/ai/image-generations/${jobId}`)
+}
+
+export function retryImageGeneration(jobId) {
+  return api.post(`/ai/image-generations/${jobId}/retry`)
+}
+
+export function cancelImageGeneration(jobId) {
+  return api.post(`/ai/image-generations/${jobId}/cancel`)
+}

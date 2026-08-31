@@ -72,6 +72,17 @@ class AIShootContextSelection(BaseModel):
     longitude: float = Field(ge=-180, le=180)
 
 
+class AIImageGenerationRequest(BaseModel):
+    """Structured request used by explicit image generation controls."""
+
+    mode: Literal["text_to_image", "image_to_image"]
+    aspect_ratio: Literal["1:1", "3:4", "4:3", "9:16", "16:9"] = "1:1"
+    count: int = Field(default=1, ge=1, le=2)
+    quality: Literal["standard", "high"] = "standard"
+    strength: float | None = Field(default=None, ge=0.1, le=1.0)
+    idempotency_key: UUID = Field(default_factory=uuid4)
+
+
 class AIMessageCreate(BaseModel):
     """发送 AI 消息请求"""
 
@@ -80,6 +91,7 @@ class AIMessageCreate(BaseModel):
     page_context: dict[str, Any] | None = None
     task_submission: AITaskSubmission | None = None
     shoot_context_selection: AIShootContextSelection | None = None
+    generation_request: AIImageGenerationRequest | None = None
 
 
 class AIMessageResponse(BaseModel):

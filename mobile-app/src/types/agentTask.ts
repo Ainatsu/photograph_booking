@@ -5,8 +5,9 @@ export type AgentTaskType =
   | 'project_application'
   | 'create_booking'
   | 'create_inspiration'
+  | 'generate_image'
 
-export type AgentTaskStatus = 'collecting' | 'editing_page' | 'submitting' | 'generating' | 'saving' | 'failed' | 'completed' | 'cancelled' | 'expired'
+export type AgentTaskStatus = 'collecting' | 'awaiting_reference_image' | 'queued' | 'editing_page' | 'submitting' | 'generating' | 'saving' | 'partial' | 'failed' | 'completed' | 'cancelled' | 'expired'
 
 export interface AgentTaskSummaryLine {
   label: string

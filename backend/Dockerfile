@@ -14,9 +14,10 @@ RUN apt-get update \
 COPY backend/requirements.txt /app/backend/requirements.txt
 COPY backend/requirements-vision.txt /app/backend/requirements-vision.txt
 ARG INSTALL_VISION_EMBEDDING=false
+ARG INSTALL_LOCAL_EMBEDDING=true
 RUN pip install --upgrade pip \
     && pip install -r /app/backend/requirements.txt \
-    && if [ "$INSTALL_VISION_EMBEDDING" = "true" ]; then pip install -r /app/backend/requirements-vision.txt; fi
+    && if [ "$INSTALL_VISION_EMBEDDING" = "true" ] || [ "$INSTALL_LOCAL_EMBEDDING" = "true" ]; then pip install -r /app/backend/requirements-vision.txt; fi
 
 COPY alembic.ini /app/alembic.ini
 COPY backend /app/backend

@@ -89,6 +89,12 @@
                   </div>
                 </div>
               </template>
+              <ImageGenerationCard
+                v-if="getImageGenerationRef(message)"
+                :reference="getImageGenerationRef(message)"
+                :prompt="getImageGenerationPrompt(message)"
+                @regenerate="restoreImageGeneration"
+              />
               <div
                 v-if="message.role === 'assistant' && shouldShowTaskCard(message)"
                 class="task-card"
@@ -530,6 +536,16 @@
           </button>
         </div>
 
+        <ImageGenerationComposer
+          v-model="generationConfig"
+          :disabled="sending || loadingMessages"
+          @mode-change="handleGenerationModeChange"
+        />
+
+        <div v-if="generationValidationMessage" class="generation-validation" role="alert">
+          {{ generationValidationMessage }}
+        </div>
+
         <!-- 待发送图片预览 -->
         <div v-if="pendingImages.length" class="pending-images">
           <div
@@ -628,6 +644,8 @@ import api from '../utils/api'
 import { saveWorkDraft } from '../utils/workDrafts'
 import aiAvatar from '../../CartleJ.jpg'
 import ProjectLocationField from '../components/location/ProjectLocationField.vue'
+import ImageGenerationCard from '../components/ai/ImageGenerationCard.vue'
+import ImageGenerationComposer from '../components/ai/ImageGenerationComposer.vue'
 
 const props = defineProps({
   embedded: {
@@ -669,6 +687,13 @@ const userAvatarUrl = ref('')
 const userDisplayName = ref('')
 const currentUserId = ref('')
 const pendingImages = ref([])
+const generationConfig = ref({
+  mode: null,
+  aspect_ratio: '1:1',
+  count: 1,
+  quality: 'standard',
+  strength: 0.65,
+})
 const taskFieldEdits = ref({})
 const taskFieldErrors = ref({})
 const taskSaveFeedback = ref({})
@@ -693,6 +718,8 @@ const contextSubtitle = computed(() => {
   return props.contextLabel || normalizedPageContext.value?.title || ''
 })
 const inputPlaceholder = computed(() => {
+  if (generationConfig.value.mode === 'text_to_image') return '描述想要生成的场景、人物、光线和风格'
+  if (generationConfig.value.mode === 'image_to_image') return '描述需要保留和修改的内容'
   if (contextSubtitle.value) return `围绕「${contextSubtitle.value}」问小龟J`
   return '询问小龟J吧！'
 })
@@ -871,7 +898,18 @@ const TASK_FIELD_CONFIG = {
 }
 
 const canSend = computed(() => {
-  return (inputText.value.trim() || pendingImages.value.length) && !sending.value
+  if (sending.value || pendingImages.value.some(item => item.uploading)) return false
+  if (generationConfig.value.mode === 'text_to_image') return Boolean(inputText.value.trim() && pendingImages.value.length === 0)
+  if (generationConfig.value.mode === 'image_to_image') return Boolean(inputText.value.trim() && pendingImages.value.length === 1 && pendingImages.value[0]?.url)
+  return Boolean(inputText.value.trim() || pendingImages.value.length)
+})
+
+const generationValidationMessage = computed(() => {
+  const mode = generationConfig.value.mode
+  if (mode === 'text_to_image' && pendingImages.value.length) return '文生图模式不使用参考图片。请移除图片，或切换到以图生图。'
+  if (mode === 'image_to_image' && pendingImages.value.length > 1) return '以图生图第一版只支持一张参考图，请移除多余图片。'
+  if (mode === 'image_to_image' && !pendingImages.value.length) return '请上传一张参考图，并填写修改指令。'
+  return ''
 })
 
 const getTaskState = (message) => {
@@ -892,8 +930,18 @@ const shouldShowTaskCard = (message) => {
 }
 
 const visibleMessages = computed(() => messages.value.filter(message => (
-  message.role !== 'assistant' || !getTaskState(message) || shouldShowTaskCard(message)
+  message.role !== 'assistant' || !getTaskState(message) || shouldShowTaskCard(message) || getImageGenerationRef(message)
 )))
+
+const getImageGenerationRef = (message) => message?.metadata?.image_generation || null
+
+const getImageGenerationPrompt = (message) => {
+  const index = messages.value.findIndex(item => item.id === message.id)
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    if (messages.value[cursor]?.role === 'user') return messages.value[cursor].content || ''
+  }
+  return ''
+}
 
 const messageRevealKey = (message) => String(message?.id ?? '')
 
@@ -1638,6 +1686,14 @@ const handleFileChange = async (event) => {
   if (!files || !files.length) return
 
   for (const file of files) {
+    if (generationConfig.value.mode === 'text_to_image') {
+      ElMessage.warning('文生图模式不使用参考图片，请切换到以图生图')
+      break
+    }
+    if (generationConfig.value.mode === 'image_to_image' && pendingImages.value.length >= 1) {
+      ElMessage.warning('以图生图第一版只支持一张参考图')
+      break
+    }
     // 限制最多 4 张
     if (pendingImages.value.length >= 4) {
       ElMessage.warning('最多上传 4 张图片')
@@ -1677,10 +1733,30 @@ const buildMessagePayload = (content, attachments = []) => {
   return payload
 }
 
+const createIdempotencyKey = () => window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`
+
+const buildGenerationRequest = () => {
+  const { mode, aspect_ratio, count, quality, strength } = generationConfig.value
+  if (!mode) return null
+  return {
+    mode,
+    aspect_ratio,
+    count,
+    quality,
+    ...(mode === 'image_to_image' ? { strength } : {}),
+    idempotency_key: createIdempotencyKey(),
+  }
+}
+
 const handleSend = async () => {
   const content = inputText.value.trim()
   const hasImages = pendingImages.value.some(img => img.url)
   if ((!content && !hasImages) || !conversationId.value || sending.value) return
+
+  if (generationValidationMessage.value || (generationConfig.value.mode && !content)) {
+    ElMessage.warning(generationValidationMessage.value || '请填写图片生成描述')
+    return
+  }
 
   sending.value = true
   try {
@@ -1689,6 +1765,8 @@ const handleSend = async () => {
       .map(img => ({ type: 'image', url: img.url, mime_type: img.mimeType }))
 
     const payload = buildMessagePayload(content, attachments)
+    const generationRequest = buildGenerationRequest()
+    if (generationRequest) payload.generation_request = generationRequest
 
     const res = await sendAIMessage(conversationId.value, payload)
     appendResponseMessages(res.data.user_message, res.data.assistant_message)
@@ -1696,6 +1774,7 @@ const handleSend = async () => {
     // 清理 pending images
     pendingImages.value.forEach(img => { if (img.previewUrl) URL.revokeObjectURL(img.previewUrl) })
     pendingImages.value = []
+    generationConfig.value = { mode: null, aspect_ratio: '1:1', count: 1, quality: 'standard', strength: 0.65 }
     await scrollToBottom()
   } catch {
     ElMessage.warning('消息已尝试发送，AI 回复失败时可稍后重试')
@@ -1875,6 +1954,35 @@ const activateInspirationTool = () => {
   if (sending.value || loadingMessages.value) return
   inputText.value = '请根据我上传的参考图片创建灵感'
   openImagePicker()
+}
+
+const handleGenerationModeChange = (mode) => {
+  if (mode === 'image_to_image' && !pendingImages.value.length) openImagePicker()
+  if (mode === 'text_to_image' && pendingImages.value.length) {
+    ElMessage.info('请移除现有图片，或切换到以图生图')
+  }
+}
+
+const restoreImageGeneration = (payload) => {
+  generationConfig.value = {
+    mode: payload.mode,
+    aspect_ratio: payload.parameters.aspect_ratio || '1:1',
+    count: Number(payload.parameters.count || 1),
+    quality: payload.parameters.quality || 'standard',
+    strength: Number(payload.parameters.strength || 0.65),
+  }
+  inputText.value = payload.prompt || ''
+  pendingImages.value.forEach(item => { if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl) })
+  pendingImages.value = payload.mode === 'image_to_image'
+    ? (payload.sourceImages || []).slice(0, 1).map(asset => ({
+        file: null,
+        previewUrl: asset.thumbnail_url || asset.storage_url,
+        uploading: false,
+        url: asset.storage_url,
+        mimeType: asset.mime_type || 'image/jpeg',
+      }))
+    : []
+  nextTick(() => document.querySelector('.chat-input-row textarea')?.focus())
 }
 
 const updateQuickPromptScrollState = () => {
@@ -3127,6 +3235,16 @@ onUnmounted(() => {
   background: var(--color-paper);
 }
 
+.generation-validation {
+  margin: 6px var(--space-3) 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-warning) 10%, var(--color-paper));
+  color: var(--color-warning);
+  font-size: calc(var(--text-xs) * 1rem);
+  line-height: 1.5;
+}
+
 .pending-images {
   display: flex;
   gap: var(--space-2);
@@ -3176,14 +3294,14 @@ onUnmounted(() => {
 }
 
 .image-btn {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
 }
 
 .send-button {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
 }
 

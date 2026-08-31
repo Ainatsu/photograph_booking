@@ -99,6 +99,20 @@ async def lifespan(app: FastAPI):
                 poll_interval_seconds=settings.INSPIRATION_GENERATION_WORKER_POLL_SECONDS,
             )
         )
+    image_generation_task = None
+    if settings.IMAGE_GENERATION_WORKER_ENABLED:
+        from backend.app.services.image_generation_job_service import run_image_generation_worker
+        image_generation_task = asyncio.create_task(
+            run_image_generation_worker(poll_interval_seconds=settings.IMAGE_GENERATION_WORKER_POLL_SECONDS)
+        )
+    try:
+        from backend.app.services.ai_embedding_service import warmup_text_embedding_provider
+
+        text_embedding_info = warmup_text_embedding_provider()
+        if text_embedding_info:
+            print(f"[TextEmbedding] 文本模型预热完成: {text_embedding_info}")
+    except Exception as exc:
+        print(f"[TextEmbedding] 文本模型预热失败（非致命）: {exc}")
     try:
         from backend.app.services.ai_embedding_service import warmup_image_embedding_provider
 
@@ -120,6 +134,8 @@ async def lifespan(app: FastAPI):
             ai_index_task.cancel()
         if inspiration_generation_task:
             inspiration_generation_task.cancel()
+        if image_generation_task:
+            image_generation_task.cancel()
         with suppress(asyncio.CancelledError):
             await reschedule_expiry_task
         with suppress(asyncio.CancelledError):
@@ -136,6 +152,9 @@ async def lifespan(app: FastAPI):
         if inspiration_generation_task:
             with suppress(asyncio.CancelledError):
                 await inspiration_generation_task
+        if image_generation_task:
+            with suppress(asyncio.CancelledError):
+                await image_generation_task
 
 app = FastAPI(
     title="摄影师智能预约平台",

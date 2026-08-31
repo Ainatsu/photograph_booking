@@ -27,6 +27,7 @@ REQUIRED_TASK_FIELDS: dict[str, tuple[str, ...]] = {
     "project_application": ("project_id", "proposal_text", "price_quote"),
     "create_booking": ("photographer_id", "package_id", "appointment_date"),
     "create_inspiration": ("inspiration_id",),
+    "generate_image": ("prompt", "mode"),
 }
 
 FIELD_LABELS = {
@@ -140,6 +141,7 @@ def _summary(task: AgentTaskDraft) -> dict[str, Any]:
         "project_application": [("报价", "price_quote"), ("申请说明", "proposal_text"), ("关联方案", "package_snapshot")],
         "create_booking": [("方案", "package_id"), ("预约日期", "appointment_date"), ("备注", "notes")],
         "create_inspiration": [("标题", "title"), ("摘要", "summary"), ("标签", "tags")],
+        "generate_image": [("模式", "mode"), ("描述", "prompt"), ("宽高比", "aspect_ratio")],
     }.get(task.task_type, [])
     lines = []
     for label, field in priority:
@@ -165,6 +167,7 @@ def _summary(task: AgentTaskDraft) -> dict[str, Any]:
         "title": {
             "create_project": "发布企划", "publish_package": "发布方案", "publish_work": "发布作品",
             "project_application": "申请企划", "create_booking": "预约拍摄", "create_inspiration": "创建灵感",
+            "generate_image": "图片生成",
         }.get(task.task_type, "Agent 任务"),
         "lines": lines[:4], "collected_count": collected,
         "missing_required_count": len(missing),

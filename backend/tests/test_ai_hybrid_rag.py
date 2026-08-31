@@ -1,9 +1,58 @@
 from backend.app.models.ai_resource import AIResourceDocument, AIResourceEmbedding
-from backend.app.services.ai_embedding_service import sync_resource_embeddings
+from backend.app.services import ai_embedding_service
+from backend.app.services.ai_embedding_service import (
+    LocalBGEEmbeddingProvider,
+    query_embedding,
+    sync_resource_embeddings,
+)
 from backend.app.services.ai_resource_index_service import rebuild_ai_resource_documents
 from backend.app.services.ai_retrieval_service import retrieve_references
 from backend.app.services.ai_rag_evaluation_service import evaluate_rag_cases, load_rag_cases
 from pathlib import Path
+
+
+class FakeLocalBGEProvider:
+    model = "local-bge-test"
+    dimensions = 2
+
+    def embed(self, texts):
+        return [[0.0, 1.0] for _ in texts]
+
+    def embed_query(self, text):
+        assert text == "自然光写真"
+        return [1.0, 0.0]
+
+
+def test_local_bge_provider_is_used_for_query_embeddings(monkeypatch):
+    monkeypatch.setattr(ai_embedding_service.settings, "AI_TEXT_EMBEDDING_PROVIDER", "local_bge")
+    monkeypatch.setattr(ai_embedding_service.settings, "AI_EMBEDDING_MODEL", "local-bge-test")
+    monkeypatch.setattr(ai_embedding_service.settings, "AI_EMBEDDING_DIMENSIONS", 2)
+    monkeypatch.setattr(
+        ai_embedding_service,
+        "_cached_local_text_provider",
+        lambda *args: FakeLocalBGEProvider(),
+    )
+
+    vector, info = query_embedding("自然光写真")
+
+    assert vector == [1.0, 0.0]
+    assert info == {
+        "provider": "local_bge",
+        "model": "local-bge-test",
+        "version": ai_embedding_service.settings.AI_EMBEDDING_VERSION,
+        "dimensions": 2,
+    }
+
+
+def test_local_bge_query_instruction_is_not_used_for_documents(monkeypatch):
+    provider = LocalBGEEmbeddingProvider(model="local", dimensions=2, device="cpu", max_length=32)
+    captured = []
+    monkeypatch.setattr(provider, "embed", lambda texts: captured.extend(texts) or [[1.0, 0.0]])
+    monkeypatch.setattr(ai_embedding_service.settings, "AI_EMBEDDING_QUERY_INSTRUCTION", "检索：")
+
+    provider.embed_query("自然光写真")
+
+    assert captured == ["检索：自然光写真"]
 
 
 def test_resource_embeddings_are_created_and_incremental(db, photographer_profile):

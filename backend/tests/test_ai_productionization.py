@@ -5,6 +5,7 @@ import pytest
 from backend.app.models.ai_conversation import AIConversation, AIMessage
 from backend.app.models.ai_production import AgentTrace, AIIndexJob
 from backend.app.models.order import Order, OrderStatus
+from backend.app.services import ai_multimodal_embedding_service
 from backend.app.services.ai_index_job_service import enqueue_index_job, process_index_jobs
 from backend.app.services.ai_provider import ResilientAIProvider
 from backend.app.services.ai_retrieval_service import _owner_conversion_scores
@@ -34,7 +35,8 @@ async def test_resilient_provider_falls_back_and_records_reason():
     assert result["metadata"]["fallback"]["reason"] == "RuntimeError"
 
 
-def test_index_job_is_coalesced_and_processed(db, photographer_profile):
+def test_index_job_is_coalesced_and_processed(db, photographer_profile, monkeypatch):
+    monkeypatch.setattr(ai_multimodal_embedding_service.settings, "AI_IMAGE_EMBEDDING_PROVIDER", "mock")
     photographer_profile.portfolio = [{
         "id": "production-work",
         "url": "/static/production-work.jpg",
@@ -63,7 +65,7 @@ def test_index_job_is_coalesced_and_processed(db, photographer_profile):
     assert first.status == "completed"
     assert first.result["documents"] > 0
     assert first.result["text_embeddings"]["embedded"] > 0
-    assert first.result["image_embeddings"]["embedded"] == 1
+    assert first.result["image_embeddings"]["embedded"] == 2
 
 
 def test_agent_trace_and_quality_dashboard(db, customer_user):

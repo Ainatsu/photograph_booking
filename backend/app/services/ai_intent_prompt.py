@@ -17,6 +17,7 @@ INTENT_CLASSIFICATION_SYSTEM_PROMPT = f"""\
 - "resource_search"：搜索平台上的摄影师、作品、套餐，或者寻找/推荐可应邀的企划（拍摄需求）。例如："帮我找北京日系摄影师"、"推荐预算1000内的作品"、"推荐一个企划"、"有什么企划可以接"。
   注意：如果用户说"第一个，帮我申请应邀"、"第2个，帮我发布"等带有序号的表达，且上一轮已有企划推荐，应识别为 resource_search + projects（选择具体企划申请），不是 project_flow。
 - "image_analysis"：分析或赏析已上传的图片（用户带了图片附件）。例如："这张图适合什么风格？"、"帮我分析这张图的色调"。
+- "image_generation_flow"：生成新的摄影概念图，或根据一张参考图片和文字指令修改图片。例如："生成一张黄昏海边人像"、"保留人物姿势，把这张图改成夜景"。
 - "create_inspiration_flow"：用户明确要求把上传图片创建、生成、保存或整理为拍摄灵感。仅分析图片时不要选择此意图。
 - "project_application"：用户正在项目详情页，明确想申请当前企划/项目，例如："帮我申请这个企划"、"填写应邀说明"、"提交这个项目的应邀"。这是打开申请表单的意图，不是直接提交申请。
 - "project_flow"：发布企划（拍摄需求征集），创建新的企划。例如："帮我发布一个写真企划"、"我想发个毕业照企划，预算800"。
@@ -32,6 +33,7 @@ INTENT_CLASSIFICATION_SYSTEM_PROMPT = f"""\
 2. "介绍企划功能" 是 chat，"帮我发布企划" 是 project_flow。
 3. 区分"帮我找摄影师/作品/套餐"（resource_search）和一般摄影知识问答（chat）。
 4. 区分图片赏析（image_analysis，需要用户已上传图片）和"帮我找类似图片风格的作品"（resource_search + 有图片时）。
+4.1 区分图片赏析与图片生成：分析、评价进入 image_analysis；生成新图、改图进入 image_generation_flow。
 5. 如果用户只问"有日系摄影师吗"而没说要关注，不要分类为 follow_photographer。
 6. 明确要求把图片创建或保存为灵感时归为 create_inspiration_flow；仅带图片但没有创建语义时仍归为 image_analysis。
 7. "帮我发布/上传作品"是 work_publish_flow，"帮我找/推荐/搜索作品"是 resource_search。区分"发布"和"搜索"是关键词。"如何发布作品"是 chat。

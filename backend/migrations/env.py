@@ -43,6 +43,7 @@ from backend.app.models.follow import Follow
 from backend.app.models.analytics import AnalyticsEvent
 from backend.app.models.inspiration import Inspiration
 from backend.app.models.inspiration_generation import InspirationGenerationBatch, InspirationGenerationJob
+from backend.app.models.image_generation import ImageGenerationAsset, ImageGenerationJob
 
 target_metadata = Base.metadata
 

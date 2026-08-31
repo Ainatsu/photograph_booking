@@ -31,9 +31,11 @@ def test_native_image_index_and_query_use_real_pixels(db, monkeypatch, tmp_path)
     upload_dir = tmp_path / "uploads"
     red_path = upload_dir / "portfolio" / "red.png"
     blue_path = upload_dir / "portfolio" / "blue.png"
+    green_path = upload_dir / "packages" / "green-thumb.png"
     query_path = upload_dir / "queries" / "red-query.png"
     _write_image(red_path, (255, 0, 0))
     _write_image(blue_path, (0, 0, 255))
+    _write_image(green_path, (0, 255, 0))
     _write_image(query_path, (250, 5, 0))
 
     monkeypatch.setattr(image_service.settings, "UPLOAD_DIR", str(upload_dir))
@@ -63,14 +65,30 @@ def test_native_image_index_and_query_use_real_pixels(db, monkeypatch, tmp_path)
         payload={"media_type": "image", "url": "/static/portfolio/blue.png"},
         content_hash="blue-document",
     )
-    db.add_all([red_document, blue_document])
+    package_document = AIResourceDocument(
+        resource_type="package",
+        resource_id="green-package",
+        owner_user_id=3,
+        title="green",
+        summary="",
+        search_text="green",
+        tags=[],
+        payload={
+            "sample_thumbnails": ["/static/packages/green-thumb.png"],
+            "samples": ["/static/packages/green-original.png"],
+        },
+        content_hash="green-package-document",
+    )
+    db.add_all([red_document, blue_document, package_document])
     db.commit()
 
     sync = image_service.sync_resource_image_embeddings(db)
-    assert sync.embedded == 2
+    assert sync.embedded == 3
     rows = db.query(AIResourceImageEmbedding).order_by(AIResourceImageEmbedding.document_id).all()
     assert rows[0].embedding_json != rows[1].embedding_json
     assert rows[0].image_hash != rows[1].image_hash
+    assert rows[2].image_url == "/static/packages/green-thumb.png"
+    assert rows[2].embedding_json[1] == 1.0
 
     query_vector, info = image_service.visual_query_embedding(
         [{"type": "image", "url": "/static/queries/red-query.png"}]

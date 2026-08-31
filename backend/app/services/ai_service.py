@@ -129,6 +129,11 @@ from backend.app.services.agent_form_task_service import (
 from backend.app.services.agent_task_extraction_service import extract_task_patch
 from backend.app.services.agent_task_service import get_active_task, patch_task, serialize_task, sync_task_snapshot
 from backend.app.services.inspiration_agent_workflow_service import create_inspiration_workflow
+from backend.app.schemas.ai import AIImageGenerationRequest
+from backend.app.services.image_generation_workflow_service import (
+    create_image_generation_job,
+    image_generation_agent_result,
+)
 from backend.app.services.shoot_context_service import ShootContextService
 from backend.app.services.ai_vision_service import (
     VISION_SYSTEM_PROMPT,
@@ -3067,6 +3072,7 @@ async def send_ai_message(
     page_context: dict | None = None,
     task_submission: dict | None = None,
     shoot_context_selection: dict | None = None,
+    generation_request: AIImageGenerationRequest | None = None,
 ) -> tuple[AIMessage, AIMessage]:
     """AI 会话主入口：保存用户消息，完成意图识别、检索与工具编排后生成助手回复。"""
     trace_started_at = perf_counter()
@@ -3091,6 +3097,8 @@ async def send_ai_message(
         user_metadata["task_submission"] = task_submission
     if shoot_context_selection:
         user_metadata["shoot_context_selection"] = shoot_context_selection
+    if generation_request:
+        user_metadata["generation_request"] = generation_request.model_dump(mode="json")
 
     user_message = AIMessage(
         conversation_id=conversation.id,
@@ -3107,7 +3115,7 @@ async def send_ai_message(
     db.refresh(conversation)
 
     active_task_before = get_active_task(db, user_id, conversation.id)
-    if active_task_before and not task_submission and content and not _is_task_cancel_request(content):
+    if active_task_before and not task_submission and not generation_request and content and not _is_task_cancel_request(content):
         patch = extract_task_patch(
             active_task_before.task_type,
             content,
@@ -3363,7 +3371,8 @@ async def send_ai_message(
     )
     routing_mode = routing_rollout.mode
     deterministic_entry = (
-        submitted_intent is not None
+        generation_request is not None
+        or submitted_intent is not None
         or cancel_task_state is not None
         or pending_action is not None
         or selected_shoot_context_arguments is not None
@@ -3431,7 +3440,18 @@ async def send_ai_message(
 
     # 意图识别：task_submission → 取消任务 → pending action → 规则(灰度去重) / LLM 分类器
     classification = None
-    if selected_shoot_context_arguments:
+    if generation_request:
+        intent = AgentIntent(
+            intent="image_generation_flow",
+            sub_intents=[generation_request.mode],
+            slots={"mode": generation_request.mode},
+            missing_slots=[],
+            requires_confirmation=False,
+            route="image_generation",
+            confidence=1.0,
+            parser="rules",
+        )
+    elif selected_shoot_context_arguments:
         intent = recognize_intent("查询天气")
     elif submitted_intent:
         intent = submitted_intent
@@ -3908,6 +3928,27 @@ async def send_ai_message(
                 page_context_prompt=page_context_prompt,
             )
             result = await get_ai_provider().chat(provider_messages)
+    elif intent.intent == "image_generation_flow":
+        inferred_generation_mode = (
+            intent.slots.get("mode")
+            or ("image_to_image" if explicit_attachments else None)
+            or (intent.sub_intents[0] if len(intent.sub_intents) == 1 else None)
+            or "text_to_image"
+        )
+        resolved_generation_request = generation_request or AIImageGenerationRequest(
+            mode=inferred_generation_mode,
+        )
+        job = create_image_generation_job(
+            db,
+            user_id=user_id,
+            conversation_id=conversation.id,
+            source_message_id=user_message.id,
+            prompt=content,
+            attachments=explicit_attachments,
+            request=resolved_generation_request,
+            source="explicit_button" if generation_request else "intent",
+        )
+        result = image_generation_agent_result(job)
     elif intent.intent == "create_inspiration_flow":
         trusted_images = [
             {
@@ -4039,7 +4080,7 @@ async def send_ai_message(
         and not task_submission
         and cancel_task_state is None
         and not web_search_call
-        and intent.intent != "create_inspiration_flow"
+        and intent.intent not in {"create_inspiration_flow", "image_generation_flow"}
     ):
         progress_result = _active_task_progress_result(active_task_before)
         result = {

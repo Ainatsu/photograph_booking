@@ -62,6 +62,49 @@ export interface AIMessagePayload {
     latitude: number
     longitude: number
   }
+  generation_request?: AIImageGenerationRequest
+}
+
+export type AIImageGenerationMode = 'text_to_image' | 'image_to_image'
+export type AIImageGenerationAspectRatio = '1:1' | '3:4' | '4:3' | '9:16' | '16:9'
+
+export interface AIImageGenerationRequest {
+  mode: AIImageGenerationMode
+  aspect_ratio: AIImageGenerationAspectRatio
+  count: 1 | 2
+  quality: 'standard' | 'high'
+  strength?: number
+  idempotency_key: string
+}
+
+export interface AIImageGenerationAsset {
+  id: number
+  storage_url: string
+  thumbnail_url?: string | null
+  mime_type: string
+  width?: number | null
+  height?: number | null
+  size_bytes?: number | null
+  position: number
+}
+
+export interface AIImageGenerationJob {
+  job_id: number
+  task_id: string
+  mode: AIImageGenerationMode
+  status: 'queued' | 'generating' | 'retry_wait' | 'partial' | 'completed' | 'failed' | 'cancelled' | string
+  stage: string
+  progress: { completed: number; total: number }
+  source_images: AIImageGenerationAsset[]
+  result_images: AIImageGenerationAsset[]
+  parameters: Record<string, unknown>
+  provider?: string | null
+  model?: string | null
+  can_retry: boolean
+  can_cancel: boolean
+  error?: { code?: string; message?: string } | null
+  created_at?: string
+  updated_at?: string
 }
 
 export interface AIShootContextPlace {
@@ -246,6 +289,21 @@ export async function uploadAIImage(file: File): Promise<AIUploadResponse> {
   const form = new FormData()
   form.append('file', file)
   const { data } = await api.post<AIUploadResponse>('/ai/uploads', form)
+  return data
+}
+
+export async function getImageGeneration(jobId: number): Promise<AIImageGenerationJob> {
+  const { data } = await api.get<AIImageGenerationJob>(`/ai/image-generations/${jobId}`)
+  return data
+}
+
+export async function retryImageGeneration(jobId: number): Promise<AIImageGenerationJob> {
+  const { data } = await api.post<AIImageGenerationJob>(`/ai/image-generations/${jobId}/retry`)
+  return data
+}
+
+export async function cancelImageGeneration(jobId: number): Promise<AIImageGenerationJob> {
+  const { data } = await api.post<AIImageGenerationJob>(`/ai/image-generations/${jobId}/cancel`)
   return data
 }
 
