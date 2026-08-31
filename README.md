@@ -2,7 +2,7 @@
 
 项目地址：[github.com/Ainatsu/photographer_booking](https://github.com/Ainatsu/photographer_booking)
 
-一个面向求职作品集展示的摄影师预约平台：客户浏览摄影师、作品和套餐，摄影师管理作品与订单，AI Agent 在用户确认后调用真实业务工具完成预约或企划创建。
+客户浏览摄影师、作品和套餐，摄影师管理作品与订单，AI Agent 在用户确认后调用真实业务工具完成预约或企划创建。
 
 本仓库当前是本地可运行的稳定演示版。支付、短信、邮件和 AI Provider 默认使用 mock/memory 实现，所有 mock 能力都会在界面或文档中明确标注。
 
