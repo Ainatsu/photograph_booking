@@ -56,7 +56,7 @@
       <el-button v-if="resultImages.length" :icon="Expand" @click="openFirstResult">查看大图</el-button>
       <el-button v-if="resultImages.length" :icon="Download" @click="downloadFirstResult">下载</el-button>
       <el-button v-if="job?.can_retry" :icon="RotateCw" :loading="actionBusy" @click="retry">重试</el-button>
-      <el-button v-if="canRegenerate" :icon="Sparkles" @click="$emit('regenerate', regenerationPayload)">重新生成</el-button>
+      <el-button v-if="canRegenerate" :icon="Sparkles" :loading="actionBusy" @click="regenerate">重新生成</el-button>
       <el-button v-if="job?.can_cancel" :icon="X" :loading="actionBusy" @click="cancel">取消</el-button>
     </footer>
   </section>
@@ -66,14 +66,12 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { AlertCircle, Download, Expand, LoaderCircle, RotateCw, Sparkles, X } from 'lucide-vue-next'
-import { cancelImageGeneration, getImageGeneration, retryImageGeneration } from '../../api/ai'
+import { cancelImageGeneration, getImageGeneration, regenerateImageGeneration, retryImageGeneration } from '../../api/ai'
 
 const props = defineProps({
   reference: { type: Object, required: true },
   prompt: { type: String, default: '' },
 })
-
-defineEmits(['regenerate'])
 
 const job = ref(null)
 const actionBusy = ref(false)
@@ -106,12 +104,7 @@ const errorMessage = computed(() => {
   }
   return labels[code] || job.value?.error?.message || '图片生成失败，请调整描述后重新生成。'
 })
-const regenerationPayload = computed(() => ({
-  mode: job.value?.mode || props.reference?.mode,
-  prompt: props.prompt,
-  parameters: job.value?.parameters || {},
-  sourceImages: sourceImages.value,
-}))
+const currentJobId = computed(() => job.value?.job_id || props.reference.job_id)
 
 function clearPoll() {
   if (pollTimer) window.clearTimeout(pollTimer)
@@ -127,7 +120,7 @@ function schedulePoll() {
 async function loadJob() {
   clearPoll()
   try {
-    const response = await getImageGeneration(props.reference.job_id)
+    const response = await getImageGeneration(currentJobId.value)
     job.value = response.data
   } catch {
     if (!job.value) ElMessage.error('生成任务状态加载失败，请稍后刷新')
@@ -143,6 +136,20 @@ async function retry() {
     schedulePoll()
   } catch {
     ElMessage.error('任务暂时无法重试')
+  } finally {
+    actionBusy.value = false
+  }
+}
+
+async function regenerate() {
+  actionBusy.value = true
+  try {
+    const response = await regenerateImageGeneration(currentJobId.value)
+    job.value = response.data
+    ElMessage.success('已继承原参数并创建新的生成任务')
+    schedulePoll()
+  } catch {
+    ElMessage.error('暂时无法重新生成，请稍后再试')
   } finally {
     actionBusy.value = false
   }
@@ -167,7 +174,7 @@ function openFirstResult() {
 function downloadFirstResult() {
   const link = document.createElement('a')
   link.href = resultImages.value[0]?.storage_url
-  link.download = `ai-generation-${props.reference.job_id}.jpg`
+  link.download = `ai-generation-${currentJobId.value}.jpg`
   link.click()
 }
 
@@ -176,7 +183,10 @@ function onVisibilityChange() {
   else clearPoll()
 }
 
-watch(() => props.reference.job_id, loadJob)
+watch(() => props.reference.job_id, () => {
+  job.value = null
+  void loadJob()
+})
 onMounted(() => {
   document.addEventListener('visibilitychange', onVisibilityChange)
   void loadJob()

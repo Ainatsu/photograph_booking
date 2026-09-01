@@ -36,7 +36,7 @@
       <button v-if="resultImages.length" type="button" class="action pressable" @click="openAsset(resultImages[0].storage_url)"><Expand :size="17" /><span>查看</span></button>
       <button v-if="resultImages.length" type="button" class="action pressable" @click="downloadAsset(resultImages[0].storage_url)"><Download :size="17" /><span>下载</span></button>
       <button v-if="job?.can_retry" type="button" class="action pressable" :disabled="actionBusy" @click="retry"><RotateCw :size="17" /><span>重试</span></button>
-      <button v-if="canRegenerate" type="button" class="action pressable" @click="$emit('regenerate', regenerationPayload)"><Sparkles :size="17" /><span>重新生成</span></button>
+      <button v-if="canRegenerate" type="button" class="action pressable" :disabled="actionBusy" @click="regenerate"><Sparkles :size="17" /><span>重新生成</span></button>
       <button v-if="job?.can_cancel" type="button" class="action pressable" :disabled="actionBusy" @click="cancel"><X :size="17" /><span>取消</span></button>
     </footer>
   </section>
@@ -45,11 +45,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { AlertCircle, Download, Expand, LoaderCircle, RotateCw, Sparkles, X } from 'lucide-vue-next'
-import { cancelImageGeneration, getImageGeneration, retryImageGeneration, type AIImageGenerationJob } from '@/api/ai'
+import { cancelImageGeneration, getImageGeneration, regenerateImageGeneration, retryImageGeneration, type AIImageGenerationJob } from '@/api/ai'
 import { resolveMediaUrl } from '@/utils/media'
 
 const props = defineProps<{ reference: { job_id: number; mode: string; status?: string }; prompt?: string }>()
-const emit = defineEmits<{ regenerate: [payload: { mode: string; prompt: string; parameters: Record<string, unknown>; sourceImages: AIImageGenerationJob['source_images'] }]; error: [message: string] }>()
+const emit = defineEmits<{ error: [message: string] }>()
 
 const job = ref<AIImageGenerationJob | null>(null)
 const actionBusy = ref(false)
@@ -67,19 +67,20 @@ const statusLabel = computed(() => ({ queued: '等待生成', generating: '生�
 const stageLabel = computed(() => ({ queued: '等待生成', validating_input: '正在校验输入', preparing_request: '正在准备请求', calling_provider: '正在提交模型', saving_assets: '正在保存图片', retry_wait: '服务繁忙，等待重试' }[job.value?.stage || 'queued'] || '正在生成'))
 const progressText = computed(() => `${job.value?.progress.completed || 0} / ${job.value?.progress.total || 1} 张已完成`)
 const errorMessage = computed(() => ({ provider_unavailable: '图像服务暂时不可用，可点击重试。', invalid_provider_image: '上游返回的图片无效，可点击重试。', asset_save_failed: '部分图片保存失败，可点击重试。' }[job.value?.error?.code || ''] || job.value?.error?.message || '图片生成失败，请调整描述后重新生成。'))
-const regenerationPayload = computed(() => ({ mode: job.value?.mode || props.reference.mode, prompt: props.prompt || '', parameters: job.value?.parameters || {}, sourceImages: sourceImages.value }))
+const currentJobId = computed(() => job.value?.job_id || props.reference.job_id)
 
 function mediaUrl(url?: string | null) { return resolveMediaUrl(url || '') }
 function clearPoll() { if (pollTimer) clearTimeout(pollTimer); pollTimer = null }
 function schedulePoll() { clearPoll(); if (isActive.value && document.visibilityState === 'visible') pollTimer = setTimeout(loadJob, 2000) }
-async function loadJob() { clearPoll(); try { job.value = await getImageGeneration(props.reference.job_id) } catch { if (!job.value) emit('error', '生成任务状态加载失败，请稍后刷新') } finally { schedulePoll() } }
-async function retry() { actionBusy.value = true; try { job.value = await retryImageGeneration(props.reference.job_id); schedulePoll() } catch { emit('error', '任务暂时无法重试') } finally { actionBusy.value = false } }
-async function cancel() { actionBusy.value = true; try { job.value = await cancelImageGeneration(props.reference.job_id); schedulePoll() } catch { emit('error', '任务暂时无法取消') } finally { actionBusy.value = false } }
+async function loadJob() { clearPoll(); try { job.value = await getImageGeneration(currentJobId.value) } catch { if (!job.value) emit('error', '生成任务状态加载失败，请稍后刷新') } finally { schedulePoll() } }
+async function retry() { actionBusy.value = true; try { job.value = await retryImageGeneration(currentJobId.value); schedulePoll() } catch { emit('error', '任务暂时无法重试') } finally { actionBusy.value = false } }
+async function regenerate() { actionBusy.value = true; try { job.value = await regenerateImageGeneration(currentJobId.value); schedulePoll() } catch { emit('error', '暂时无法重新生成，请稍后再试') } finally { actionBusy.value = false } }
+async function cancel() { actionBusy.value = true; try { job.value = await cancelImageGeneration(currentJobId.value); schedulePoll() } catch { emit('error', '任务暂时无法取消') } finally { actionBusy.value = false } }
 function openAsset(url: string) { window.open(mediaUrl(url), '_blank', 'noopener,noreferrer') }
-function downloadAsset(url: string) { const link = document.createElement('a'); link.href = mediaUrl(url); link.download = `ai-generation-${props.reference.job_id}.jpg`; link.click() }
+function downloadAsset(url: string) { const link = document.createElement('a'); link.href = mediaUrl(url); link.download = `ai-generation-${currentJobId.value}.jpg`; link.click() }
 function onVisibilityChange() { if (document.visibilityState === 'visible') void loadJob(); else clearPoll() }
 
-watch(() => props.reference.job_id, loadJob)
+watch(() => props.reference.job_id, () => { job.value = null; void loadJob() })
 onMounted(() => { document.addEventListener('visibilitychange', onVisibilityChange); void loadJob() })
 onBeforeUnmount(() => { clearPoll(); document.removeEventListener('visibilitychange', onVisibilityChange) })
 </script>

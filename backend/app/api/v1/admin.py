@@ -22,6 +22,7 @@ from backend.app.schemas.admin import (
 )
 from backend.app.services.admin_service import (
     get_dashboard_stats,
+    get_image_generation_overview,
     get_all_users,
     ban_user,
     unban_user,
@@ -93,6 +94,16 @@ def ai_quality_dashboard(
     """获取 AI Agent 质量看板数据"""
     _verify_admin(authorization, db)
     return agent_quality_dashboard(db, days=days)
+
+
+@router.get("/ai/image-generations/overview", summary="Image generation operations overview")
+def image_generation_overview(
+    days: int = 7,
+    authorization: str = Header(default=""),
+    db: Session = Depends(get_db),
+):
+    _verify_admin(authorization, db)
+    return get_image_generation_overview(db, days=days)
 
 
 @router.post("/ai/index-jobs", summary="Enqueue AI index rebuild")

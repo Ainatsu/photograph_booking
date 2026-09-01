@@ -26,7 +26,8 @@ api.interceptors.response.use(
             localStorage.removeItem('token')
         }
         if (!error.config?.skipErrorHandler) {
-            const message = error.response?.data?.detail || '请求失败'
+            const detail = error.response?.data?.detail
+            const message = typeof detail === 'object' ? (detail.message || detail.code || '请求失败') : (detail || '请求失败')
             ElMessage.error(message)
         }
         return Promise.reject(error)

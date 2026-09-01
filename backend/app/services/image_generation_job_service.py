@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import os
+import socket
+from asyncio import Semaphore
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
+from time import perf_counter
 from typing import Any
+from urllib.parse import urljoin, urlsplit
 
+import httpx
 from fastapi import HTTPException
 from PIL import Image, ImageOps
 from sqlalchemy import or_
@@ -16,21 +22,46 @@ from sqlalchemy.orm import Session
 from backend.app.core.config import settings
 from backend.app.core.database import SessionLocal
 from backend.app.models.agent_task import AgentTaskDraft
+from backend.app.models.ai_conversation import AIMessage
 from backend.app.models.image_generation import ImageGenerationAsset, ImageGenerationJob
+from backend.app.schemas.ai import AIImageGenerationRequest
 from backend.app.services.image_generation_provider import (
     ImageGenerationProvider,
+    ImageGenerationProviderError,
     ImageToImageRequest,
     TextToImageRequest,
     get_image_generation_provider,
 )
+from backend.app.utils.file_upload import _normalize_ai_image, create_thumbnail_for_url
 
 MAX_ATTEMPTS = 3
 RETRY_DELAYS_SECONDS = (5, 20)
 STALE_RUNNING_SECONDS = 240
+_provider_semaphore: Semaphore | None = None
+_provider_semaphore_limit: int | None = None
 
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _elapsed_ms(started: float) -> int:
+    return max(0, round((perf_counter() - started) * 1000))
+
+
+def _aware(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+
+def _get_provider_semaphore() -> Semaphore:
+    global _provider_semaphore, _provider_semaphore_limit
+    limit = max(1, int(settings.IMAGE_MAX_CONCURRENCY))
+    if _provider_semaphore is None or _provider_semaphore_limit != limit:
+        _provider_semaphore = Semaphore(limit)
+        _provider_semaphore_limit = limit
+    return _provider_semaphore
 
 
 def _owned_job(db: Session, owner_id: int, job_id: int) -> ImageGenerationJob:
@@ -53,6 +84,7 @@ def _asset_dict(asset: ImageGenerationAsset) -> dict[str, Any]:
     return {
         "id": asset.id,
         "url": asset.storage_url,
+        "storage_url": asset.storage_url,
         "thumbnail_url": asset.thumbnail_url,
         "mime_type": asset.mime_type,
         "width": asset.width,
@@ -127,6 +159,74 @@ def retry_image_generation_job(db: Session, *, owner_id: int, job_id: int) -> di
     return serialize_image_generation_job(db, job)
 
 
+def regenerate_image_generation_job(db: Session, *, owner_id: int, job_id: int) -> dict[str, Any]:
+    """Create a fresh job while inheriting the original prompt, media and parameters."""
+    original = _owned_job(db, owner_id, job_id)
+    if original.status in {"queued", "generating", "retry_wait"}:
+        raise HTTPException(status_code=409, detail={"code": "image_generation_still_active"})
+
+    from backend.app.services.image_generation_workflow_service import create_image_generation_job
+
+    inherited = dict(original.parameters or {})
+    request = AIImageGenerationRequest(
+        mode=original.mode,
+        aspect_ratio=inherited.get("aspect_ratio", "1:1"),
+        count=int(inherited.get("count", 1)),
+        quality=inherited.get("quality", "standard"),
+        strength=inherited.get("strength") if original.mode == "image_to_image" else None,
+    )
+    attachments = [
+        {
+            "type": "image",
+            "url": asset.storage_url,
+            "mime_type": asset.mime_type,
+            "thumb_url": asset.thumbnail_url,
+        }
+        for asset in _assets(db, original.id, "source")
+    ]
+    regenerated = create_image_generation_job(
+        db,
+        user_id=owner_id,
+        conversation_id=original.conversation_id,
+        source_message_id=original.source_message_id,
+        prompt=original.prompt,
+        attachments=attachments,
+        request=request,
+        source="regenerate",
+    )
+    parameters = dict(regenerated.parameters or {})
+    parameters["regenerated_from_job_id"] = original.id
+    regenerated.parameters = parameters
+
+    assistant_messages = (
+        db.query(AIMessage)
+        .filter(
+            AIMessage.conversation_id == original.conversation_id,
+            AIMessage.role == "assistant",
+        )
+        .order_by(AIMessage.id.desc())
+        .all()
+    )
+    for message in assistant_messages:
+        metadata = dict(message.message_metadata or {})
+        reference = metadata.get("image_generation")
+        if isinstance(reference, dict) and reference.get("job_id") == original.id:
+            metadata["image_generation"] = {
+                **reference,
+                "job_id": regenerated.id,
+                "task_id": regenerated.agent_task_id,
+                "status": regenerated.status,
+                "mode": regenerated.mode,
+                "regenerated_from_job_id": original.id,
+            }
+            message.message_metadata = metadata
+            break
+
+    db.commit()
+    db.refresh(regenerated)
+    return serialize_image_generation_job(db, regenerated)
+
+
 def recover_stale_image_generation_jobs(db: Session, *, stale_seconds: int = STALE_RUNNING_SECONDS) -> int:
     cutoff = _now() - timedelta(seconds=stale_seconds)
     jobs = (
@@ -178,6 +278,67 @@ def _local_path_from_url(url: str) -> str:
     return path
 
 
+def _validate_public_https_url(url: str) -> None:
+    parsed = urlsplit(url)
+    if parsed.scheme.lower() != "https" or not parsed.hostname or parsed.username or parsed.password:
+        raise ImageGenerationProviderError("invalid_provider_image_url", "Provider image URL must be public HTTPS", retryable=False)
+    try:
+        addresses = socket.getaddrinfo(parsed.hostname, parsed.port or 443, type=socket.SOCK_STREAM)
+    except socket.gaierror as exc:
+        raise ImageGenerationProviderError("provider_download_failed", "Provider image host could not be resolved", retryable=True) from exc
+    for address in addresses:
+        ip = ipaddress.ip_address(address[4][0])
+        if not ip.is_global:
+            raise ImageGenerationProviderError("invalid_provider_image_url", "Provider image URL resolves to a non-public address", retryable=False)
+
+
+async def _download_provider_image(url: str) -> tuple[bytes, str | None]:
+    current_url = url
+    max_redirects = max(0, int(settings.IMAGE_MAX_DOWNLOAD_REDIRECTS))
+    max_bytes = int(settings.IMAGE_MAX_DOWNLOAD_BYTES)
+    timeout = httpx.Timeout(settings.IMAGE_REQUEST_TIMEOUT)
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
+        for redirect_count in range(max_redirects + 1):
+            _validate_public_https_url(current_url)
+            try:
+                async with client.stream("GET", current_url, headers={"Accept": "image/*"}) as response:
+                    if response.status_code in {301, 302, 303, 307, 308}:
+                        location = response.headers.get("location")
+                        if not location or redirect_count >= max_redirects:
+                            raise ImageGenerationProviderError("provider_download_failed", "Provider image redirect limit exceeded", retryable=True)
+                        current_url = urljoin(current_url, location)
+                        continue
+                    response.raise_for_status()
+                    content_type = (response.headers.get("content-type") or "").split(";", 1)[0].strip().lower()
+                    if not content_type.startswith("image/"):
+                        raise ImageGenerationProviderError("invalid_provider_image", "Provider image response has an invalid content type", retryable=True)
+                    content_length = response.headers.get("content-length")
+                    if content_length:
+                        try:
+                            declared_size = int(content_length)
+                        except ValueError:
+                            declared_size = 0
+                        if declared_size > max_bytes:
+                            raise ImageGenerationProviderError("invalid_provider_image", "Provider image response is too large", retryable=True)
+                    chunks = bytearray()
+                    async for chunk in response.aiter_bytes():
+                        chunks.extend(chunk)
+                        if len(chunks) > max_bytes:
+                            raise ImageGenerationProviderError("invalid_provider_image", "Provider image response is too large", retryable=True)
+                    return bytes(chunks), content_type
+            except ImageGenerationProviderError:
+                raise
+            except httpx.TimeoutException as exc:
+                raise ImageGenerationProviderError("provider_timeout", "Provider image download timed out", retryable=True) from exc
+            except httpx.HTTPStatusError as exc:
+                retryable = exc.response.status_code == 429 or exc.response.status_code >= 500
+                code = "provider_rate_limited" if exc.response.status_code == 429 else "provider_download_failed"
+                raise ImageGenerationProviderError(code, "Provider image download failed", retryable=retryable) from exc
+            except httpx.RequestError as exc:
+                raise ImageGenerationProviderError("provider_download_failed", "Provider image download failed", retryable=True) from exc
+    raise ImageGenerationProviderError("provider_download_failed", "Provider image download failed", retryable=True)
+
+
 def _save_result_asset(db: Session, job: ImageGenerationJob, payload: bytes, position: int, metadata: dict[str, Any]) -> ImageGenerationAsset:
     max_bytes = int(settings.IMAGE_MAX_DOWNLOAD_BYTES)
     if not payload or len(payload) > max_bytes:
@@ -222,20 +383,74 @@ def _save_result_asset(db: Session, job: ImageGenerationJob, payload: bytes, pos
 
 
 def _classify_error(exc: Exception) -> tuple[str, bool]:
+    if isinstance(exc, ImageGenerationProviderError):
+        return exc.code, exc.retryable
     stable_codes = {
         "invalid_provider_image",
+        "reference_image_required",
         "reference_image_not_found",
         "reference_image_not_local",
         "reference_image_too_large",
+        "reference_image_source_too_large",
+        "reference_image_dimensions_too_large",
     }
     code = str(exc) if str(exc) in stable_codes else "provider_unavailable"
     return code, code in {"provider_unavailable", "invalid_provider_image"}
 
 
-async def process_image_generation_job(db: Session, job: ImageGenerationJob, *, provider: ImageGenerationProvider | None = None) -> str:
-    provider = provider or get_image_generation_provider()
-    parameters = job.parameters or {}
+def _normalize_legacy_source_asset(
+    db: Session,
+    source: ImageGenerationAsset,
+    path: str,
+    source_bytes: bytes,
+) -> bytes:
     try:
+        normalized, metadata = _normalize_ai_image(source_bytes)
+    except HTTPException as exc:
+        detail = exc.detail if isinstance(exc.detail, dict) else {}
+        raise ValueError(detail.get("code") or "reference_image_too_large") from exc
+
+    normalized_path = f"{os.path.splitext(path)[0]}_normalized{metadata['extension']}"
+    with open(normalized_path, "wb") as normalized_file:
+        normalized_file.write(normalized)
+    relative_path = os.path.relpath(normalized_path, settings.UPLOAD_DIR).replace(os.sep, "/")
+    source.storage_url = f"/static/{relative_path}"
+    source.thumbnail_url = create_thumbnail_for_url(source.storage_url)
+    source.mime_type = metadata["mime_type"]
+    source.width = metadata["width"]
+    source.height = metadata["height"]
+    source.size_bytes = metadata["size_bytes"]
+    source.sha256 = metadata["sha256"]
+    source.provider_metadata = {
+        **(source.provider_metadata or {}),
+        "upload": {
+            "original_width": metadata["original_width"],
+            "original_height": metadata["original_height"],
+            "original_size_bytes": metadata["original_size_bytes"],
+            "normalized": True,
+            "normalized_by": "worker_retry",
+        },
+    }
+    db.commit()
+    return normalized
+
+
+async def process_image_generation_job(db: Session, job: ImageGenerationJob, *, provider: ImageGenerationProvider | None = None) -> str:
+    parameters = job.parameters or {}
+    total_started = perf_counter()
+    provider_started: float | None = None
+    concurrency_wait_ms = 0
+    queue_wait_ms = 0
+    created_at = _aware(job.created_at)
+    if created_at:
+        queue_wait_ms = max(0, round((_now() - created_at).total_seconds() * 1000))
+    try:
+        if provider is None:
+            job.provider = settings.IMAGE_PROVIDER
+            job.model = settings.IMAGE_MODEL
+            provider = get_image_generation_provider()
+        job.provider = getattr(provider, "provider_name", None)
+        job.model = getattr(provider, "model_name", None)
         job.stage = "preparing_request"
         db.commit()
         common = {
@@ -246,44 +461,76 @@ async def process_image_generation_job(db: Session, job: ImageGenerationJob, *, 
         }
         job.stage = "calling_provider"
         db.commit()
-        if job.mode == "image_to_image":
-            source = _assets(db, job.id, "source")[0]
-            path = _local_path_from_url(source.storage_url)
-            with open(path, "rb") as source_file:
-                source_bytes = source_file.read()
-            if len(source_bytes) > int(settings.IMAGE_MAX_UPLOAD_BYTES):
-                raise ValueError("reference_image_too_large")
-            with Image.open(BytesIO(source_bytes)) as source_image:
-                source_image.verify()
-            result = await provider.edit(ImageToImageRequest(
-                **common,
-                source_image=source_bytes,
-                source_mime_type=source.mime_type,
-                strength=float(parameters.get("strength", 0.65)),
-            ))
-        else:
-            result = await provider.generate(TextToImageRequest(**common))
+        concurrency_started = perf_counter()
+        async with _get_provider_semaphore():
+            concurrency_wait_ms = _elapsed_ms(concurrency_started)
+            provider_started = perf_counter()
+            if job.mode == "image_to_image":
+                source_assets = _assets(db, job.id, "source")
+                if not source_assets:
+                    raise ValueError("reference_image_required")
+                source = source_assets[0]
+                path = _local_path_from_url(source.storage_url)
+                with open(path, "rb") as source_file:
+                    source_bytes = source_file.read()
+                if len(source_bytes) > int(settings.IMAGE_MAX_UPLOAD_BYTES):
+                    source_bytes = _normalize_legacy_source_asset(db, source, path, source_bytes)
+                with Image.open(BytesIO(source_bytes)) as source_image:
+                    source_image.verify()
+                result = await provider.edit(ImageToImageRequest(
+                    **common,
+                    source_image=source_bytes,
+                    source_mime_type=source.mime_type,
+                    strength=float(parameters["strength"]) if "strength" in parameters else None,
+                ))
+            else:
+                result = await provider.generate(TextToImageRequest(**common))
+        provider_latency_ms = _elapsed_ms(provider_started)
         job.provider = result.provider
         job.model = result.model
         job.provider_request_id = result.request_id
-        job.usage_metadata = result.usage
         job.stage = "saving_assets"
         db.commit()
+        save_started = perf_counter()
+        requested = int(parameters.get("count", 1))
         existing_positions = {asset.position for asset in _assets(db, job.id, "result")}
         failures = 0
-        for position, image in enumerate(result.images):
+        last_asset_error: Exception | None = None
+        for position, image in enumerate(result.images[:requested]):
             if position in existing_positions:
                 continue
-            if image.content is None:
-                failures += 1
-                continue
             try:
-                _save_result_asset(db, job, image.content, position, image.provider_metadata)
-            except Exception:
+                payload = image.content
+                mime_type = image.mime_type
+                if payload is None and image.temporary_url:
+                    payload, mime_type = await _download_provider_image(image.temporary_url)
+                if payload is None:
+                    raise ImageGenerationProviderError("invalid_provider_image", "Provider returned an empty image", retryable=True)
+                metadata = dict(image.provider_metadata)
+                if image.revised_prompt:
+                    metadata["revised_prompt"] = image.revised_prompt
+                if mime_type:
+                    metadata["source_mime_type"] = mime_type
+                _save_result_asset(db, job, payload, position, metadata)
+            except Exception as exc:
                 failures += 1
+                last_asset_error = exc
         db.flush()
+        asset_save_latency_ms = _elapsed_ms(save_started)
         saved_count = len(_assets(db, job.id, "result"))
-        requested = int(parameters.get("count", 1))
+        job.usage_metadata = {
+            **(result.usage or {}),
+            "audit": {
+                "source": parameters.get("source"),
+                "queue_wait_ms": queue_wait_ms,
+                "concurrency_wait_ms": concurrency_wait_ms,
+                "provider_latency_ms": provider_latency_ms,
+                "asset_save_latency_ms": asset_save_latency_ms,
+                "total_latency_ms": _elapsed_ms(total_started),
+                "requested_count": requested,
+                "saved_count": saved_count,
+            },
+        }
         if saved_count >= requested:
             job.status = "completed"
         elif saved_count > 0:
@@ -291,7 +538,7 @@ async def process_image_generation_job(db: Session, job: ImageGenerationJob, *, 
             job.last_error_code = "asset_save_failed"
             job.last_error = f"{failures or requested - saved_count} result asset(s) failed"
         else:
-            raise ValueError("invalid_provider_image")
+            raise last_asset_error or ValueError("invalid_provider_image")
         job.stage = job.status
         job.completed_at = _now()
         job.started_at = None
@@ -304,6 +551,19 @@ async def process_image_generation_job(db: Session, job: ImageGenerationJob, *, 
         return job.status
     except Exception as exc:
         code, retryable = _classify_error(exc)
+        audit = dict(job.usage_metadata or {})
+        audit["audit"] = {
+            **(audit.get("audit") or {}),
+            "source": parameters.get("source"),
+            "queue_wait_ms": queue_wait_ms,
+            "concurrency_wait_ms": concurrency_wait_ms,
+            "total_latency_ms": _elapsed_ms(total_started),
+            "requested_count": int(parameters.get("count", 1)),
+            "error_code": code,
+        }
+        if provider_started is not None:
+            audit["audit"]["provider_latency_ms"] = _elapsed_ms(provider_started)
+        job.usage_metadata = audit
         job.last_error_code = code
         job.last_error = str(exc)[:500]
         job.started_at = None

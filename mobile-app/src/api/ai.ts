@@ -237,6 +237,15 @@ export interface AIChatResponse {
 export interface AIUploadResponse {
   url: string
   mime_type: string
+  thumb_url?: string
+  width: number
+  height: number
+  size_bytes: number
+  sha256: string
+  original_width: number
+  original_height: number
+  original_size_bytes: number
+  normalized: boolean
 }
 
 export type PublishPolishContentType = 'project' | 'package' | 'work'
@@ -299,6 +308,11 @@ export async function getImageGeneration(jobId: number): Promise<AIImageGenerati
 
 export async function retryImageGeneration(jobId: number): Promise<AIImageGenerationJob> {
   const { data } = await api.post<AIImageGenerationJob>(`/ai/image-generations/${jobId}/retry`)
+  return data
+}
+
+export async function regenerateImageGeneration(jobId: number): Promise<AIImageGenerationJob> {
+  const { data } = await api.post<AIImageGenerationJob>(`/ai/image-generations/${jobId}/regenerate`)
   return data
 }
 

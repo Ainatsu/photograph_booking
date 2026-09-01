@@ -44,9 +44,10 @@ from backend.app.services.agent_task_service import (
 from backend.app.services.image_generation_job_service import (
     cancel_image_generation_job,
     get_image_generation_job,
+    regenerate_image_generation_job,
     retry_image_generation_job,
 )
-from backend.app.utils.file_upload import save_upload_file
+from backend.app.utils.file_upload import save_ai_image_upload
 
 router = APIRouter(prefix="/ai", tags=["AI 摄影助手"])
 
@@ -265,8 +266,7 @@ async def upload_ai_image(
     current_user: User = Depends(get_current_active_user),
 ):
     """上传 AI 对话中使用的图片，返回图片 URL"""
-    url = await save_upload_file(file, sub_dir=f"ai/{current_user.id}")
-    return {"url": url, "mime_type": file.content_type or "image/jpeg"}
+    return await save_ai_image_upload(file, sub_dir=f"ai/{current_user.id}")
 
 
 @router.get("/image-generations/{job_id}")
@@ -285,6 +285,15 @@ def retry_ai_image_generation(
     current_user: User = Depends(get_current_active_user),
 ):
     return retry_image_generation_job(db, owner_id=current_user.id, job_id=job_id)
+
+
+@router.post("/image-generations/{job_id}/regenerate")
+def regenerate_ai_image_generation(
+    job_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    return regenerate_image_generation_job(db, owner_id=current_user.id, job_id=job_id)
 
 
 @router.post("/image-generations/{job_id}/cancel")

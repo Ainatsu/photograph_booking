@@ -81,7 +81,6 @@
                       v-if="imageGenerationRef(msg)"
                       :reference="imageGenerationRef(msg)!"
                       :prompt="imageGenerationPrompt(msg)"
-                      @regenerate="restoreImageGeneration"
                       @error="toastMessage = $event"
                     />
                     <div v-if="hasReferences(msg.metadata?.references)" class="references-wrap">
@@ -227,9 +226,9 @@
     </ion-content>
 
     <div class="bottom-dock">
-      <div v-if="activeTask" class="task-dock" aria-live="polite">
+      <div v-if="visibleActiveTask" class="task-dock" aria-live="polite">
         <AgentTaskSummaryCard
-          :task="activeTask"
+          :task="visibleActiveTask"
           :busy="taskActionBusy"
           @cancel="cancelActiveTask"
           @edit="editActiveTask"
@@ -432,15 +431,18 @@ import {
   type AIShootContextPlace,
   type AIImageGenerationAspectRatio,
   type AIImageGenerationRequest,
+  type AIUploadResponse,
 } from '@/api/ai'
 import { cancelAgentTask, commitAgentTask, getActiveAgentTask, openAgentTask } from '@/api/agentTasks'
 import { useAuthStore } from '@/stores/auth'
 import { resolveMediaUrl } from '@/utils/media'
+import { compressAIReferenceImage } from '@/utils/aiImageCompression'
 import { segmentAssistantReply } from '@/utils/aiMessageSegments'
 import { buildAssistantRevealSchedule } from '@/utils/assistantReveal'
 import { consumeAIPageContext, getSourceRoute } from '@/utils/aiPageContext'
 import type { AgentTask } from '@/types/agentTask'
 import { getAgentTaskRoute } from '@/utils/agentTaskRoutes'
+import { shouldDisplayAgentTaskDock } from '@/utils/agentTaskAdapters'
 import { trackRecommendationEvents, type BookablePackageRecommendation, type RecommendationEvent } from '@/api/recommendations'
 
 const AI_CONVERSATION_KEY = 'ai_active_conversation_id'
@@ -455,7 +457,7 @@ const sending = ref(false)
 const loading = ref(true)
 const toastMessage = ref('')
 const conversation = ref<AIConversation | null>(null)
-const uploadedImages = ref<{ url: string; thumbUrl?: string; file: File }[]>([])
+const uploadedImages = ref<{ url: string; thumbUrl?: string; file: File; metadata: AIUploadResponse }[]>([])
 const messageListRef = ref<HTMLElement | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const messageInputRef = ref<HTMLTextAreaElement | null>(null)
@@ -466,6 +468,9 @@ const canScrollCapabilitiesRight = ref(false)
 let capabilityResizeObserver: ResizeObserver | null = null
 const pageContext = ref<AIPageContext | null>(null)
 const activeTask = ref<AgentTask | null>(null)
+const visibleActiveTask = computed(() => (
+  shouldDisplayAgentTaskDock(activeTask.value) ? activeTask.value : null
+))
 const taskActionBusy = ref(false)
 const trackedJointEvents = new Set<string>()
 
@@ -523,7 +528,7 @@ const segmentCache = new Map<string, string[]>()
 const ionContentRef = ref<any>(null)
 const isUserNearBottom = ref(true)
 
-watch(activeTask, async (task, previousTask) => {
+watch(visibleActiveTask, async (task, previousTask) => {
   if (!task || task === previousTask || !messages.value.length) return
   // The dock is outside ion-content, so re-align after it mounts.
   await nextTick()
@@ -541,7 +546,7 @@ watch(
 )
 
 const inputPlaceholder = computed(() => {
-  if (activeTask.value?.summary.next_question) return activeTask.value.summary.next_question
+  if (visibleActiveTask.value?.summary.next_question) return visibleActiveTask.value.summary.next_question
   if (selectedAgent.value?.key === 'create_inspiration') return '上传参考图，并补充想要的风格或拍摄方向'
   if (selectedAgent.value?.key === 'text_to_image') return '描述想要生成的场景、人物、光线和风格'
   if (selectedAgent.value?.key === 'image_to_image') return '描述需要保留和修改的内容'
@@ -884,14 +889,16 @@ async function handleFileSelect(event: Event) {
       toastMessage.value = '以图生图第一版只支持一张参考图'
       break
     }
-    const thumbUrl = URL.createObjectURL(file)
+    let thumbUrl = ''
     try {
-      const result = await uploadAIImage(file)
-      uploadedImages.value.push({ url: result.url, thumbUrl, file })
+      const uploadFile = await compressAIReferenceImage(file)
+      thumbUrl = URL.createObjectURL(uploadFile)
+      const result = await uploadAIImage(uploadFile)
+      uploadedImages.value.push({ url: result.url, thumbUrl, file: uploadFile, metadata: result })
       toastMessage.value = '图片已上传'
     } catch (error) {
       toastMessage.value = getApiErrorMessage(error)
-      URL.revokeObjectURL(thumbUrl)
+      if (thumbUrl) URL.revokeObjectURL(thumbUrl)
     }
   }
 
@@ -1112,7 +1119,16 @@ async function submitMessage() {
   const attachments = uploadedImages.value.map((img) => ({
     type: 'image' as const,
     url: img.url,
-    mime_type: img.file.type || 'image/jpeg',
+    mime_type: img.metadata.mime_type || img.file.type || 'image/jpeg',
+    thumb_url: img.metadata.thumb_url,
+    width: img.metadata.width,
+    height: img.metadata.height,
+    size_bytes: img.metadata.size_bytes,
+    sha256: img.metadata.sha256,
+    original_width: img.metadata.original_width,
+    original_height: img.metadata.original_height,
+    original_size_bytes: img.metadata.original_size_bytes,
+    normalized: img.metadata.normalized,
   }))
   const prevImages = [...uploadedImages.value]
   const ctx = pageContext.value
@@ -1202,27 +1218,6 @@ function imageGenerationPrompt(msg: AIMessage): string {
     if (messages.value[cursor]?.role === 'user') return messages.value[cursor].content || ''
   }
   return ''
-}
-
-function restoreImageGeneration(payload: { mode: string; prompt: string; parameters: Record<string, unknown>; sourceImages: Array<{ storage_url: string; thumbnail_url?: string | null; mime_type: string }> }) {
-  const target = agentCapabilities.find((agent) => agent.key === payload.mode)
-  if (!target) return
-  selectedAgent.value = target
-  generationSettingsOpen.value = false
-  draft.value = payload.prompt
-  generationSettings.aspect_ratio = generationRatios.includes(payload.parameters.aspect_ratio as AIImageGenerationAspectRatio) ? payload.parameters.aspect_ratio as AIImageGenerationAspectRatio : '1:1'
-  generationSettings.count = Number(payload.parameters.count) === 2 ? 2 : 1
-  generationSettings.quality = payload.parameters.quality === 'high' ? 'high' : 'standard'
-  generationSettings.strength = Number(payload.parameters.strength || 0.65)
-  uploadedImages.value.forEach((item) => { if (item.thumbUrl?.startsWith('blob:')) URL.revokeObjectURL(item.thumbUrl) })
-  uploadedImages.value = payload.mode === 'image_to_image'
-    ? payload.sourceImages.slice(0, 1).map((asset) => ({
-        url: asset.storage_url,
-        thumbUrl: asset.thumbnail_url || asset.storage_url,
-        file: new File([], 'reference.jpg', { type: asset.mime_type || 'image/jpeg' }),
-      }))
-    : []
-  void nextTick(() => messageInputRef.value?.focus())
 }
 
 function inspirationEntry(msg: AIMessage): InspirationQuickEntry | null {

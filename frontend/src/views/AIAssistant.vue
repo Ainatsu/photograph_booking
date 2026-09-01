@@ -93,7 +93,6 @@
                 v-if="getImageGenerationRef(message)"
                 :reference="getImageGenerationRef(message)"
                 :prompt="getImageGenerationPrompt(message)"
-                @regenerate="restoreImageGeneration"
               />
               <div
                 v-if="message.role === 'assistant' && shouldShowTaskCard(message)"
@@ -641,6 +640,7 @@ import {
 } from '../api/ai'
 import { useAIConversation } from '../composables/useAIConversation'
 import api from '../utils/api'
+import { compressAIReferenceImage } from '../utils/aiImageCompression'
 import { saveWorkDraft } from '../utils/workDrafts'
 import aiAvatar from '../../CartleJ.jpg'
 import ProjectLocationField from '../components/location/ProjectLocationField.vue'
@@ -1699,21 +1699,23 @@ const handleFileChange = async (event) => {
       ElMessage.warning('最多上传 4 张图片')
       break
     }
-    // 预览 URL
-    const previewUrl = URL.createObjectURL(file)
-    const imgEntry = { file, previewUrl, uploading: true, url: '', mimeType: file.type }
-    pendingImages.value.push(imgEntry)
-
+    let imgEntry = null
     try {
-      const res = await uploadAIImage(file)
+      const uploadFile = await compressAIReferenceImage(file)
+      const previewUrl = URL.createObjectURL(uploadFile)
+      imgEntry = { file: uploadFile, previewUrl, uploading: true, url: '', mimeType: uploadFile.type, metadata: null }
+      pendingImages.value.push(imgEntry)
+      const res = await uploadAIImage(uploadFile)
       imgEntry.url = res.data.url
-      imgEntry.mimeType = res.data.mime_type || file.type
-    } catch {
-      ElMessage.error('图片上传失败')
+      imgEntry.mimeType = res.data.mime_type || uploadFile.type
+      imgEntry.metadata = res.data
+      imgEntry.uploading = false
+    } catch (error) {
+      if (imgEntry?.previewUrl) URL.revokeObjectURL(imgEntry.previewUrl)
       const idx = pendingImages.value.indexOf(imgEntry)
       if (idx >= 0) pendingImages.value.splice(idx, 1)
-    } finally {
-      imgEntry.uploading = false
+      const detail = error?.response?.data?.detail
+      ElMessage.error(typeof detail === 'object' ? detail.message : (detail || error?.message || '图片上传失败'))
     }
   }
   // 重置 file input 以支持重复选择同一文件
@@ -1725,6 +1727,21 @@ const removePendingImage = (idx) => {
   if (img && img.previewUrl) URL.revokeObjectURL(img.previewUrl)
   pendingImages.value.splice(idx, 1)
 }
+
+const pendingImageAttachment = img => ({
+  type: 'image',
+  url: img.url,
+  mime_type: img.mimeType,
+  thumb_url: img.metadata?.thumb_url,
+  width: img.metadata?.width,
+  height: img.metadata?.height,
+  size_bytes: img.metadata?.size_bytes,
+  sha256: img.metadata?.sha256,
+  original_width: img.metadata?.original_width,
+  original_height: img.metadata?.original_height,
+  original_size_bytes: img.metadata?.original_size_bytes,
+  normalized: img.metadata?.normalized,
+})
 
 const buildMessagePayload = (content, attachments = []) => {
   const payload = { content: content || null }
@@ -1762,7 +1779,7 @@ const handleSend = async () => {
   try {
     const attachments = pendingImages.value
       .filter(img => img.url)
-      .map(img => ({ type: 'image', url: img.url, mime_type: img.mimeType }))
+      .map(pendingImageAttachment)
 
     const payload = buildMessagePayload(content, attachments)
     const generationRequest = buildGenerationRequest()
@@ -1897,7 +1914,7 @@ const submitPublisherFromCard = async (card, action) => {
 
   const attachments = pendingImages.value
     .filter(img => img.url)
-    .map(img => ({ type: 'image', url: img.url, mime_type: img.mimeType }))
+    .map(pendingImageAttachment)
   if (!conversationId.value || sending.value) return
 
   sending.value = true
@@ -1961,28 +1978,6 @@ const handleGenerationModeChange = (mode) => {
   if (mode === 'text_to_image' && pendingImages.value.length) {
     ElMessage.info('请移除现有图片，或切换到以图生图')
   }
-}
-
-const restoreImageGeneration = (payload) => {
-  generationConfig.value = {
-    mode: payload.mode,
-    aspect_ratio: payload.parameters.aspect_ratio || '1:1',
-    count: Number(payload.parameters.count || 1),
-    quality: payload.parameters.quality || 'standard',
-    strength: Number(payload.parameters.strength || 0.65),
-  }
-  inputText.value = payload.prompt || ''
-  pendingImages.value.forEach(item => { if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl) })
-  pendingImages.value = payload.mode === 'image_to_image'
-    ? (payload.sourceImages || []).slice(0, 1).map(asset => ({
-        file: null,
-        previewUrl: asset.thumbnail_url || asset.storage_url,
-        uploading: false,
-        url: asset.storage_url,
-        mimeType: asset.mime_type || 'image/jpeg',
-      }))
-    : []
-  nextTick(() => document.querySelector('.chat-input-row textarea')?.focus())
 }
 
 const updateQuickPromptScrollState = () => {

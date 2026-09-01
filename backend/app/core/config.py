@@ -199,6 +199,7 @@ class Settings(BaseSettings):
     IMAGE_MODEL: str = "mock-image-v1"
     IMAGE_GENERATION_PATH: str = "/images/generations"
     IMAGE_EDIT_PATH: str = "/images/edits"
+    IMAGE_EDIT_STRENGTH_PARAMETER: str | None = "strength"
     IMAGE_RESPONSE_FORMAT: str = "b64_json"
     IMAGE_REQUEST_TIMEOUT: int = 180
     IMAGE_MAX_CONCURRENCY: int = 1
@@ -209,7 +210,13 @@ class Settings(BaseSettings):
     IMAGE_DAILY_LIMIT_PER_USER: int = 10
     IMAGE_MAX_ACTIVE_JOBS_PER_USER: int = 1
     IMAGE_MAX_UPLOAD_BYTES: int = 10 * 1024 * 1024
+    IMAGE_MAX_SOURCE_UPLOAD_BYTES: int = 30 * 1024 * 1024
+    IMAGE_UPLOAD_TARGET_BYTES: int = 8 * 1024 * 1024
+    IMAGE_UPLOAD_MAX_DIMENSION: int = 4096
+    IMAGE_UPLOAD_MAX_PIXELS: int = 50_000_000
+    IMAGE_UPLOAD_JPEG_QUALITY: int = 85
     IMAGE_MAX_DOWNLOAD_BYTES: int = 20 * 1024 * 1024
+    IMAGE_MAX_DOWNLOAD_REDIRECTS: int = 3
     AI_INDEX_MAX_ATTEMPTS: int = 5
     AI_CONVERSION_PRIOR_RATE: float = 0.10
     AI_CONVERSION_PRIOR_WEIGHT: int = 10

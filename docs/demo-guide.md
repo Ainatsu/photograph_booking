@@ -52,6 +52,28 @@ venv\Scripts\python.exe -m backend.scripts.seed_demo_data
 
 使用 `admin.demo@example.com` 登录管理端，查看平台统计、订单、摄影师入驻申请、用户、争议和财务信息。
 
+### 图片生成演示
+
+默认配置为 `IMAGE_PROVIDER=mock`，不需要外部图片模型密钥：
+
+1. 使用客户账号打开 AI 助手，选择“文生图”，输入“黄昏海边的清冷人像，胶片质感”，发送后观察排队、生成和保存状态。
+2. 上传一张参考图片，选择“以图生图”，输入需要保留和修改的内容，确认结果卡展示参考图与生成图。
+3. 点击“重新生成”，系统会直接创建新 Job，并继承原任务的模式、提示词、参考图和生成参数。
+4. 使用管理员账号打开仪表盘，在“图片生成调用”中切换近 7 天/30 天，核对成功率、图片数、平均耗时、Provider 分布和最近任务。
+
+Mock Provider 用于演示工作流，不代表真实模型质量。切换 OpenAI-compatible Provider 前，至少配置：
+
+```env
+IMAGE_PROVIDER=openai_compatible
+IMAGE_API_BASE=https://example.com/v1
+IMAGE_API_KEY=replace-with-local-secret
+IMAGE_MODEL=your-image-model
+IMAGE_GENERATION_PATH=/images/generations
+IMAGE_EDIT_PATH=/images/edits
+```
+
+参考图片可能被发送给第三方 Provider；真实部署前应同步更新隐私说明，并确认中转服务实际支持的参数和响应格式。
+
 ## 6. 重复演示与自动化验证
 
 seed 命令可以安全重复执行，不清空数据库，也不删除非演示数据：

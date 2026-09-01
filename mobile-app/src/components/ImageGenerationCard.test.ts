@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import ImageGenerationCard from './ImageGenerationCard.vue'
-import { getImageGeneration, retryImageGeneration } from '@/api/ai'
+import { getImageGeneration, regenerateImageGeneration, retryImageGeneration } from '@/api/ai'
 
 vi.mock('@/api/ai', () => ({
   getImageGeneration: vi.fn(),
   retryImageGeneration: vi.fn(),
+  regenerateImageGeneration: vi.fn(),
   cancelImageGeneration: vi.fn(),
 }))
 
@@ -29,6 +30,7 @@ describe('ImageGenerationCard', () => {
     vi.useFakeTimers()
     vi.mocked(getImageGeneration).mockReset()
     vi.mocked(retryImageGeneration).mockReset()
+    vi.mocked(regenerateImageGeneration).mockReset()
   })
 
   it('loads a completed job and does not keep polling a terminal state', async () => {
@@ -55,6 +57,21 @@ describe('ImageGenerationCard', () => {
     await flushPromises()
 
     expect(retryImageGeneration).toHaveBeenCalledWith(12)
+    expect(wrapper.text()).toContain('等待生成')
+    wrapper.unmount()
+  })
+
+  it('creates a new job when regenerating a completed result', async () => {
+    vi.mocked(getImageGeneration).mockResolvedValue(completedJob as any)
+    vi.mocked(regenerateImageGeneration).mockResolvedValue({ ...completedJob, job_id: 13, status: 'queued', stage: 'queued', result_images: [] } as any)
+    const wrapper = mount(ImageGenerationCard, { props: { reference, prompt: '黄昏海边人像' } })
+    await flushPromises()
+
+    const regenerateButton = wrapper.findAll('footer .action').find((button) => button.text().includes('重新生成'))
+    await regenerateButton!.trigger('click')
+    await flushPromises()
+
+    expect(regenerateImageGeneration).toHaveBeenCalledWith(12)
     expect(wrapper.text()).toContain('等待生成')
     wrapper.unmount()
   })

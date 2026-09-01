@@ -33,6 +33,9 @@ export function getApiErrorMessage(error: unknown): string {
 
     const detail = error.response.data?.detail
     if (typeof detail === 'string' && detail.trim()) return detail
+    if (detail && typeof detail === 'object' && typeof (detail as { message?: unknown }).message === 'string') {
+      return (detail as { message: string }).message
+    }
     return `服务返回异常（${error.response.status}），请稍后重试。`
   }
 

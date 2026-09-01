@@ -1,5 +1,9 @@
 import type { AgentTask, AgentTaskType } from '@/types/agentTask'
 
+export function shouldDisplayAgentTaskDock(task: AgentTask | null | undefined): task is AgentTask {
+  return Boolean(task && task.task_type !== 'generate_image')
+}
+
 export function taskFields(task: AgentTask, type: AgentTaskType = task.task_type): Record<string, unknown> {
   if (task.task_type !== type) return {}
   return { ...(task.fields || {}) }

@@ -30,6 +30,15 @@ class AIMessageAttachment(BaseModel):
     type: Literal["image"]
     url: str
     mime_type: str | None = None
+    thumb_url: str | None = None
+    width: int | None = Field(default=None, gt=0)
+    height: int | None = Field(default=None, gt=0)
+    size_bytes: int | None = Field(default=None, ge=0)
+    sha256: str | None = Field(default=None, min_length=64, max_length=64)
+    original_width: int | None = Field(default=None, gt=0)
+    original_height: int | None = Field(default=None, gt=0)
+    original_size_bytes: int | None = Field(default=None, ge=0)
+    normalized: bool | None = None
 
 
 class AITaskSubmission(BaseModel):

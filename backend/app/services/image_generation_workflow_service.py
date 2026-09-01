@@ -129,6 +129,22 @@ def create_image_generation_job(
             storage_url=image["url"],
             thumbnail_url=image.get("thumb_url"),
             mime_type=image.get("mime_type") or "image/jpeg",
+            width=image.get("width"),
+            height=image.get("height"),
+            size_bytes=image.get("size_bytes"),
+            sha256=image.get("sha256"),
+            provider_metadata={
+                "upload": {
+                    key: image[key]
+                    for key in (
+                        "original_width",
+                        "original_height",
+                        "original_size_bytes",
+                        "normalized",
+                    )
+                    if image.get(key) is not None
+                }
+            },
         ))
     db.commit()
     db.refresh(job)

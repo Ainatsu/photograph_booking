@@ -23,6 +23,7 @@ export function uploadAIImage(file) {
   formData.append('file', file)
   return api.post('/ai/uploads', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    skipErrorHandler: true,
   })
 }
 
@@ -32,6 +33,10 @@ export function getImageGeneration(jobId) {
 
 export function retryImageGeneration(jobId) {
   return api.post(`/ai/image-generations/${jobId}/retry`)
+}
+
+export function regenerateImageGeneration(jobId) {
+  return api.post(`/ai/image-generations/${jobId}/regenerate`)
 }
 
 export function cancelImageGeneration(jobId) {

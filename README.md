@@ -28,6 +28,27 @@
 - **可靠性与审计**：工具动作携带幂等键，避免重复创建；执行结果写入 `agent_action_logs`，便于追踪意图、工具、参数、结果和失败原因。
 - **持续上下文**：支持会话历史压缩、工作记忆、长期记忆和任务记忆检索，让 Agent 能在多轮对话中保持任务上下文。
 
+### AI 图片生成 Provider
+
+图片生成使用独立的 `ImageGenerationProvider`，与聊天模型的 `AIProvider` 配置互不影响。文生图和以图生图共享一套异步 Job、状态轮询、重试、重新生成、配额与媒体落盘流程，仅在输入校验和 Provider 调用方法上区分。
+
+- `IMAGE_PROVIDER=mock`：默认演示模式，无需 API Key，使用项目内固定测试图跑通完整交互。
+- `IMAGE_PROVIDER=openai_compatible`：调用 OpenAI-compatible 中转接口；生成端点与编辑端点可分别配置。
+- Provider 返回的图片会校验类型、大小和真实图像内容，并保存到 `uploads/ai-generated/`，前端不长期依赖上游临时 URL。
+- “重试”复用原 Job；“重新生成”创建新 Job，并继承原提示词、宽高比、数量、质量、修改强度和参考图，便于独立审计。
+
+最小配置示例：
+
+```env
+IMAGE_PROVIDER=mock
+IMAGE_MODEL=mock-image-v1
+IMAGE_GENERATION_WORKER_ENABLED=true
+IMAGE_MAX_CONCURRENCY=1
+IMAGE_DAILY_LIMIT_PER_USER=10
+```
+
+切换真实中转服务时设置 `IMAGE_API_BASE`、`IMAGE_API_KEY`、`IMAGE_MODEL`、`IMAGE_GENERATION_PATH` 和 `IMAGE_EDIT_PATH`。仓库中的 `.env.example` 不包含真实密钥。
+
 ### Agent 工作流程
 
 ```text

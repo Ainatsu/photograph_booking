@@ -127,6 +127,7 @@ html, body, #app { margin: 0; height: 100%; }
 }
 
 .admin-main {
+  min-width: 0;
   padding: 24px;
   background: #FAF7F2;
   min-height: 100%;
