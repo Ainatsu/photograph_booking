@@ -419,6 +419,23 @@ class TestClassifyIntentShadowMode:
 
 class TestClassifyIntentHybridMode:
     @pytest.mark.asyncio
+    async def test_hybrid_no_image_inspiration_keeps_search_workflow(self):
+        provider = ModelProvider({
+            "intent": "create_inspiration_flow",
+            "slots": {"styles": ["绿色系"]},
+            "confidence": 0.95,
+        })
+        result = await classify_intent(
+            "帮我创建绿色系灵感",
+            mode="hybrid",
+            provider=provider,
+        )
+        assert result.intent.intent == "compound_workflow"
+        assert result.intent.route == "workflow"
+        assert result.intent.missing_slots == []
+        assert result.intent.sub_intents == ["search_portfolio_item", "generate_inspiration"]
+
+    @pytest.mark.asyncio
     async def test_hybrid_uses_model_when_valid(self):
         provider = ModelProvider({"intent": "resource_search", "slots": {"city": "深圳", "styles": ["日系"]}, "confidence": 0.95})
         result = await classify_intent("帮我找深圳日系摄影师", mode="hybrid", provider=provider)

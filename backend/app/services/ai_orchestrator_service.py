@@ -186,6 +186,19 @@ def recognize_intent_by_rules(content: str | None, attachments: list[dict] | Non
             confidence=0.94,
         )
 
+    if _is_search_then_inspire_intent(text, has_image=has_image, slots=slots):
+        # The backend owns the fixed order; the model cannot turn this into an
+        # arbitrary tool chain. Explicit search requests may omit a style,
+        # while an implicit "create inspiration" request must provide one.
+        return AgentIntent(
+            intent="compound_workflow",
+            sub_intents=["search_portfolio_item", "generate_inspiration"],
+            slots={**slots, "resource_types": ["portfolio_items"], "explicit_search": _has_portfolio_search_language(text)},
+            missing_slots=[] if (_has_portfolio_search_language(text) or slots.get("style")) else ["style"],
+            route="workflow",
+            confidence=0.96,
+        )
+
     if _is_create_inspiration_intent(text):
         return AgentIntent(
             intent="create_inspiration_flow",
@@ -242,6 +255,8 @@ recognize_intent = recognize_intent_by_rules
 def should_run_retrieval(intent: AgentIntent) -> bool:
     """判断该意图是否需要触发资源检索。"""
     if intent.intent == "resource_search":
+        return True
+    if intent.intent == "compound_workflow" and intent.slots.get("resource_types") == ["portfolio_items"]:
         return True
     if intent.intent == "booking_flow" and "search_package" in intent.sub_intents:
         return True
@@ -516,6 +531,21 @@ def _is_create_inspiration_intent(text: str) -> bool:
     if any(phrase in text for phrase in direct_phrases):
         return True
     return "灵感" in text and any(term in text for term in ("创建", "生成", "保存", "整理", "做成"))
+
+
+def _has_portfolio_search_language(text: str) -> bool:
+    return any(term in text for term in ("搜索作品", "搜索样片", "找作品", "找样片", "推荐作品", "类似作品", "作品案例", "作品"))
+
+
+def _is_search_then_inspire_intent(text: str, *, has_image: bool, slots: dict[str, Any]) -> bool:
+    """Recognize only the phase-one fixed search -> inspiration chain."""
+    if has_image or not _is_create_inspiration_intent(text):
+        return False
+    explicit_search = _has_portfolio_search_language(text) and any(
+        term in text for term in ("搜索", "找", "推荐", "类似", "参考", "作品")
+    )
+    # "帮我创建灵感，风格是日系" is an implicit search workflow.
+    return explicit_search or bool(slots.get("style") or slots.get("styles"))
 
 
 def _is_image_edit_intent(text: str, *, has_image: bool = False) -> bool:

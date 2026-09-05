@@ -26,6 +26,7 @@ TASK_FIELDS: dict[str, set[str]] = {
         "inspiration_id", "reference_text", "title", "summary", "tags", "cover_url",
         "location_name", "location_address", "latitude", "longitude", "place_id",
         "provider", "coordinate_system", "location_precision", "generation_metadata",
+        "style", "styles",
     },
     "generate_image": {"prompt", "mode", "aspect_ratio", "count", "quality", "strength", "source"},
 }

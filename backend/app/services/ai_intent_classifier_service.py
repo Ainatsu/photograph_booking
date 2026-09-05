@@ -172,6 +172,34 @@ def _reconcile_hybrid_intent(
     ):
         return rule_intent
 
+    # A no-image inspiration request with an explicit style is the fixed
+    # search-then-inspire workflow. The model commonly reports the legacy
+    # create_inspiration_flow intent for this wording; keep the deterministic
+    # workflow route so an empty attachment list is never sent to the image
+    # reference-only handler.
+    if (
+        not has_image
+        and model_intent.intent == "create_inspiration_flow"
+        and (
+            rule_intent.intent == "compound_workflow"
+            or model_intent.slots.get("style")
+            or model_intent.slots.get("styles")
+        )
+    ):
+        slots = dict(rule_intent.slots or {})
+        slots.update({key: value for key, value in (model_intent.slots or {}).items() if value not in (None, "", [])})
+        policy = apply_intent_policy("compound_workflow", slots, has_image=False)
+        return AgentIntent(
+            intent="compound_workflow",
+            sub_intents=policy["sub_intents"],
+            slots=slots,
+            missing_slots=policy["missing_slots"],
+            requires_confirmation=policy["requires_confirmation"],
+            route=policy["route"],
+            confidence=max(rule_intent.confidence, model_intent.confidence),
+            parser="rules",
+        )
+
     explicit_types = _explicit_rule_resource_types(content, rule_intent)
     if not explicit_types:
         return model_intent

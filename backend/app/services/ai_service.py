@@ -20,6 +20,8 @@ from backend.app.services.agent_routing_gate import (
 )
 from backend.app.services.ai_agent_contracts import (
     INTENT_CLASSIFICATION_TRACE_VERSION,
+    TaskPlan,
+    TaskStep,
     apply_intent_policy,
     normalize_agent_metadata,
 )
@@ -3949,30 +3951,89 @@ async def send_ai_message(
             source="explicit_button" if generation_request else "intent",
         )
         result = image_generation_agent_result(job)
-    elif intent.intent == "create_inspiration_flow":
-        trusted_images = [
-            {
-                "attachment_index": index,
-                "url": item.get("url"),
-                "thumb_url": item.get("thumb_url"),
-                "mime_type": item.get("mime_type") or "image/jpeg",
-                "provider_image_url": _image_url_for_provider(
-                    item,
-                    max_edge=1280,
-                    jpeg_quality=82,
-                ),
-            }
-            for index, item in enumerate(attachments or [])
-            if item.get("type") == "image" and item.get("url")
-        ]
-        result = await create_inspiration_workflow(
-            db,
-            user_id=user_id,
-            conversation_id=conversation.id,
-            message_id=user_message.id,
-            reference_text=(content or "").strip(),
-            images=trusted_images,
+    elif intent.intent == "compound_workflow":
+        references = (retrieval_payload or {}).get("references") or {}
+        candidates = references.get("portfolio_items") or []
+        trusted_images = []
+        source_items = []
+        for item in candidates[:12]:
+            payload = item if isinstance(item, dict) else {}
+            media_type = payload.get("media_type") or "image"
+            url = payload.get("url") or payload.get("thumbnail_url")
+            if media_type == "video" or not isinstance(url, str) or not url.strip():
+                continue
+            source_items.append({
+                "id": payload.get("id"),
+                "title": payload.get("title") or "",
+            })
+            trusted_images.append({
+                "attachment_index": len(trusted_images),
+                "url": url,
+                "thumb_url": payload.get("thumbnail_url"),
+                "mime_type": "image/jpeg",
+                "provider_image_url": _image_url_for_provider({"url": url, "mime_type": "image/jpeg"}, max_edge=1280, jpeg_quality=82),
+            })
+        plan_status = "waiting_async_result" if trusted_images else "failed"
+        plan = TaskPlan(
+            workflow_type="search_then_inspire",
+            status=plan_status,
+            steps=[
+                TaskStep(id="search", type="resource_search", order=1, status="completed", fields={"resource_types": ["portfolio_items"]}, result={"count": len(candidates), "resource_ids": [item.get("id") for item in candidates if isinstance(item, dict)]}),
+                TaskStep(id="inspire", type="create_inspiration", order=2, depends_on=["search"], status=plan_status if trusted_images else "failed", error=None if trusted_images else "no_usable_images"),
+            ],
         )
+        if trusted_images:
+            result = await create_inspiration_workflow(
+                db, user_id=user_id, conversation_id=conversation.id, message_id=user_message.id,
+                reference_text=(content or "").strip(), images=trusted_images,
+            )
+            result.setdefault("metadata", {})["task_plan"] = plan.as_dict()
+            result["metadata"]["workflow_sources"] = source_items
+        else:
+            result = {"content": "没有找到包含可用静态图片的匹配作品，请调整风格、城市或预算后重试。", "metadata": {"task_plan": plan.as_dict(), "workflow_status": plan_status}}
+    elif intent.intent == "create_inspiration_flow":
+        if not attachments and not (intent.slots.get("style") or intent.slots.get("styles")):
+            result = {
+                "content": "你想创作什么风格的灵感？可以告诉我一个或多个风格，例如日系、胶片、复古或电影感。",
+                "metadata": {
+                    "workflow_status": "waiting_user",
+                    "missing_slots": ["style"],
+                    "task_state": {
+                        "schema_version": "agent_workflow_v1",
+                        "task_type": "create_inspiration",
+                        "status": "awaiting_details",
+                        "slots": intent.slots,
+                        "missing_slots": ["style"],
+                    },
+                },
+            }
+            # Do not create a draft or invoke retrieval until the user supplies
+            # the single missing constraint.
+            trusted_images = None
+        else:
+            trusted_images = [
+                {
+                    "attachment_index": index,
+                    "url": item.get("url"),
+                    "thumb_url": item.get("thumb_url"),
+                    "mime_type": item.get("mime_type") or "image/jpeg",
+                    "provider_image_url": _image_url_for_provider(
+                        item,
+                        max_edge=1280,
+                        jpeg_quality=82,
+                    ),
+                }
+                for index, item in enumerate(attachments or [])
+                if item.get("type") == "image" and item.get("url")
+            ]
+            result = await create_inspiration_workflow(
+                db,
+                user_id=user_id,
+                conversation_id=conversation.id,
+                message_id=user_message.id,
+                reference_text=(content or "").strip(),
+                images=trusted_images,
+            )
     elif intent.intent == "project_flow":
         result = _project_agent_result(
             db,
@@ -4231,7 +4292,7 @@ async def send_ai_message(
     if not isinstance(task_state, dict) and embedded_form_result:
         task_state = (embedded_form_result.get("metadata") or {}).get("task_state")
     if isinstance(task_state, dict) and task_state.get("task_type") in {
-        "create_project", "publish_package", "publish_work", "project_application", "create_booking",
+        "create_project", "publish_package", "publish_work", "project_application", "create_booking", "create_inspiration",
     }:
         task_type = task_state["task_type"]
         slots = task_state.get("slots") or {}
@@ -4272,6 +4333,7 @@ async def send_ai_message(
             "awaiting_details": "collecting", "awaiting_reference_images": "collecting",
             "awaiting_confirmation": "collecting", "awaiting_package": "collecting",
             "awaiting_date": "collecting", "editing": "editing_page",
+            "failed": "failed",
             "completed": "completed", "cancelled": "cancelled",
         }
         task = sync_task_snapshot(

@@ -158,6 +158,7 @@ class LLMIntentCandidate(BaseModel):
     schema_version: Literal["llm_intent_candidate_v1", "llm_intent_candidate_v2"] = LLM_INTENT_CANDIDATE_SCHEMA_VERSION
     intent: Literal[
         "chat",
+        "compound_workflow",
         "resource_search",
         "image_analysis",
         "image_generation_flow",
@@ -197,6 +198,11 @@ INTENT_POLICIES: dict[str, dict[str, Any]] = {
     "resource_search": {
         "route": "retrieval",
         "sub_intents": ["search_resources"],
+        "requires_confirmation": False,
+    },
+    "compound_workflow": {
+        "route": "workflow",
+        "sub_intents": ["search_portfolio_item", "generate_inspiration"],
         "requires_confirmation": False,
     },
     "image_analysis": {
@@ -315,6 +321,8 @@ def _policy_missing_slots(intent_name: str, slots: dict[str, Any]) -> list[str]:
         if not slots.get("date"):
             missing.append("date")
         return missing
+    if intent_name == "compound_workflow":
+        return [] if (slots.get("style") or slots.get("styles") or slots.get("explicit_search")) else ["style"]
     return []
 
 
@@ -483,6 +491,47 @@ class AgentIntent(BaseModel):
 
     def as_dict(self) -> dict[str, Any]:
         """将意图序列化为 JSON 兼容字典。"""
+        return self.model_dump(mode="json")
+
+
+class TaskStep(BaseModel):
+    """A serializable, independently auditable step in a fixed workflow."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    type: Literal["resource_search", "create_inspiration"]
+    order: int = Field(ge=1)
+    depends_on: list[str] = Field(default_factory=list)
+    status: Literal["pending", "running", "waiting_user", "waiting_async_result", "completed", "failed", "cancelled"] = "pending"
+    fields: dict[str, Any] = Field(default_factory=dict)
+    result: dict[str, Any] | None = None
+    error: str | None = None
+    retries: int = Field(default=0, ge=0)
+
+
+class TaskPlan(BaseModel):
+    """Phase-one fixed plan; validation keeps execution deterministic."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal["agent_task_sequence_v1"] = "agent_task_sequence_v1"
+    workflow_type: Literal["search_then_inspire"]
+    status: Literal["needs_input", "ready", "running", "waiting_user", "waiting_async_result", "completed", "failed", "cancelled", "partial"] = "ready"
+    steps: list[TaskStep] = Field(min_length=2, max_length=2)
+
+    @field_validator("steps")
+    @classmethod
+    def validate_fixed_order(cls, value: list[TaskStep]) -> list[TaskStep]:
+        if [step.id for step in value] != ["search", "inspire"]:
+            raise ValueError("search_then_inspire requires search then inspire steps")
+        if [step.type for step in value] != ["resource_search", "create_inspiration"]:
+            raise ValueError("invalid search_then_inspire step types")
+        if value[1].depends_on != ["search"] or value[0].depends_on:
+            raise ValueError("invalid search_then_inspire dependencies")
+        return value
+
+    def as_dict(self) -> dict[str, Any]:
         return self.model_dump(mode="json")
 
 
