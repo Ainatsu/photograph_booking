@@ -4,7 +4,32 @@
         <template #left>
           <ChevronLeft :size="22" aria-hidden="true" />
         </template>
+        <template #center>
+          <button type="button" class="conversation-title-button" aria-label="打开对话列表" @click="conversationPanelOpen = true">
+            <span>{{ currentConversationTitle }}</span>
+            <ChevronDown :size="16" aria-hidden="true" />
+          </button>
+        </template>
+        <template #trailing>
+          <button type="button" class="topbar-action" aria-label="新建对话" :disabled="conversationBusy" @click="createConversationAndOpen">
+            <SquarePen :size="20" aria-hidden="true" />
+          </button>
+        </template>
       </AppTopBar>
+
+    <AIConversationPanel
+      :open="conversationPanelOpen"
+      :conversations="conversations"
+      :active-id="conversation?.id"
+      :busy="conversationBusy || sending"
+      @close="conversationPanelOpen = false"
+      @create="createConversationAndOpen"
+      @select="selectConversation"
+      @rename="renameConversation"
+      @archive="archiveConversation"
+      @fork="forkConversation"
+      @search="searchConversations"
+    />
 
     <ion-content ref="ionContentRef" class="page-content" @ionScroll="onIonScroll">
       <main class="page-shell">
@@ -405,10 +430,11 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { IonContent, IonPage, IonSpinner, IonToast, alertController } from '@ionic/vue'
-import { AlertCircle, ArrowUp, Bot, ChevronLeft, ChevronRight, Clock, Globe2, Images, MapPin, Paperclip, RotateCw, Sparkles, WandSparkles, X } from 'lucide-vue-next'
+import { AlertCircle, ArrowUp, Bot, ChevronDown, ChevronLeft, ChevronRight, Clock, Globe2, Images, MapPin, Paperclip, RotateCw, Sparkles, SquarePen, WandSparkles, X } from 'lucide-vue-next'
 import AIPageContextCard from '@/components/AIPageContextCard.vue'
 import AIShootContextCard from '@/components/AIShootContextCard.vue'
 import AIWebReferenceImages from '@/components/AIWebReferenceImages.vue'
+import AIConversationPanel from '@/components/AIConversationPanel.vue'
 import BookablePackageCard from '@/components/BookablePackageCard.vue'
 import JointRecommendationFilters from '@/components/JointRecommendationFilters.vue'
 import AgentTaskSummaryCard from '@/components/AgentTaskSummaryCard.vue'
@@ -420,9 +446,12 @@ import MediaPlaceholder from '@/components/MediaPlaceholder.vue'
 import { getApiErrorMessage } from '@/api/client'
 import {
   createAIConversation,
+  searchAIConversations,
+  forkAIConversation,
   getAIConversations,
   getAIMessages,
   sendAIMessage,
+  updateAIConversation,
   uploadAIImage,
   type AIMessage,
   type AIChatResponse,
@@ -446,6 +475,7 @@ import { shouldDisplayAgentTaskDock } from '@/utils/agentTaskAdapters'
 import { trackRecommendationEvents, type BookablePackageRecommendation, type RecommendationEvent } from '@/api/recommendations'
 
 const AI_CONVERSATION_KEY = 'ai_active_conversation_id'
+const AI_DRAFT_KEY_PREFIX = 'ai_conversation_draft:'
 
 const router = useRouter()
 const route = useRoute()
@@ -457,6 +487,9 @@ const sending = ref(false)
 const loading = ref(true)
 const toastMessage = ref('')
 const conversation = ref<AIConversation | null>(null)
+const conversations = ref<AIConversation[]>([])
+const conversationPanelOpen = ref(false)
+const conversationBusy = ref(false)
 const uploadedImages = ref<{ url: string; thumbUrl?: string; file: File; metadata: AIUploadResponse }[]>([])
 const messageListRef = ref<HTMLElement | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -473,6 +506,23 @@ const visibleActiveTask = computed(() => (
 ))
 const taskActionBusy = ref(false)
 const trackedJointEvents = new Set<string>()
+const currentConversationTitle = computed(() => conversation.value?.title || '新对话')
+
+watch(draft, (value) => {
+  if (!conversation.value) return
+  const key = `${AI_DRAFT_KEY_PREFIX}${conversation.value.id}`
+  if (value) localStorage.setItem(key, value)
+  else localStorage.removeItem(key)
+})
+
+watch(
+  () => route.query.conversation,
+  (conversationId) => {
+    if (!conversationId || !conversation.value || String(conversation.value.id) === String(conversationId)) return
+    const target = conversations.value.find((item) => String(item.id) === String(conversationId))
+    if (target) void activateConversation(target, false)
+  },
+)
 
 interface AgentCapabilityField {
   key: string
@@ -1067,27 +1117,172 @@ function goRefProject(proj: any) {
   if (id) router.push({ name: 'project-detail', params: { projectId: String(id) } })
 }
 
+async function refreshConversations() {
+  conversations.value = await getAIConversations({ skip: 0, limit: 100 })
+  return conversations.value
+}
+
+async function syncConversationRoute(conversationId: string | number) {
+  await router.replace({
+    query: { ...route.query, conversation: String(conversationId) },
+  })
+}
+
+async function activateConversation(target: AIConversation, syncRoute = true) {
+  if (sending.value || conversationBusy.value) return
+  conversationBusy.value = true
+  clearRevealState()
+  messages.value = []
+  activeTask.value = null
+  conversation.value = target
+  localStorage.setItem(AI_CONVERSATION_KEY, String(target.id))
+  draft.value = localStorage.getItem(`${AI_DRAFT_KEY_PREFIX}${target.id}`) || ''
+  try {
+    if (syncRoute) await syncConversationRoute(target.id)
+    await loadMessages()
+    conversationPanelOpen.value = false
+    await scrollToBottom(false)
+  } finally {
+    conversationBusy.value = false
+  }
+}
+
+async function createConversationAndOpen() {
+  if (conversationBusy.value || sending.value) return
+  conversationBusy.value = true
+  try {
+    const created = await createAIConversation()
+    conversations.value = [created, ...conversations.value]
+    conversationBusy.value = false
+    await activateConversation(created)
+  } catch (error) {
+    toastMessage.value = getApiErrorMessage(error)
+  } finally {
+    conversationBusy.value = false
+  }
+}
+
+async function selectConversation(target: AIConversation) {
+  if (String(target.id) === String(conversation.value?.id)) {
+    conversationPanelOpen.value = false
+    return
+  }
+  await activateConversation(target)
+}
+
+async function renameConversation(target: AIConversation) {
+  const alert = await alertController.create({
+    header: '重命名对话',
+    inputs: [{ name: 'title', type: 'text', value: target.title || '', placeholder: '输入对话名称', attributes: { maxlength: 255 } }],
+    buttons: [
+      { text: '取消', role: 'cancel' },
+      {
+        text: '保存',
+        handler: async (values) => {
+          const title = String(values?.title || '').trim()
+          if (!title) return false
+          conversationBusy.value = true
+          try {
+            const updated = await updateAIConversation(target.id, { title })
+            conversations.value = conversations.value.map((item) => String(item.id) === String(updated.id) ? updated : item)
+            if (String(conversation.value?.id) === String(updated.id)) conversation.value = updated
+          } catch (error) {
+            toastMessage.value = getApiErrorMessage(error)
+          } finally {
+            conversationBusy.value = false
+          }
+          return true
+        },
+      },
+    ],
+  })
+  await alert.present()
+}
+
+async function archiveConversation(target: AIConversation) {
+  const alert = await alertController.create({
+    header: '归档这个对话？',
+    message: '消息和任务记录会保留，你可以稍后通过 API 恢复。',
+    buttons: [
+      { text: '取消', role: 'cancel' },
+      {
+        text: '归档',
+        role: 'destructive',
+        handler: async () => {
+          conversationBusy.value = true
+          try {
+            await updateAIConversation(target.id, { archived: true })
+            conversations.value = conversations.value.filter((item) => String(item.id) !== String(target.id))
+            if (String(conversation.value?.id) === String(target.id)) {
+              const next = conversations.value[0]
+              conversationBusy.value = false
+              if (next) await activateConversation(next)
+              else await createConversationAndOpen()
+            }
+          } catch (error) {
+            toastMessage.value = getApiErrorMessage(error)
+          } finally {
+            conversationBusy.value = false
+          }
+        },
+      },
+    ],
+  })
+  await alert.present()
+}
+
+async function searchConversations(query: string) {
+  if (!query.trim()) {
+    conversations.value = await refreshConversations()
+    return
+  }
+  try {
+    conversations.value = await searchAIConversations({ q: query.trim(), limit: 100 })
+  } catch (error) {
+    toastMessage.value = getApiErrorMessage(error)
+  }
+}
+
+async function forkConversation(target: AIConversation) {
+  conversationBusy.value = true
+  try {
+    const created = await forkAIConversation(target.id)
+    conversations.value = [created, ...conversations.value]
+    await activateConversation(created)
+  } catch (error) {
+    toastMessage.value = getApiErrorMessage(error)
+  } finally {
+    conversationBusy.value = false
+  }
+}
+
 async function initConversation() {
   try {
+    const available = await refreshConversations()
+    const routeId = typeof route.query.conversation === 'string' ? route.query.conversation : null
     const savedId = localStorage.getItem(AI_CONVERSATION_KEY)
-    if (savedId) {
-      const conversations = await getAIConversations({ skip: 0, limit: 20 })
-      const existing = conversations.find((c) => c.id === savedId)
+    const preferredId = routeId || savedId
+    if (preferredId) {
+      const existing = available.find((c) => String(c.id) === String(preferredId))
       if (existing) {
         conversation.value = existing
+        localStorage.setItem(AI_CONVERSATION_KEY, String(existing.id))
+        draft.value = localStorage.getItem(`${AI_DRAFT_KEY_PREFIX}${existing.id}`) || ''
         return
       }
     }
 
-    const conversations = await getAIConversations({ skip: 0, limit: 1 })
-    if (conversations.length > 0) {
-      conversation.value = conversations[0]
-      localStorage.setItem(AI_CONVERSATION_KEY, conversations[0].id)
+    if (available.length > 0) {
+      conversation.value = available[0]
+      localStorage.setItem(AI_CONVERSATION_KEY, String(available[0].id))
+      draft.value = localStorage.getItem(`${AI_DRAFT_KEY_PREFIX}${available[0].id}`) || ''
     } else {
       const newConv = await createAIConversation()
       conversation.value = newConv
-      localStorage.setItem(AI_CONVERSATION_KEY, newConv.id)
+      conversations.value = [newConv]
+      localStorage.setItem(AI_CONVERSATION_KEY, String(newConv.id))
     }
+    await syncConversationRoute(conversation.value.id)
   } catch (error) {
     toastMessage.value = getApiErrorMessage(error)
     throw error
@@ -1158,7 +1353,7 @@ async function submitMessage() {
   // Build an optimistic user message so it appears in the chat immediately
   const optimisticMsg: AIMessage = {
     id: 'pending-' + Date.now(),
-    conversation_id: conversation.value.id,
+    conversation_id: String(conversation.value.id),
     role: 'user',
     content,
     ...(attachments.length ? { attachments: attachments as AIMessage['attachments'] } : {}),
@@ -1182,6 +1377,10 @@ async function submitMessage() {
     }
     activeTask.value = result.active_task
     await appendAssistantMessage(result.assistant_message)
+    if (!conversation.value.title && content) {
+      const updated = (await refreshConversations()).find((item) => String(item.id) === String(conversation.value?.id))
+      if (updated) conversation.value = updated
+    }
   } catch (error) {
     // Remove optimistic message on failure
     const idx = messages.value.indexOf(optimisticMsg)
@@ -1277,6 +1476,46 @@ onBeforeUnmount(() => {
 .page-content::part(scroll) {
   overscroll-behavior-y: contain;
 }
+
+.conversation-title-button {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--touch-target);
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+.conversation-title-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-action {
+  display: grid;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--brand);
+}
+
+.conversation-title-button:active,
+.topbar-action:active { background: var(--surface-secondary); }
+.conversation-title-button:focus-visible,
+.topbar-action:focus-visible { outline: 3px solid var(--brand-soft); outline-offset: 2px; }
+.topbar-action:disabled { opacity: 0.45; }
 
 .welcome-card {
   display: grid;

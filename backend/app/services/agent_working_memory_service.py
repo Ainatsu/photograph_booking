@@ -46,8 +46,8 @@ def active_task_key(user_id: int, conversation_id: int) -> str:
     return f"agent:active-task:{int(user_id)}:{int(conversation_id)}"
 
 
-def task_workspace_key(task_id: str) -> str:
-    return f"agent:task-workspace:{task_id}"
+def task_workspace_key(user_id: int, conversation_id: int, task_id: str) -> str:
+    return f"agent:working-memory:{int(user_id)}:{int(conversation_id)}:{task_id}"
 
 
 def working_memory_key(user_id: int, conversation_id: int) -> str:
@@ -77,7 +77,15 @@ def empty_working_memory(*, task_type: str = "chat", task_id: str | None = None,
 
 def get_active_task_id(user_id: int, conversation_id: int) -> str | None:
     pointer = cache_get(active_task_key(user_id, conversation_id))
-    return str(pointer.get("task_id")) if isinstance(pointer, dict) and pointer.get("task_id") else None
+    if not isinstance(pointer, dict):
+        return None
+    if pointer.get("user_id") not in (user_id, str(user_id)):
+        return None
+    if pointer.get("conversation_id") not in (conversation_id, str(conversation_id)):
+        return None
+    if pointer.get("status", "active") != "active":
+        return None
+    return str(pointer.get("task_id")) if pointer.get("task_id") else None
 
 
 def set_active_task_pointer(user_id: int, conversation_id: int, *, task_id: str,
@@ -85,6 +93,7 @@ def set_active_task_pointer(user_id: int, conversation_id: int, *, task_id: str,
                             ttl: int = DEFAULT_TTL_SECONDS) -> None:
     cache_set(active_task_key(user_id, conversation_id), {
         "task_id": task_id, "task_type": task_type, "revision": revision,
+        "user_id": user_id, "conversation_id": conversation_id, "status": "active",
     }, ttl=ttl)
 
 
@@ -97,10 +106,16 @@ def get_working_memory(user_id: int, conversation_id: int, *, task_id: str | Non
     task_id = task_id or get_active_task_id(user_id, conversation_id)
     if not task_id:
         return None
-    value = cache_get(task_workspace_key(task_id))
+    value = cache_get(task_workspace_key(user_id, conversation_id, task_id))
     if not isinstance(value, dict):
         return None
-    if value.get("task_id") != task_id or value.get("user_id") not in (None, user_id) or value.get("conversation_id") not in (None, conversation_id):
+    if (
+        value.get("schema_version") != WORKING_MEMORY_SCHEMA_VERSION
+        or value.get("task_id") != task_id
+        or value.get("user_id") not in (user_id, str(user_id))
+        or value.get("conversation_id") not in (conversation_id, str(conversation_id))
+        or value.get("status") != "active"
+    ):
         return None
     if task_type and value.get("task_type") != task_type:
         return None
@@ -118,12 +133,17 @@ def save_working_memory(
     task_id = normalized.get("task_id")
     if not task_id:
         raise ValueError("working memory requires task_id")
+    if normalized.get("user_id") not in (None, user_id, str(user_id)):
+        raise ValueError("working memory user_id mismatch")
+    if normalized.get("conversation_id") not in (None, conversation_id, str(conversation_id)):
+        raise ValueError("working memory conversation_id mismatch")
     normalized["user_id"] = user_id
     normalized["conversation_id"] = conversation_id
-    cache_set(task_workspace_key(str(task_id)), normalized, ttl=ttl)
-    set_active_task_pointer(user_id, conversation_id, task_id=str(task_id),
-                            task_type=str(normalized.get("task_type") or "chat"),
-                            revision=int(normalized.get("revision") or normalized.get("turn") or 0), ttl=ttl)
+    cache_set(task_workspace_key(user_id, conversation_id, str(task_id)), normalized, ttl=ttl)
+    if normalized.get("status") == "active":
+        set_active_task_pointer(user_id, conversation_id, task_id=str(task_id),
+                                task_type=str(normalized.get("task_type") or "chat"),
+                                revision=int(normalized.get("revision") or normalized.get("turn") or 0), ttl=ttl)
     return normalized
 
 
@@ -182,7 +202,7 @@ def clear_working_memory(user_id: int, conversation_id: int) -> None:
     task_id = get_active_task_id(user_id, conversation_id)
     clear_active_task_pointer(user_id, conversation_id)
     if task_id:
-        cache_delete(task_workspace_key(task_id))
+        cache_delete(task_workspace_key(user_id, conversation_id, task_id))
     cache_delete(working_memory_key(user_id, conversation_id))
 
 
@@ -315,6 +335,7 @@ def _normalize(memory: dict[str, Any]) -> dict[str, Any]:
     result["form"] = dict(result.get("form") or {})
     result["resources"] = list(result.get("resources") or [])[-MAX_RESOURCE_SNAPSHOTS:]
     result["events"] = list(result.get("events") or [])[-MAX_EVENTS:]
+    result["revision"] = int(result.get("revision") or 0)
     result["updated_at"] = result.get("updated_at") or _now()
     return result
 

@@ -5,6 +5,7 @@ from backend.app.services import agent_working_memory_service as memory_service
 from backend.app.services.agent_task_session_service import (
     apply_task_workspace_update,
     load_active_task_workspace,
+    sync_working_memory,
 )
 
 
@@ -78,3 +79,31 @@ def test_redis_loss_restores_only_active_task(db, customer_user, monkeypatch):
 
     assert restored["task_id"] == task.id
     assert restored["slots"] == {"city": "大理"}
+
+
+def test_sync_rejects_stale_workspace_revision(db, customer_user):
+    conversation = ai_service.create_conversation(db, customer_user.id)
+    task, memory, _ = apply_task_workspace_update(
+        db,
+        user_id=customer_user.id,
+        conversation_id=conversation.id,
+        task_type="package_search",
+        slots={"city": "大理"},
+    )
+    db.commit()
+    stale = dict(memory)
+    stale["revision"] = 0
+    task.revision = 2
+    db.flush()
+    try:
+        sync_working_memory(
+            db,
+            user_id=customer_user.id,
+            conversation_id=conversation.id,
+            memory=stale,
+            expected_revision=stale["revision"],
+        )
+    except ValueError as exc:
+        assert "revision conflict" in str(exc)
+    else:
+        raise AssertionError("stale workspace revision must be rejected")

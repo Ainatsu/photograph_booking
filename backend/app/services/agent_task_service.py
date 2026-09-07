@@ -9,12 +9,13 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from backend.app.models.agent_task import AgentTaskDraft
+from backend.app.models.agent_task import AgentTaskDraft, AgentTaskFormRevision
 from backend.app.models.ai_conversation import AIMessage
 from backend.app.models.order import Order
 from backend.app.models.photographer import PhotographerProfile
 from backend.app.models.project import ProjectApplication, ShootProject
 from backend.app.services.agent_task_extraction_service import TASK_FIELDS, apply_operations
+from backend.app.services.agent_form_revision_service import append_form_revision
 
 ACTIVE_STATUSES = {"collecting", "editing_page", "submitting", "generating", "saving", "failed"}
 TERMINAL_STATUSES = {"completed", "cancelled", "expired"}
@@ -193,10 +194,18 @@ def serialize_task(task: AgentTaskDraft | None) -> dict[str, Any] | None:
     }
 
 
-def patch_task(db: Session, *, user_id: int, conversation_id: int, task_id: str, revision: int, operations: list[dict[str, Any]], source_message_id: int | None = None) -> AgentTaskDraft:
+def patch_task(db: Session, *, user_id: int, conversation_id: int, task_id: str, revision: int, operations: list[dict[str, Any]], source_message_id: int | None = None, idempotency_key: str | None = None, source: str = "page") -> AgentTaskDraft:
     task = _owned(db, user_id, conversation_id, task_id)
     if task.status in TERMINAL_STATUSES:
         raise HTTPException(status_code=409, detail="Agent task is already closed")
+    if idempotency_key:
+        replay = (
+            db.query(AgentTaskFormRevision)
+            .filter(AgentTaskFormRevision.task_id == task.id, AgentTaskFormRevision.idempotency_key == str(idempotency_key))
+            .first()
+        )
+        if replay:
+            return task
     if revision != task.revision:
         raise HTTPException(status_code=409, detail={"code": "revision_conflict", "task": serialize_task(task)})
     fields, accepted = apply_operations(task.fields or {}, operations, TASK_FIELDS[task.task_type])
@@ -212,6 +221,18 @@ def patch_task(db: Session, *, user_id: int, conversation_id: int, task_id: str,
         task.field_sources = sources
         task.revision += 1
         task.updated_at = _now()
+        append_form_revision(
+            db,
+            task_id=task.id,
+            conversation_id=conversation_id,
+            user_id=user_id,
+            revision=task.revision,
+            operations=accepted,
+            resulting_form={**(task.target or {}), **(task.fields or {}), "media_assets": task.media_assets or []},
+            source=source,
+            source_message_id=source_message_id,
+            idempotency_key=idempotency_key,
+        )
     return task
 
 
@@ -225,7 +246,7 @@ def sync_task_snapshot(db: Session, *, user_id: int, conversation_id: int, task_
     if task.status in TERMINAL_STATUSES:
         return task
     operations = [{"field": key, "op": "set", "value": value, "confidence": 1.0, "evidence": "agent task snapshot"} for key, value in (fields or {}).items() if key in TASK_FIELDS[task_type] and value not in (None, "")]
-    task = patch_task(db, user_id=user_id, conversation_id=conversation_id, task_id=task.id, revision=task.revision, operations=operations, source_message_id=source_message_id)
+    task = patch_task(db, user_id=user_id, conversation_id=conversation_id, task_id=task.id, revision=task.revision, operations=operations, source_message_id=source_message_id, source="chat_extraction")
     if media_assets is not None:
         task.media_assets = list(media_assets)
     if status in ACTIVE_STATUSES or status in TERMINAL_STATUSES:
@@ -255,6 +276,13 @@ def commit_task(
 ) -> tuple[AgentTaskDraft, dict[str, Any]]:
     """Execute one explicit structured commit against the authoritative task draft."""
     task = _owned(db, user_id, conversation_id, task_id)
+    tool_name = {
+        "create_project": "create_project",
+        "publish_package": "publish_package",
+        "publish_work": "publish_work",
+        "create_booking": "create_booking",
+    }.get(task.task_type)
+    from backend.app.services.ai_tool_policy_service import build_action_summary
     if task.status == "completed":
         return task, {"status": "success", "content": "该任务已经提交，无需重复操作。", "result": task.result or {}}
     if task.status in {"cancelled", "expired"}:
@@ -367,7 +395,13 @@ def commit_task(
         content = f"提交失败：{result.get('error') or '业务校验未通过'}。请修改后重试。"
         receipt_status = "failed"
     task.updated_at = _now()
-    return task, {"status": receipt_status, "content": content, "result": result}
+    return task, {
+        "status": receipt_status,
+        "content": content,
+        "result": result,
+        "action_summary": build_action_summary(tool_name, {**target, **fields}) if tool_name else None,
+        "confirmation": {"confirmed": True, "revision": revision, "idempotency_key": idempotency_key},
+    }
 
 
 def cancel_task(db: Session, *, user_id: int, conversation_id: int, task_id: str) -> AgentTaskDraft:

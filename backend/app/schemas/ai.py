@@ -10,6 +10,9 @@ class AIConversationCreate(BaseModel):
     """创建 AI 会话请求"""
 
     title: str | None = Field(default=None, max_length=255)
+    approval_policy: Literal["auto", "confirm_write", "confirm_all"] = "confirm_write"
+    tool_permission_profile: Literal["read_only", "normal", "publisher", "booking"] = "normal"
+    confirmation_mode: Literal["inline", "modal", "explicit_text"] = "inline"
 
 
 class AIConversationResponse(BaseModel):
@@ -18,9 +21,63 @@ class AIConversationResponse(BaseModel):
     id: int
     user_id: int
     title: str | None
+    status: str = "active"
+    last_message_preview: str | None = None
+    last_message_at: datetime | None = None
+    summary: str | None = None
+    source: str | None = None
+    approval_policy: Literal["auto", "confirm_write", "confirm_all"] = "confirm_write"
+    tool_permission_profile: Literal["read_only", "normal", "publisher", "booking"] = "normal"
+    confirmation_mode: Literal["inline", "modal", "explicit_text"] = "inline"
+    active_task_id: str | None = None
+    root_conversation_id: int | None = None
+    forked_from_conversation_id: int | None = None
+    fork_boundary: str | None = None
+    folder_id: int | None = None
+    archived_at: datetime | None = None
     created_at: datetime
     updated_at: datetime | None
 
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AIConversationUpdate(BaseModel):
+    """Update mutable conversation metadata without touching its container data."""
+
+    title: str | None = Field(default=None, max_length=255)
+    archived: bool | None = None
+    status: Literal["active", "archived"] | None = None
+    summary: str | None = Field(default=None, max_length=10000)
+    source: str | None = Field(default=None, max_length=64)
+    approval_policy: Literal["auto", "confirm_write", "confirm_all"] | None = None
+    tool_permission_profile: Literal["read_only", "normal", "publisher", "booking"] | None = None
+    confirmation_mode: Literal["inline", "modal", "explicit_text"] | None = None
+
+    @model_validator(mode="after")
+    def validate_update(self):
+        if not self.model_fields_set:
+            raise ValueError("at least one conversation field is required")
+        if "title" in self.model_fields_set and self.title is not None:
+            self.title = " ".join(self.title.split()) or None
+        return self
+
+
+class AIConversationForkRequest(BaseModel):
+    task_id: str | None = None
+    turn_id: int | None = Field(default=None, gt=0)
+
+
+class AIConversationFolderCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    sort_order: int = 0
+
+
+class AIConversationFolderResponse(BaseModel):
+    id: int
+    user_id: int
+    name: str
+    sort_order: int
+    created_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -143,6 +200,25 @@ class AgentTaskOperation(BaseModel):
 class AgentTaskPatch(BaseModel):
     revision: int = Field(ge=0)
     operations: list[AgentTaskOperation] = Field(default_factory=list, max_length=50)
+    idempotency_key: UUID | None = None
+    source: Literal["page", "chat", "system"] = "page"
+
+
+class AgentTaskFormRevisionResponse(BaseModel):
+    id: int
+    task_id: str
+    conversation_id: int
+    user_id: int
+    revision: int
+    operations: list[dict[str, Any]]
+    resulting_form: dict[str, Any]
+    source: str
+    source_message_id: int | None = None
+    idempotency_key: str | None = None
+    created_by: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AgentTaskComplete(BaseModel):

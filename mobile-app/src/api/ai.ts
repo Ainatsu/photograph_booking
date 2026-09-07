@@ -156,8 +156,9 @@ export interface AIShootContext {
 // ── Existing types ──
 
 export interface AIConversation {
-  id: string
+  id: string | number
   title?: string
+  archived_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -280,12 +281,30 @@ export async function getAIConversations(params = {}): Promise<AIConversation[]>
   return data
 }
 
-export async function getAIMessages(conversationId: string, params = {}): Promise<AIMessage[]> {
+export async function searchAIConversations(params: Record<string, unknown> = {}): Promise<AIConversation[]> {
+  const { data } = await api.get<AIConversation[]>('/ai/conversations/search', { params })
+  return data
+}
+
+export async function forkAIConversation(conversationId: string | number, payload: { task_id?: string; turn_id?: number } = {}): Promise<AIConversation> {
+  const { data } = await api.post<AIConversation>(`/ai/conversations/${conversationId}/fork`, payload)
+  return data
+}
+
+export async function updateAIConversation(
+  conversationId: string | number,
+  data: { title?: string | null; archived?: boolean },
+): Promise<AIConversation> {
+  const { data: conversation } = await api.patch<AIConversation>(`/ai/conversations/${conversationId}`, data)
+  return conversation
+}
+
+export async function getAIMessages(conversationId: string | number, params = {}): Promise<AIMessage[]> {
   const { data } = await api.get<AIMessage[]>(`/ai/conversations/${conversationId}/messages`, { params })
   return data
 }
 
-export async function sendAIMessage(conversationId: string, data: AIMessagePayload & Record<string, unknown>): Promise<AIChatResponse> {
+export async function sendAIMessage(conversationId: string | number, data: AIMessagePayload & Record<string, unknown>): Promise<AIChatResponse> {
   const { data: res } = await api.post<AIChatResponse>(
     `/ai/conversations/${conversationId}/messages`,
     data,

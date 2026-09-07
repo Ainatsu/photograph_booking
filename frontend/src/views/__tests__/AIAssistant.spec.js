@@ -10,6 +10,8 @@ const {
   mockSendMessage,
   mockUploadImage,
   mockPush,
+  mockSearchConversations,
+  mockForkConversation,
   mockSaveWorkDraft,
 } = vi.hoisted(() => ({
   mockCreate: vi.fn(),
@@ -18,6 +20,8 @@ const {
   mockSendMessage: vi.fn(),
   mockUploadImage: vi.fn(),
   mockPush: vi.fn(),
+  mockSearchConversations: vi.fn(),
+  mockForkConversation: vi.fn(),
   mockSaveWorkDraft: vi.fn(),
 }))
 
@@ -27,10 +31,13 @@ vi.mock('../../api/ai', () => ({
   getAIMessages: (...args) => mockGetMessages(...args),
   sendAIMessage: (...args) => mockSendMessage(...args),
   uploadAIImage: (...args) => mockUploadImage(...args),
+  searchAIConversations: (...args) => mockSearchConversations(...args),
+  forkAIConversation: (...args) => mockForkConversation(...args),
 }))
 
 vi.mock('vue-router', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: mockPush }),
+  useRoute: () => ({ query: {} }),
 }))
 
 vi.mock('../../utils/workDrafts', () => ({
@@ -96,9 +103,13 @@ describe('AIAssistant', () => {
     mockSendMessage.mockReset()
     mockUploadImage.mockReset()
     mockPush.mockReset()
+    mockSearchConversations.mockReset()
+    mockForkConversation.mockReset()
     mockSaveWorkDraft.mockReset()
     mockGetConversations.mockResolvedValue({ data: [] })
     mockGetMessages.mockResolvedValue({ data: [] })
+    mockSearchConversations.mockResolvedValue({ data: [] })
+    mockForkConversation.mockResolvedValue({ data: { id: 2, title: '分支', updated_at: '2026-06-16T10:00:00' } })
     mockSaveWorkDraft.mockResolvedValue({ id: 'agent-work-draft-1' })
     mockCreate.mockResolvedValue({
       data: { id: 1, title: null, created_at: '2026-06-16T10:00:00', updated_at: '2026-06-16T10:00:00' },

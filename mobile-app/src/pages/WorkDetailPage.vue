@@ -489,6 +489,10 @@ onMounted(() => void load())
   background: var(--paper);
 }
 
+.bottom-bar > * {
+  min-width: 0;
+}
+
 .bar-action {
   display: inline-flex;
   min-width: var(--touch-target);
@@ -561,6 +565,10 @@ onMounted(() => void load())
   background: var(--paper);
 }
 
+.comment-bar > * {
+  min-width: 0;
+}
+
 .comment-input {
   flex: 1;
   min-width: 0;
@@ -604,5 +612,23 @@ onMounted(() => void load())
 .send-button ion-spinner {
   width: 22px;
   height: 22px;
+}
+
+@media (max-width: 390px) {
+  .bottom-bar,
+  .comment-bar {
+    gap: var(--space-1);
+    padding-inline: var(--space-3);
+  }
+
+  .bar-action {
+    min-width: 40px;
+    padding-inline: var(--space-1);
+  }
+
+  .comment-trigger,
+  .comment-input {
+    font-size: var(--text-sm);
+  }
 }
 </style>

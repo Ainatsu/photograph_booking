@@ -30,8 +30,8 @@ from backend.app.models.favorite import Favorite
 from backend.app.models.comment import Comment
 from backend.app.models.order_event import OrderEvent
 from backend.app.models.order_reschedule import OrderRescheduleRequest
-from backend.app.models.ai_conversation import AIConversation, AIMessage
-from backend.app.models.agent_task import AgentTaskDraft
+from backend.app.models.ai_conversation import AIConversation, AIMessage, AIConversationEvent, AIConversationCompression
+from backend.app.models.agent_task import AgentTaskDraft, AgentTaskFormRevision
 from backend.app.models.agent_task_session import AgentTaskEvent, AgentTaskResource, AgentTaskSession
 from backend.app.models.agent_memory import AgentMemoryEpisode, AgentUserMemory
 from backend.app.models.ai_resource import AIResourceDocument

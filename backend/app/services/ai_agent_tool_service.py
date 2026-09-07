@@ -87,6 +87,7 @@ def _policy_metadata(
         "retryable": preparation.spec.retryable,
         "timeout_seconds": preparation.spec.timeout_seconds,
         "compensation": preparation.spec.compensation,
+        "action_summary": preparation.action_summary,
         "replayed": False,
     }
 

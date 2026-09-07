@@ -1,10 +1,22 @@
 <template>
   <div class="ai-page" :class="{ 'ai-page-embedded': embedded }">
+    <AIConversationSidebar
+      v-if="!embedded"
+      :conversations="conversations"
+      :active-id="conversationId"
+      :busy="mutatingConversation || loadingMessages || sending"
+      @create="handleCreateConversation"
+      @select="handleSelectConversation"
+      @rename="handleRenameConversation"
+      @archive="handleArchiveConversation"
+      @fork="handleForkConversation"
+      @search="searchConversations"
+    />
     <div class="chat-panel">
       <div class="chat-header">
         <div class="chat-heading">
-          <span class="chat-title">小龟J</span>
-          <span v-if="contextSubtitle" class="chat-subtitle">{{ contextSubtitle }}</span>
+          <span class="chat-title">{{ activeConversation?.title || '新对话' }}</span>
+          <span class="chat-subtitle">{{ contextSubtitle || '小龟J · AI 摄影助手' }}</span>
         </div>
         <el-button
           v-if="embedded"
@@ -617,9 +629,9 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   CalendarDays,
   Check,
@@ -646,6 +658,7 @@ import aiAvatar from '../../CartleJ.jpg'
 import ProjectLocationField from '../components/location/ProjectLocationField.vue'
 import ImageGenerationCard from '../components/ai/ImageGenerationCard.vue'
 import ImageGenerationComposer from '../components/ai/ImageGenerationComposer.vue'
+import AIConversationSidebar from '../components/ai/AIConversationSidebar.vue'
 
 const props = defineProps({
   embedded: {
@@ -668,14 +681,26 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 const router = useRouter()
+const route = useRoute()
 
 const {
   conversationId,
+  conversations,
+  activeConversation,
   messages,
   loadingMessages,
+  mutatingConversation,
   initializeConversation,
+  refreshConversations,
   reloadMessages,
+  selectConversation,
+  createConversation,
+  renameConversation,
+  archiveConversation,
+  forkConversation,
+  searchConversations,
   appendMessages,
+  toolPolicy,
 } = useAIConversation()
 const inputText = ref('')
 const sending = ref(false)
@@ -698,6 +723,79 @@ const taskFieldEdits = ref({})
 const taskFieldErrors = ref({})
 const taskSaveFeedback = ref({})
 const taskDateEditor = ref(null)
+
+watch(conversationId, (currentId, previousId) => {
+  if (previousId) {
+    const previousKey = `ai_conversation_draft:${previousId}`
+    if (inputText.value) localStorage.setItem(previousKey, inputText.value)
+    else localStorage.removeItem(previousKey)
+  }
+  inputText.value = currentId ? (localStorage.getItem(`ai_conversation_draft:${currentId}`) || '') : ''
+})
+
+watch(inputText, (value) => {
+  if (!conversationId.value) return
+  const key = `ai_conversation_draft:${conversationId.value}`
+  if (value) localStorage.setItem(key, value)
+  else localStorage.removeItem(key)
+})
+
+const syncConversationRoute = async () => {
+  if (!conversationId.value) return
+  await router.replace({ query: { ...route.query, conversation: String(conversationId.value) } })
+}
+
+const handleSelectConversation = async (targetId) => {
+  if (sending.value) return
+  await selectConversation(targetId)
+  await syncConversationRoute()
+  await scrollToBottom()
+}
+
+const handleCreateConversation = async () => {
+  if (sending.value) return
+  await createConversation()
+  await syncConversationRoute()
+}
+
+const handleRenameConversation = async (target) => {
+  try {
+    const { value } = await ElMessageBox.prompt('输入新的对话名称', '重命名对话', {
+      inputValue: target.title || '',
+      inputPattern: /\S+/,
+      inputErrorMessage: '对话名称不能为空',
+      confirmButtonText: '保存',
+      cancelButtonText: '取消',
+    })
+    await renameConversation(target.id, value.trim())
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage.error('重命名失败')
+  }
+}
+
+const handleArchiveConversation = async (target) => {
+  try {
+    await ElMessageBox.confirm('消息、任务和会话记忆会保留，可通过 API 恢复。', '归档这个对话？', {
+      type: 'warning',
+      confirmButtonText: '归档',
+      cancelButtonText: '取消',
+    })
+    await archiveConversation(target.id)
+    await syncConversationRoute()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage.error('归档失败')
+  }
+}
+
+const handleForkConversation = async (target) => {
+  try {
+    await forkConversation(target.id)
+    await syncConversationRoute()
+    await scrollToBottom()
+  } catch (error) {
+    ElMessage.error('创建分支失败')
+  }
+}
 const savingTaskDraft = ref(false)
 const publishingTask = ref(false)
 const clientActionLoading = ref({})
@@ -1023,6 +1121,9 @@ const startSegmentedReveal = (message) => {
 const appendResponseMessages = (userMessage, assistantMessage) => {
   startSegmentedReveal(assistantMessage)
   appendMessages(userMessage, assistantMessage)
+  if (!activeConversation.value?.title && userMessage?.content) {
+    void refreshConversations()
+  }
 }
 
 const getTaskCard = (message) => {
@@ -1678,6 +1779,11 @@ const openImagePicker = () => {
 
 const initConversation = async () => {
   await initializeConversation()
+  const routeConversationId = route.query.conversation
+  if (routeConversationId && conversations.value.some(item => String(item.id) === String(routeConversationId))) {
+    await selectConversation(routeConversationId)
+  }
+  await syncConversationRoute()
   await scrollToBottom()
 }
 
@@ -1957,7 +2063,37 @@ const submitPublisherFromCard = async (card, action) => {
 }
 
 const handleTaskConfirm = async (card) => {
-  await sendTaskText(card.fallbackConfirmLabel || '确认')
+  const label = card.fallbackConfirmLabel || '确认'
+  const mode = toolPolicy.value?.confirmation_mode || 'inline'
+  const isHighRisk = ['create_project', 'publish_package', 'publish_work', 'create_booking'].includes(card.taskType)
+  if (!isHighRisk || mode === 'inline') {
+    await sendTaskText(label)
+    return
+  }
+  const details = (card.fields || [])
+    .filter(field => field.value && !field.missing)
+    .slice(0, 8)
+    .map(field => `${field.label}：${field.value}`)
+    .join('<br>')
+  try {
+    if (mode === 'explicit_text') {
+      const { value } = await ElMessageBox.prompt(
+        `请核对以下操作：<br>${details || '已填写的任务信息'}<br><br>请输入“确认”继续。`,
+        label,
+        { dangerouslyUseHTMLString: true, inputPattern: /^确认$/, inputErrorMessage: '请输入“确认”', confirmButtonText: '继续', cancelButtonText: '取消' },
+      )
+      if (value !== '确认') return
+    } else {
+      await ElMessageBox.confirm(
+        details || '请核对已填写的任务信息。',
+        label,
+        { dangerouslyUseHTMLString: true, type: 'warning', confirmButtonText: '确认执行', cancelButtonText: '取消' },
+      )
+    }
+    await sendTaskText(label)
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage.error('确认操作失败，请稍后重试')
+  }
 }
 
 const sendPresetPrompt = async (prompt) => {
@@ -2069,7 +2205,10 @@ onUnmounted(() => {
 
 <style scoped>
 .ai-page {
-  max-width: 840px;
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) minmax(0, 840px);
+  gap: var(--space-3);
+  max-width: 1120px;
   height: min(700px, calc(100dvh - 120px));
   min-height: 430px;
   margin: var(--space-4) auto 0;
@@ -2079,6 +2218,7 @@ onUnmounted(() => {
 }
 
 .ai-page-embedded {
+  display: block;
   width: 100%;
   max-width: none;
   height: 100%;
@@ -2092,6 +2232,7 @@ onUnmounted(() => {
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  min-width: 0;
   border: var(--border-default);
   border-radius: var(--radius-md);
   background: var(--color-paper);

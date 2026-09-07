@@ -159,6 +159,7 @@ class Settings(BaseSettings):
     AI_ORCHESTRATOR_VERSION: str = "deterministic_orchestrator_v2"
     AI_INDEX_VERSION: str = "resource_index_v3"
     AI_PROVIDER_FALLBACK_ENABLED: bool = True
+    AI_THREAD_FORK_ENABLED: bool = True
 
     # LLM Intent Classifier
     AI_INTENT_CLASSIFIER_MODE: str = "hybrid"

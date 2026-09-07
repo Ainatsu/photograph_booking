@@ -118,6 +118,7 @@ def resume_task(
         task = db.query(AgentTaskSession).filter(
             AgentTaskSession.id == task_id,
             AgentTaskSession.user_id == user_id,
+            AgentTaskSession.conversation_id == conversation_id,
             AgentTaskSession.status == "paused",
         ).first()
         if task is None:

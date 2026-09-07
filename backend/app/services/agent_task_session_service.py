@@ -88,6 +88,7 @@ def sync_working_memory(
     conversation_id: int,
     memory: dict[str, Any],
     message_id: int | None = None,
+    expected_revision: int | None = None,
 ) -> AgentTaskSession:
     task_type = str(memory.get("task_type") or "resource_search")
     memory_task_id = str(memory.get("task_id") or "") or None
@@ -102,6 +103,8 @@ def sync_working_memory(
         raise ValueError("working memory task_id does not exist in durable storage")
     if task.task_type != task_type:
         raise ValueError("working memory task_type does not match durable task")
+    if expected_revision is not None and int(task.revision or 0) != int(expected_revision):
+        raise ValueError("working memory revision conflict")
 
     task.status = str(memory.get("status") or task.status or "active")
     task.revision = int(task.revision or 0) + 1
@@ -234,6 +237,7 @@ def apply_task_workspace_update(
             conversation_id=conversation_id,
             memory=memory,
             message_id=message_id,
+            expected_revision=int(memory.get("revision") or 0),
         )
         memory["revision"] = task.revision
         save_working_memory(user_id, conversation_id, memory)

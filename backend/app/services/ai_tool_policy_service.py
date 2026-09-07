@@ -11,7 +11,7 @@ from typing import Any, Type
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
-from backend.app.models.ai_conversation import AgentActionLog
+from backend.app.models.ai_conversation import AgentActionLog, AIConversation
 from backend.app.schemas.photographer import PackageSchema
 from backend.app.schemas.recommendation import PackageRecommendationQuery
 from backend.app.schemas.project import ProjectCreate
@@ -43,6 +43,16 @@ class ConfirmationPolicy(str, Enum):
     TWICE = "twice"
     TRADITIONAL_UI = "traditional_ui"
     FORBIDDEN = "forbidden"
+
+
+TOOL_PERMISSION_PROFILES: dict[str, set[str] | None] = {
+    "read_only": set(),
+    "normal": None,
+    "publisher": {"create_project", "publish_package", "publish_work", "create_inspiration_draft"},
+    "booking": {"create_booking", "get_available_slots", "search_bookable_packages"},
+}
+
+HIGH_RISK_TOOLS = {"create_project", "publish_package", "publish_work", "create_booking"}
 
 
 class FollowPhotographerInput(BaseModel):
@@ -364,6 +374,7 @@ class ToolExecutionPreparation:
     normalized_input: dict[str, Any]
     idempotency_key: str | None
     existing_log: AgentActionLog | None
+    action_summary: dict[str, Any] = field(default_factory=dict)
 
 
 def get_tool_spec(tool_name: str) -> ToolSpec:
@@ -453,6 +464,8 @@ def authorize_tool_call(
     allow_writes: bool = True,
     confirmation_count: int = 0,
     active_task_types: tuple[str, ...] = (),
+    approval_policy: str = "confirm_write",
+    tool_permission_profile: str = "normal",
 ) -> ToolAuthorization:
     """执行前的统一策略检查（§4.4）：参数合法性、角色权限、写权限、确认要求。
 
@@ -481,6 +494,11 @@ def authorize_tool_call(
         return ToolAuthorization(
             tool=resolved, allowed=False, spec=spec, error_code=f"role_not_allowed:{user_role or 'unknown'}"
         )
+    allowed_profile = TOOL_PERMISSION_PROFILES.get(tool_permission_profile)
+    if tool_permission_profile not in TOOL_PERMISSION_PROFILES:
+        return ToolAuthorization(tool=resolved, allowed=False, spec=spec, error_code="unknown_permission_profile")
+    if allowed_profile is not None and resolved not in allowed_profile:
+        return ToolAuthorization(tool=resolved, allowed=False, spec=spec, error_code=f"tool_not_in_profile:{tool_permission_profile}")
     if spec.is_write and not allow_writes:
         return ToolAuthorization(
             tool=resolved, allowed=False, spec=spec, error_code=f"writes_not_allowed:{resolved}"
@@ -516,13 +534,20 @@ def authorize_tool_call(
             dropped_fields=unknown,
         )
 
-    if confirmation_count < spec.required_confirmations:
+    required_confirmations = spec.required_confirmations
+    if approval_policy == "confirm_all" and spec.is_write:
+        required_confirmations = max(required_confirmations, 1)
+    if resolved in HIGH_RISK_TOOLS:
+        required_confirmations = max(required_confirmations, 1)
+    if approval_policy == "auto" and spec.risk_level == ToolRiskLevel.REVERSIBLE_WRITE and resolved not in HIGH_RISK_TOOLS:
+        required_confirmations = 0
+    if confirmation_count < required_confirmations:
         return ToolAuthorization(
             tool=resolved,
             allowed=False,
             spec=spec,
             normalized_input=normalized,
-            error_code=f"confirmation_required:{resolved}:{spec.required_confirmations}",
+            error_code=f"confirmation_required:{resolved}:{required_confirmations}",
             requires_confirmation=True,
         )
 
@@ -533,6 +558,20 @@ def authorize_tool_call(
         normalized_input=normalized,
         requires_confirmation=spec.required_confirmations > 0,
     )
+
+
+def build_action_summary(tool_name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Return a compact, human-readable summary used by confirmation UIs and audit."""
+    resolved = resolve_tool_name(tool_name)
+    labels = {
+        "create_project": "发布拍摄企划", "publish_package": "发布摄影套餐",
+        "publish_work": "发布作品", "create_booking": "创建预约",
+        "follow_photographer": "关注摄影师", "create_inspiration_draft": "保存灵感草稿",
+    }
+    args = arguments or {}
+    spec = TOOL_REGISTRY.get(resolved)
+    details = [{"field": key, "value": args[key]} for key in (spec.audit_fields if spec else ()) if key in args]
+    return {"tool": resolved, "title": labels.get(resolved, resolved), "risk_level": spec.risk_level.value if spec else "forbidden", "details": details}
 
 
 def prepare_tool_execution(
@@ -547,11 +586,29 @@ def prepare_tool_execution(
 ) -> ToolExecutionPreparation:
     """校验策略并规范化入参，返回执行准备结果与幂等记录。"""
     spec = get_tool_spec(tool_name)
+    conversation = db.query(AIConversation).filter(
+        AIConversation.id == conversation_id, AIConversation.user_id == user_id
+    ).first()
+    profile = getattr(conversation, "tool_permission_profile", "normal") if conversation else "normal"
+    allowed_profile = TOOL_PERMISSION_PROFILES.get(profile)
+    if profile not in TOOL_PERMISSION_PROFILES:
+        raise ToolPolicyError("unknown_permission_profile")
+    resolved_tool_name = resolve_tool_name(tool_name)
+    if allowed_profile is not None and resolved_tool_name not in allowed_profile:
+        raise ToolPolicyError(f"tool_not_in_profile:{profile}")
+    approval_policy = (getattr(conversation, "approval_policy", "confirm_write") if conversation else "confirm_write") or "confirm_write"
+    required_confirmations = spec.required_confirmations
+    if approval_policy == "confirm_all" and spec.is_write:
+        required_confirmations = max(required_confirmations, 1)
+    if resolved_tool_name in HIGH_RISK_TOOLS:
+        required_confirmations = max(required_confirmations, 1)
+    if approval_policy == "auto" and spec.risk_level == ToolRiskLevel.REVERSIBLE_WRITE and resolved_tool_name not in HIGH_RISK_TOOLS:
+        required_confirmations = 0
     if spec.risk_level == ToolRiskLevel.FORBIDDEN:
         raise ToolPolicyError(f"tool_forbidden:{tool_name}")
-    if confirmation_count < spec.required_confirmations:
+    if confirmation_count < required_confirmations:
         raise ToolPolicyError(
-            f"confirmation_required:{tool_name}:{spec.required_confirmations}"
+            f"confirmation_required:{tool_name}:{required_confirmations}"
         )
 
     normalized = spec.input_model.model_validate(tool_input or {}).model_dump(
@@ -576,6 +633,7 @@ def prepare_tool_execution(
         normalized_input=normalized,
         idempotency_key=resolved_key,
         existing_log=existing,
+        action_summary=build_action_summary(tool_name, normalized),
     )
 
 

@@ -90,3 +90,26 @@ def test_resource_text_summary_keeps_package_facts():
 
     assert "大理旅拍全程跟拍" in summary
     assert "恶劣天气时不接" in summary
+
+
+def test_workspace_key_and_payload_are_conversation_scoped(monkeypatch):
+    values = _fake_cache(monkeypatch)
+    memory = memory_service.update_working_memory(
+        18, 12, task_type="package_search", slots={"city": "大理"},
+    )
+
+    assert memory_service.task_workspace_key(18, 12, memory["task_id"]) in values
+    assert memory["schema_version"] == memory_service.WORKING_MEMORY_SCHEMA_VERSION
+    assert memory["user_id"] == 18
+    assert memory["conversation_id"] == 12
+    assert memory_service.get_working_memory(18, 13, task_id=memory["task_id"]) is None
+
+
+def test_tampered_workspace_identity_fails_closed(monkeypatch):
+    values = _fake_cache(monkeypatch)
+    memory = memory_service.update_working_memory(
+        18, 12, task_type="package_search", slots={"city": "大理"},
+    )
+    key = memory_service.task_workspace_key(18, 12, memory["task_id"])
+    values[key]["conversation_id"] = 99
+    assert memory_service.get_working_memory(18, 12, task_id=memory["task_id"]) is None

@@ -376,11 +376,12 @@ watch(() => auth.token, () => void loadLike())
 .submit-comment ion-spinner { width: 18px; height: 18px; }
 .composer-error { margin: 0; color: var(--danger); font-size: var(--text-xs); line-height: 1.55; }
 
-.comment-list-wrap { margin-top: var(--space-4); }
-.comment-list { display: grid; }
+.comment-list-wrap { min-width: 0; margin-top: var(--space-4); }
+.comment-list { display: grid; min-width: 0; }
 .comment-item { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: var(--space-3); padding: var(--space-4) 0; border-bottom: 1px solid var(--neu-light); box-shadow: 0 1px 0 var(--neu-shade-soft); }
+.comment-item > div { min-width: 0; }
 .comment-item header { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
-.comment-item header strong { overflow: hidden; font-size: var(--text-sm); text-overflow: ellipsis; white-space: nowrap; }
+.comment-item header strong { min-width: 0; overflow: hidden; font-size: var(--text-sm); text-overflow: ellipsis; white-space: nowrap; }
 .comment-item time { flex: 0 0 auto; color: var(--ink-tertiary); font-size: 11px; }
 .comment-item p { margin: 6px 0 0; color: var(--ink-secondary); font-size: var(--text-sm); line-height: 1.7; overflow-wrap: anywhere; white-space: pre-wrap; }
 .comments-empty, .comments-error { margin: 0; padding: var(--space-5); border: 0; border-radius: var(--radius-md); background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink-tertiary); font-size: var(--text-sm); line-height: 1.65; text-align: center; }
@@ -406,5 +407,8 @@ watch(() => auth.token, () => void loadLike())
 @media (max-width: 390px) {
   .guest-composer { grid-template-columns: 1fr; }
   .login-comment-button { width: 100%; }
+  .comment-item { gap: var(--space-2); }
+  .comment-item header { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .comment-item time { line-height: 1.4; }
 }
 </style>

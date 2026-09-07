@@ -94,6 +94,7 @@ from backend.app.services.agent_working_memory_service import (
     active_task_context,
     build_resource_reference_prompt,
     clear_active_task_pointer,
+    clear_working_memory,
     get_working_memory,
     get_active_task_id,
     is_task_exit_request,
@@ -119,6 +120,10 @@ from backend.app.services.agent_task_memory_retrieval_service import (
     task_memory_mode,
 )
 from backend.app.services.agent_history_compression_service import compress_completed_task_history
+from backend.app.services.agent_context_envelope_service import (
+    build_context_envelope,
+    build_context_envelope_prompt,
+)
 from backend.app.services.agent_form_task_service import (
     EDITABLE_STATUSES,
     card_from_task_state,
@@ -161,25 +166,88 @@ def _generate_title(content: str) -> str:
     return f"{normalized[:24]}..."
 
 
-def create_conversation(db: Session, user_id: int, title: str | None = None) -> AIConversation:
+def create_conversation(db: Session, user_id: int, title: str | None = None, **policy) -> AIConversation:
     """创建新的 AI 会话并返回。"""
-    conversation = AIConversation(user_id=user_id, title=title)
+    conversation = AIConversation(user_id=user_id, title=title, status="active", source="assistant",
+        approval_policy=policy.get("approval_policy", "confirm_write"),
+        tool_permission_profile=policy.get("tool_permission_profile", "normal"),
+        confirmation_mode=policy.get("confirmation_mode", "inline"))
     db.add(conversation)
     db.commit()
     db.refresh(conversation)
     return conversation
 
 
-def list_conversations(db: Session, user_id: int, skip: int = 0, limit: int = 20) -> list[AIConversation]:
+def list_conversations(
+    db: Session,
+    user_id: int,
+    skip: int = 0,
+    limit: int = 20,
+    *,
+    include_archived: bool = False,
+) -> list[AIConversation]:
     """分页查询用户的会话列表，按更新时间倒序。"""
+    query = db.query(AIConversation).filter(AIConversation.user_id == user_id)
+    if not include_archived:
+        query = query.filter(
+            AIConversation.archived_at.is_(None),
+            AIConversation.status != "deleted",
+        )
     return (
-        db.query(AIConversation)
-        .filter(AIConversation.user_id == user_id)
+        query
         .order_by(AIConversation.updated_at.desc(), AIConversation.id.desc())
         .offset(skip)
         .limit(limit)
         .all()
     )
+
+
+def update_conversation(
+    db: Session,
+    user_id: int,
+    conversation_id: int,
+    *,
+    title: str | None = None,
+    update_title: bool = False,
+    archived: bool | None = None,
+    status_value: str | None = None,
+    summary: str | None = None,
+    source: str | None = None,
+    approval_policy: str | None = None,
+    tool_permission_profile: str | None = None,
+    confirmation_mode: str | None = None,
+) -> AIConversation:
+    """Rename, archive, or restore one user-owned conversation container."""
+    conversation = get_conversation_or_404(db, user_id, conversation_id)
+    if update_title:
+        conversation.title = title
+    if status_value is not None:
+        if status_value not in {"active", "archived"}:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="invalid conversation status")
+        conversation.status = status_value
+        if status_value == "archived":
+            archived = True
+        elif archived is None:
+            archived = False
+    if summary is not None:
+        conversation.summary = summary.strip() or None
+    if source is not None:
+        conversation.source = source.strip() or None
+    if approval_policy is not None:
+        conversation.approval_policy = approval_policy
+    if tool_permission_profile is not None:
+        conversation.tool_permission_profile = tool_permission_profile
+    if confirmation_mode is not None:
+        conversation.confirmation_mode = confirmation_mode
+    if archived is not None:
+        conversation.archived_at = _now() if archived else None
+        conversation.status = "archived" if archived else "active"
+        if archived:
+            clear_working_memory(user_id, conversation_id)
+    conversation.updated_at = _now()
+    db.commit()
+    db.refresh(conversation)
+    return conversation
 
 
 def get_conversation_or_404(db: Session, user_id: int, conversation_id: int) -> AIConversation:
@@ -3282,6 +3350,7 @@ async def send_ai_message(
     # Long-term memories are advisory context for the final language model only;
     # they must never affect deterministic task/reference routing or retrieval.
     long_term_memory_prompt = None
+    context_envelope_prompt = None
     task_episode_prompt = None
     referenced_task_episodes = []
     resume_task_result = None
@@ -3331,13 +3400,42 @@ async def send_ai_message(
                     resume_task_result = {
                         "content": "没有找到与这次描述匹配的可恢复历史任务。",
                         "metadata": {"model": {"provider": "platform_task", "model": "task-resume-empty"}},
-                    }
+                }
             except Exception:
                 db.rollback()
                 resume_task_result = {
                     "content": "历史任务暂时无法恢复，请稍后重试。",
                     "metadata": {"model": {"provider": "platform_task", "model": "task-resume-error"}},
                 }
+        try:
+            recent_rows = (
+                db.query(AIMessage)
+                .filter(AIMessage.conversation_id == conversation.id)
+                .order_by(AIMessage.created_at.desc(), AIMessage.id.desc())
+                .limit(20)
+                .all()
+            )
+            recent_dialogue = [
+                {"role": row.role, "content": (row.content or "")[:1200]}
+                for row in reversed(recent_rows)
+            ]
+            active_task_payload = serialize_task(active_task_before) if active_task_before else None
+            context_envelope = build_context_envelope(
+                conversation=conversation,
+                current_request={
+                    "content": content or "",
+                    "attachments": explicit_attachments,
+                    "page_context": normalized_page_context,
+                },
+                active_task=active_task_payload or working_memory,
+                recent_dialogue=recent_dialogue,
+                task_resources=(working_memory or {}).get("resources") if working_memory else [],
+                referenced_task_episodes=referenced_task_episodes,
+                active_user_memories=active_user_memories(db, user_id),
+            )
+            context_envelope_prompt = build_context_envelope_prompt(context_envelope)
+        except Exception:
+            context_envelope_prompt = None
     if working_memory and is_task_exit_request(content):
         working_memory = pause_working_memory(user_id, conversation.id)
         if working_memory:
@@ -4120,6 +4218,7 @@ async def send_ai_message(
             for prompt in (
                 tool_result_prompt,
                 resource_reference_prompt,
+                context_envelope_prompt,
                 long_term_memory_prompt,
                 task_episode_prompt,
             )
@@ -4285,6 +4384,15 @@ async def send_ai_message(
             *( ["active_user_memories"] if long_term_memory_prompt else [] ),
             "recent_dialogue",
         ],
+        "context_envelope": {
+            "schema_version": 1,
+            "provenance": [
+                "current_request",
+                *( ["active_task"] if working_memory else [] ),
+                *( ["referenced_task_episodes"] if referenced_task_episodes else [] ),
+                *( ["active_user_memories"] if long_term_memory_prompt else [] ),
+            ],
+        },
     }
     # Persist the mutable task independently from assistant message metadata. The old
     # metadata snapshot remains useful for audit/replay, but is no longer authoritative.
@@ -4360,6 +4468,12 @@ async def send_ai_message(
         message_metadata=assistant_metadata or None,
     )
     db.add(assistant_message)
+    preview_source = content or result.get("content") or ""
+    conversation.last_message_preview = " ".join(str(preview_source).split())[:500] or None
+    conversation.last_message_at = _now()
+    active_task = get_active_task(db, user_id, conversation.id)
+    conversation.active_task_id = str(active_task.id) if active_task is not None else None
+    conversation.status = "active"
     conversation.updated_at = _now()
     db.commit()
     db.refresh(assistant_message)

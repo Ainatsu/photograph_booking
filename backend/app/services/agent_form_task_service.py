@@ -23,6 +23,7 @@ from backend.app.services.ai_agent_tool_service import (
     create_project,
     publish_package,
 )
+from backend.app.services.agent_form_revision_service import append_form_revision
 
 
 TASK_TYPES = {
@@ -315,6 +316,24 @@ def submit_form_task(
     values = form_fields(task_type, submission["form_data"])
     task_id = submission.get("task_id") or (current or {}).get("task_id") or str(uuid4())
     next_revision = submission["revision"] + 1
+    append_form_revision(
+        db,
+        task_id=task_id,
+        conversation_id=conversation_id,
+        user_id=user_id,
+        revision=submission["revision"],
+        operations=[
+            {"field": key, "op": "set", "value": value, "confidence": 1.0,
+             "evidence": "legacy_form_data" if submission.get("legacy") else "page_form_submission"}
+            for key, value in values.items()
+            if value not in (None, "", [], {})
+        ],
+        resulting_form=values,
+        source="legacy_form_data" if submission.get("legacy") else "page_submission",
+        source_message_id=message_id,
+        idempotency_key=submission["idempotency_key"],
+        created_by="user",
+    )
 
     if submission["action"] == "cancel":
         card = make_form_card(task_type, values=values, status="cancelled", task_id=task_id, revision=next_revision)
