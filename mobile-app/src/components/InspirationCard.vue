@@ -29,16 +29,13 @@
 import { computed } from 'vue'
 import { Image as ImageIcon, MapPin, Pencil, Trash2 } from 'lucide-vue-next'
 import type { Inspiration } from '@/types/inspiration'
-import { resolveMediaUrl } from '@/utils/media'
+import { getInspirationPreviewUrl } from '@/utils/media'
 
 const props = withDefaults(defineProps<{ item: Inspiration; showActions?: boolean }>(), { showActions: false })
 defineEmits<{ open: [id: number]; edit: [id: number]; delete: [id: number] }>()
 
 const textPreview = computed(() => props.item.content?.find((block) => block.text)?.text || '')
-const previewUrl = computed(() => {
-  const cover = props.item.cover_url || props.item.content?.find((block) => block.type === 'image' && (block.thumb_url || block.url))
-  return resolveMediaUrl(typeof cover === 'string' ? cover : cover?.thumb_url || cover?.url)
-})
+const previewUrl = computed(() => getInspirationPreviewUrl(props.item))
 const formattedDate = computed(() => new Intl.DateTimeFormat('zh-CN', { month: 'short', day: 'numeric' }).format(new Date(props.item.updated_at)))
 </script>
 

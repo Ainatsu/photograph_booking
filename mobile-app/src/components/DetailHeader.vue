@@ -31,20 +31,22 @@ withDefaults(
 
 ion-toolbar {
   --min-height: 56px;
-  --background: var(--material-regular);
-  --border-color: transparent;
-  --color: var(--ink);
-  backdrop-filter: var(--material-blur);
-  -webkit-backdrop-filter: var(--material-blur);
+  --background: var(--d-material);
+  --border-color: var(--d-divider);
+  --color: var(--d-ink);
+  border-bottom: 0.5px solid var(--d-divider);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 ion-title {
-  font-size: var(--text-base);
-  font-weight: 650;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
 }
 
 ion-back-button {
-  --color: var(--ink);
+  --color: var(--d-ink);
   --icon-font-size: 23px;
   min-width: var(--touch-target);
   min-height: var(--touch-target);

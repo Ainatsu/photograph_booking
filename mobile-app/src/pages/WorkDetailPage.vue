@@ -55,14 +55,13 @@
             </div>
           </section>
 
-          <button type="button" class="author-card pressable" @click="goPhotographer">
-            <AvatarImage :src="work.user_avatar_url" :name="work.user_display_name" :size="52" />
+          <button type="button" class="author-row pressable" @click="goPhotographer">
+            <AvatarImage :src="work.user_avatar_url" :name="work.user_display_name" :size="36" />
             <span class="author-copy">
-              <small>作品创作者</small>
               <strong>{{ work.user_display_name || '摄影师' }}</strong>
               <span>{{ work.user_bio || '进入主页查看完整作品与可预约方案' }}</span>
             </span>
-            <ChevronRight :size="20" aria-hidden="true" />
+            <ChevronRight :size="18" aria-hidden="true" />
           </button>
 
           <EngagementPanel
@@ -96,7 +95,7 @@
           @click="handleLike"
         >
           <ion-spinner v-if="likeLoading" name="crescent" aria-hidden="true" />
-          <Heart v-else :size="25" :fill="likeSummary.liked ? 'currentColor' : 'none'" aria-hidden="true" />
+          <Heart v-else :size="24" :fill="likeSummary.liked ? 'currentColor' : 'none'" aria-hidden="true" />
           <span v-if="likeSummary.count" class="count">{{ likeSummary.count }}</span>
         </button>
 
@@ -110,11 +109,11 @@
           @click="toggleFavorite"
         >
           <ion-spinner v-if="favoriteLoading" name="crescent" aria-hidden="true" />
-          <Bookmark v-else :size="25" :fill="favorited ? 'currentColor' : 'none'" aria-hidden="true" />
+          <Bookmark v-else :size="24" :fill="favorited ? 'currentColor' : 'none'" aria-hidden="true" />
         </button>
 
         <div class="comment-trigger" @click="enterCommentMode">
-          <MessageCircle :size="25" aria-hidden="true" />
+          <MessageCircle :size="20" aria-hidden="true" />
           <span class="comment-placeholder">评论…</span>
         </div>
       </div>
@@ -353,13 +352,13 @@ onMounted(() => void load())
 
 <style scoped>
 .detail-content {
-  --background: var(--paper);
+  --background: var(--d-page);
 }
 
 .detail-shell {
   width: min(100%, var(--content-max));
   margin: 0 auto;
-  padding: var(--space-4) var(--space-4) var(--space-8);
+  padding-bottom: var(--space-10);
 }
 
 .header-action {
@@ -369,16 +368,17 @@ onMounted(() => void load())
   place-items: center;
   border: 0;
   background: transparent;
-  color: var(--ink);
+  color: var(--d-ink);
 }
 
-.header-action.active { color: var(--brand); }
-.header-action:disabled { color: var(--ink-tertiary); }
+.header-action:disabled { color: var(--d-ink-2); }
 .header-action ion-spinner { width: 20px; height: 20px; }
 
+/* ── 媒体：全宽，无圆角无阴影 ── */
+
 .media-stack {
-  overflow: hidden;
-  border-radius: var(--radius-md);
+  width: 100%;
+  background: var(--d-ink);
 }
 
 .media-stack video {
@@ -386,85 +386,102 @@ onMounted(() => void load())
   width: 100%;
   max-height: 78dvh;
   border: 0;
-  border-radius: var(--radius-md);
-  background: var(--ink);
-  box-shadow: var(--neu-raise);
+  background: var(--d-ink);
+  object-fit: contain;
 }
 
 .work-placeholder {
   aspect-ratio: 4 / 5;
-  overflow: hidden;
-  border-radius: var(--radius-md);
+  background: var(--d-fill);
 }
 
+/* ── 内容区 ── */
+
 .work-copy {
-  padding: var(--space-5) 2px;
-  border-bottom: 1px solid var(--divider);
+  padding: var(--space-5) var(--d-pad) var(--space-5);
 }
 
 .work-copy h1 {
-  margin: var(--space-3) 0 var(--space-2);
-  font-family: var(--font-serif);
-  font-size: var(--text-xl);
-  line-height: 1.45;
+  margin: 0 0 var(--space-2);
+  color: var(--d-ink);
+  font-size: var(--d-title);
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  line-height: 1.35;
 }
 
 .work-copy p {
   margin: 0;
-  color: var(--ink-secondary);
-  font-size: var(--text-base);
-  line-height: 1.75;
+  color: var(--d-ink-2);
+  font-size: var(--d-body);
+  font-weight: 400;
+  line-height: 1.6;
   white-space: pre-wrap;
 }
 
 .work-copy .muted {
-  color: var(--ink-tertiary);
-  font-size: var(--text-sm);
+  color: var(--d-ink-2);
 }
 
-.author-card {
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.tag {
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--d-fill);
+  color: var(--d-ink-2);
+  font-size: var(--d-caption);
+  line-height: 1.6;
+}
+
+/* ── 创作者信息行：无卡片，靠分割线 ── */
+
+.author-row {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) 24px;
+  grid-template-columns: 36px minmax(0, 1fr) 20px;
   width: 100%;
   align-items: center;
   gap: var(--space-3);
-  margin-top: var(--space-5);
-  padding: var(--space-4);
+  padding: var(--space-4) var(--d-pad);
   border: 0;
-  border-radius: var(--radius-lg);
-  background: var(--neu-surface);
-  box-shadow: var(--neu-raise);
-  color: var(--ink);
+  border-top: 1px solid var(--d-divider);
+  background: transparent;
+  color: var(--d-ink);
   text-align: left;
 }
 
 .author-copy {
   display: grid;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
 }
 
-.author-copy small {
-  color: var(--brand);
-  font-size: var(--text-2xs);
-  font-weight: 700;
-}
-
 .author-copy strong {
-  font-size: var(--text-base);
+  font-size: var(--d-body);
+  font-weight: 600;
+  color: var(--d-ink);
 }
 
 .author-copy > span {
   overflow: hidden;
-  color: var(--ink-tertiary);
-  font-size: var(--text-xs);
+  color: var(--d-ink-2);
+  font-size: var(--d-meta);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* ── Bottom Bar ── */
+.author-row > svg {
+  color: var(--d-ink-2);
+}
 
-.work-footer { background: var(--paper); }
+/* ── 底部操作栏：毛玻璃 ── */
+
+.work-footer { background: transparent; }
 
 .comment-backdrop {
   position: fixed;
@@ -473,21 +490,27 @@ onMounted(() => void load())
   background: transparent;
 }
 
-.bottom-bar {
+.bottom-bar,
+.comment-bar {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: auto auto 1fr;
   align-items: center;
   gap: var(--space-2);
   width: min(100%, var(--content-max));
   margin: 0 auto;
-  padding: calc(var(--space-2) + 3px) var(--space-4) calc(var(--space-2) + 3px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--divider);
-  background: var(--paper);
+  padding: calc(var(--space-2) + 3px) var(--d-pad) calc(var(--space-2) + 3px + env(safe-area-inset-bottom));
+  border-top: 0.5px solid var(--d-divider);
+  background: var(--d-material);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
-.bottom-bar > * {
+.bottom-bar { grid-template-columns: auto auto 1fr; }
+.comment-bar { grid-template-columns: 1fr auto; }
+
+.bottom-bar > *,
+.comment-bar > * {
   min-width: 0;
 }
 
@@ -501,26 +524,26 @@ onMounted(() => void load())
   padding: 0 var(--space-2);
   border: 0;
   background: transparent;
-  color: var(--ink-secondary);
+  color: var(--d-ink-2);
 }
 
 .bar-action.active {
-  color: var(--brand);
+  color: var(--d-accent);
 }
 
 .bar-action:disabled {
-  color: var(--ink-tertiary);
+  color: var(--d-ink-2);
   opacity: 0.6;
 }
 
 .bar-action .count {
-  font-size: var(--text-sm);
+  font-size: var(--d-meta);
   font-variant-numeric: tabular-nums;
-  color: var(--ink-tertiary);
+  color: var(--d-ink-2);
 }
 
 .bar-action.active .count {
-  color: var(--brand);
+  color: var(--d-accent);
 }
 
 .bar-action ion-spinner {
@@ -530,57 +553,39 @@ onMounted(() => void load())
 
 .comment-trigger {
   display: flex;
-  min-height: 48px;
+  min-height: 44px;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-4);
   border: 0;
   border-radius: var(--radius-pill);
-  background: var(--neu-surface);
-  box-shadow: var(--neu-raise-sm);
-  color: var(--ink-tertiary);
+  background: var(--d-fill);
+  color: var(--d-ink-2);
   cursor: text;
-  font-size: var(--text-base);
 }
 
 .comment-placeholder {
-  font-size: var(--text-base);
+  font-size: var(--d-body);
   white-space: nowrap;
-}
-
-.comment-bar {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: min(100%, var(--content-max));
-  margin: 0 auto;
-  padding: calc(var(--space-2) + 3px) var(--space-4) calc(var(--space-2) + 3px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--divider);
-  background: var(--paper);
-}
-
-.comment-bar > * {
-  min-width: 0;
 }
 
 .comment-input {
   flex: 1;
   min-width: 0;
-  min-height: 48px;
-  padding: 0 var(--space-3);
+  min-height: 44px;
+  padding: 0 var(--space-4);
   border: 0;
-  border-radius: var(--radius-md);
-  background: var(--paper);
-  box-shadow: var(--neu-inset);
-  color: var(--ink);
-  font-size: var(--text-base);
+  border-radius: var(--radius-pill);
+  background: var(--d-fill);
+  color: var(--d-ink);
+  font-size: var(--d-body);
   outline: none;
 }
 
-.comment-input:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px var(--focus-ring); }
+.comment-input:focus {
+  box-shadow: 0 0 0 2px var(--d-accent);
+}
 
 .comment-input:disabled {
   opacity: 0.6;
@@ -588,22 +593,20 @@ onMounted(() => void load())
 
 .send-button {
   display: inline-flex;
-  min-width: 44px;
-  min-height: 48px;
+  width: 44px;
+  height: 44px;
   align-items: center;
   justify-content: center;
-  padding: 0 var(--space-3);
+  padding: 0;
   border: 0;
-  border-radius: var(--radius-md);
-  background: var(--neu-surface-brand);
-  box-shadow: var(--shadow-1);
-  color: var(--white);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--d-accent);
 }
 
 .send-button:disabled {
-  background: var(--paper-deep);
-  box-shadow: none;
-  color: var(--ink-tertiary);
+  color: var(--d-ink-2);
+  opacity: 0.4;
 }
 
 .send-button ion-spinner {
@@ -615,7 +618,7 @@ onMounted(() => void load())
   .bottom-bar,
   .comment-bar {
     gap: var(--space-1);
-    padding-inline: var(--space-3);
+    padding-inline: var(--space-4);
   }
 
   .bar-action {
@@ -625,7 +628,7 @@ onMounted(() => void load())
 
   .comment-trigger,
   .comment-input {
-    font-size: var(--text-sm);
+    font-size: var(--d-meta);
   }
 }
 </style>

@@ -1,4 +1,5 @@
 import type { PackageOffer, WorkItem } from '@/types/discovery'
+import type { Inspiration } from '@/types/inspiration'
 
 const assetBase = (import.meta.env.VITE_ASSET_BASE_URL || '').replace(/\/$/, '')
 
@@ -28,4 +29,11 @@ export function getWorkMediaUrls(work: WorkItem): string[] {
 export function getPackagePreviewUrl(pkg: PackageOffer): string {
   const preview = pkg.sample_thumbnails?.find(Boolean) || pkg.samples?.find(Boolean)
   return resolveMediaUrl(preview)
+}
+
+export function getInspirationPreviewUrl(inspiration: Pick<Inspiration, 'cover_url' | 'content'>): string {
+  const cover =
+    inspiration.cover_url ||
+    inspiration.content?.find((block) => block.type === 'image' && (block.thumb_url || block.url))
+  return resolveMediaUrl(typeof cover === 'string' ? cover : cover?.thumb_url || cover?.url)
 }

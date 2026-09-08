@@ -36,54 +36,48 @@
           </section>
 
           <section class="summary-section">
-            <div v-if="offer.styles?.length" class="tag-list">
-              <span v-for="style in offer.styles" :key="style" class="tag">{{ style }}</span>
-            </div>
             <h1>{{ getPackageName(offer) }}</h1>
             <div class="price-row">
               <strong>{{ formatCurrency(offer.price) }}</strong>
               <span>起</span>
             </div>
             <p>{{ offer.description || '摄影师暂未补充详细介绍，可在预约备注中说明具体拍摄需求。' }}</p>
+            <div v-if="offer.styles?.length" class="tag-list">
+              <span v-for="style in offer.styles" :key="style" class="tag">{{ style }}</span>
+            </div>
           </section>
 
           <section class="facts-grid">
             <div>
-              <Clock3 :size="19" aria-hidden="true" />
               <span>拍摄时长</span>
               <strong>{{ formatDuration(offer.duration) }}</strong>
             </div>
             <div>
-              <Images :size="19" aria-hidden="true" />
               <span>精修数量</span>
               <strong>{{ offer.image_count ? `${offer.image_count} 张` : '具体沟通' }}</strong>
             </div>
             <div>
-              <MapPin :size="19" aria-hidden="true" />
               <span>服务地点</span>
               <strong>{{ offer.service_location || offer.city || '不限' }}</strong>
             </div>
             <div>
-              <PackageCheck :size="19" aria-hidden="true" />
               <span>交付周期</span>
               <strong>{{ offer.delivery_days ? `${offer.delivery_days} 天` : '具体沟通' }}</strong>
             </div>
           </section>
 
-          <button type="button" class="photographer-card pressable" @click="goPhotographer">
-            <AvatarImage :src="offer.photographer_avatar" :name="offer.photographer_name" :size="52" />
-            <span>
-              <small>方案提供者</small>
+          <button type="button" class="author-row pressable" @click="goPhotographer">
+            <AvatarImage :src="offer.photographer_avatar" :name="offer.photographer_name" :size="36" />
+            <span class="author-copy">
               <strong>{{ offer.photographer_name || '摄影师' }}</strong>
-              <em>{{ offer.photographer_location || offer.city || '查看主页与更多作品' }}</em>
+              <span>{{ offer.photographer_location || offer.city || '查看主页与更多作品' }}</span>
             </span>
-            <ChevronRight :size="20" aria-hidden="true" />
+            <ChevronRight :size="18" aria-hidden="true" />
           </button>
 
-          <section class="booking-note">
-            <ShieldCheck :size="20" aria-hidden="true" />
-            <p>提交预约前请再次确认档期、地点、交付标准、版权范围与改期规则，最终以订单快照为准。</p>
-          </section>
+          <p class="booking-note">
+            提交预约前请再次确认档期、地点、交付标准、版权范围与改期规则，最终以订单快照为准。
+          </p>
 
           <div class="comments-section">
             <EngagementPanel
@@ -120,7 +114,7 @@
           @click="toggleFavorite"
         >
           <ion-spinner v-if="favoriteLoading" name="crescent" aria-hidden="true" />
-          <Bookmark v-else :size="25" :fill="favorited ? 'currentColor' : 'none'" aria-hidden="true" />
+          <Bookmark v-else :size="24" :fill="favorited ? 'currentColor' : 'none'" aria-hidden="true" />
         </button>
 
         <button
@@ -129,7 +123,7 @@
           aria-label="咨询方案"
           @click="goConversation"
         >
-          <MessageSquareText :size="25" aria-hidden="true" />
+          <MessageSquareText :size="24" aria-hidden="true" />
         </button>
 
         <button type="button" class="primary-button pressable" @click="goBooking">
@@ -138,7 +132,7 @@
         </button>
 
         <div class="comment-trigger" @click="enterCommentMode">
-          <MessageCircle :size="25" aria-hidden="true" />
+          <MessageCircle :size="20" aria-hidden="true" />
           <span class="comment-placeholder">评论…</span>
         </div>
       </div>
@@ -174,15 +168,10 @@ import {
   Bookmark,
   CalendarPlus,
   ChevronRight,
-  Clock3,
   FilePenLine,
-  Images,
-  MapPin,
   MessageCircle,
   MessageSquareText,
-  PackageCheck,
   Send,
-  ShieldCheck,
 } from 'lucide-vue-next'
 import AvatarImage from '@/components/AvatarImage.vue'
 import DetailAgentAction from '@/components/DetailAgentAction.vue'
@@ -349,13 +338,172 @@ onMounted(() => void load())
 </script>
 
 <style scoped>
-.detail-content { --background: var(--paper); }
-.detail-shell { width: min(100%, var(--content-max)); margin: 0 auto; padding-bottom: var(--space-8); }
-.header-action { display: grid; width: var(--touch-target); height: var(--touch-target); place-items: center; border: 0; background: transparent; color: var(--ink); }
+.detail-content { --background: var(--d-page); }
 
-/* ── Bottom Bar ── */
+.detail-shell {
+  width: min(100%, var(--content-max));
+  margin: 0 auto;
+  padding-bottom: var(--space-10);
+}
 
-.work-footer { background: var(--paper); }
+.header-action {
+  display: grid;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--d-ink);
+}
+
+.cover-placeholder-wrap {
+  aspect-ratio: 4 / 5;
+  background: var(--d-fill);
+}
+
+/* ── 内容区 ── */
+
+.summary-section {
+  padding: var(--space-5) var(--d-pad) var(--space-5);
+}
+
+.summary-section h1 {
+  margin: 0 0 var(--space-2);
+  color: var(--d-ink);
+  font-size: var(--d-title);
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  line-height: 1.35;
+}
+
+.summary-section > p {
+  margin: var(--space-3) 0 0;
+  color: var(--d-ink-2);
+  font-size: var(--d-body);
+  font-weight: 400;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.price-row strong {
+  color: var(--d-ink);
+  font-size: var(--d-title);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.2px;
+}
+
+.price-row span {
+  color: var(--d-ink-2);
+  font-size: var(--d-meta);
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.tag {
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--d-fill);
+  color: var(--d-ink-2);
+  font-size: var(--d-caption);
+  line-height: 1.6;
+}
+
+/* ── 方案信息：2×2 分组列表，格间用 1px 分割线 ── */
+
+.facts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  margin: 0 var(--d-pad);
+  border-block: 1px solid var(--d-divider);
+  background: var(--d-divider);
+}
+
+.facts-grid div {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: var(--space-4) var(--space-3);
+  background: var(--d-page);
+}
+
+.facts-grid span {
+  color: var(--d-ink-2);
+  font-size: var(--d-caption);
+}
+
+.facts-grid strong {
+  color: var(--d-ink);
+  font-size: var(--d-body);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+/* ── 创作者信息行：无卡片，靠分割线 ── */
+
+.author-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 20px;
+  width: 100%;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--d-pad);
+  border: 0;
+  background: transparent;
+  color: var(--d-ink);
+  text-align: left;
+}
+
+.author-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.author-copy strong {
+  font-size: var(--d-body);
+  font-weight: 600;
+  color: var(--d-ink);
+}
+
+.author-copy > span {
+  overflow: hidden;
+  color: var(--d-ink-2);
+  font-size: var(--d-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.author-row > svg {
+  color: var(--d-ink-2);
+}
+
+/* ── 预约提示：脚注样式 ── */
+
+.booking-note {
+  margin: 0 var(--d-pad) var(--space-4);
+  color: var(--d-ink-2);
+  font-size: var(--d-caption);
+  line-height: 1.6;
+}
+
+.comments-section { padding-bottom: var(--space-8); }
+
+/* ── 底部操作栏：毛玻璃 ── */
+
+.work-footer { background: transparent; }
 
 .comment-backdrop {
   position: fixed;
@@ -364,18 +512,28 @@ onMounted(() => void load())
   background: transparent;
 }
 
-.bottom-bar {
+.bottom-bar,
+.comment-bar {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: auto auto auto 1fr;
   align-items: center;
   gap: var(--space-2);
   width: min(100%, var(--content-max));
   margin: 0 auto;
-  padding: calc(var(--space-2) + 3px) var(--space-4) calc(var(--space-2) + 3px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--divider);
-  background: var(--paper);
+  padding: calc(var(--space-2) + 3px) var(--d-pad) calc(var(--space-2) + 3px + env(safe-area-inset-bottom));
+  border-top: 0.5px solid var(--d-divider);
+  background: var(--d-material);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.bottom-bar { grid-template-columns: auto auto auto 1fr; }
+.comment-bar { grid-template-columns: 1fr auto; }
+
+.bottom-bar > *,
+.comment-bar > * {
+  min-width: 0;
 }
 
 .bar-action {
@@ -388,15 +546,15 @@ onMounted(() => void load())
   padding: 0 var(--space-2);
   border: 0;
   background: transparent;
-  color: var(--ink-secondary);
+  color: var(--d-ink-2);
 }
 
 .bar-action.active {
-  color: var(--brand);
+  color: var(--d-accent);
 }
 
 .bar-action:disabled {
-  color: var(--ink-tertiary);
+  color: var(--d-ink-2);
   opacity: 0.6;
 }
 
@@ -407,77 +565,61 @@ onMounted(() => void load())
 
 .primary-button {
   display: inline-flex;
-  min-height: var(--touch-target);
+  min-height: 40px;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-5);
   border: 0;
-  border-radius: var(--radius-md);
-  background: var(--neu-surface-brand);
-  box-shadow: var(--shadow-1);
+  border-radius: var(--radius-pill);
+  background: var(--d-accent);
   color: var(--white);
-  font-weight: 700;
+  font-size: var(--d-body);
+  font-weight: 600;
 }
 
-.primary-button:active { background: var(--neu-surface-brand); box-shadow: var(--neu-inset-brand); }
+.primary-button:active { opacity: 0.85; }
 
 .primary-button:disabled {
-  background: var(--paper-deep);
-  box-shadow: none;
-  color: var(--ink-tertiary);
-  opacity: .75;
+  background: var(--d-fill);
+  color: var(--d-ink-2);
 }
 
 .comment-trigger {
   display: flex;
-  min-height: 48px;
+  min-height: 44px;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-4);
   border: 0;
   border-radius: var(--radius-pill);
-  background: var(--neu-surface);
-  box-shadow: var(--neu-raise-sm);
-  color: var(--ink-tertiary);
+  background: var(--d-fill);
+  color: var(--d-ink-2);
   cursor: text;
-  font-size: var(--text-base);
 }
 
 .comment-placeholder {
-  font-size: var(--text-base);
+  font-size: var(--d-body);
   white-space: nowrap;
-}
-
-.comment-bar {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: min(100%, var(--content-max));
-  margin: 0 auto;
-  padding: calc(var(--space-2) + 3px) var(--space-4) calc(var(--space-2) + 3px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--divider);
-  background: var(--paper);
 }
 
 .comment-input {
   flex: 1;
   min-width: 0;
-  min-height: 48px;
-  padding: 0 var(--space-3);
+  min-height: 44px;
+  padding: 0 var(--space-4);
   border: 0;
-  border-radius: var(--radius-md);
-  background: var(--paper);
-  box-shadow: var(--neu-inset);
-  color: var(--ink);
-  font-size: var(--text-base);
+  border-radius: var(--radius-pill);
+  background: var(--d-fill);
+  color: var(--d-ink);
+  font-size: var(--d-body);
   outline: none;
 }
 
-.comment-input:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px var(--focus-ring); }
+.comment-input:focus {
+  box-shadow: 0 0 0 2px var(--d-accent);
+}
 
 .comment-input:disabled {
   opacity: 0.6;
@@ -485,22 +627,20 @@ onMounted(() => void load())
 
 .send-button {
   display: inline-flex;
-  min-width: 44px;
-  min-height: 48px;
+  width: 44px;
+  height: 44px;
   align-items: center;
   justify-content: center;
-  padding: 0 var(--space-3);
+  padding: 0;
   border: 0;
-  border-radius: var(--radius-md);
-  background: var(--neu-surface-brand);
-  box-shadow: var(--shadow-1);
-  color: var(--white);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--d-accent);
 }
 
 .send-button:disabled {
-  background: var(--paper-deep);
-  box-shadow: none;
-  color: var(--ink-tertiary);
+  color: var(--d-ink-2);
+  opacity: 0.4;
 }
 
 .send-button ion-spinner {
@@ -508,53 +648,23 @@ onMounted(() => void load())
   height: 22px;
 }
 
-.cover-placeholder-wrap {
-  aspect-ratio: 16 / 10;
-  background: var(--paper);
-  box-shadow: var(--neu-inset);
+@media (max-width: 390px) {
+  .bottom-bar,
+  .comment-bar {
+    gap: var(--space-1);
+    padding-inline: var(--space-4);
+  }
+
+  .bar-action {
+    min-width: 40px;
+    padding-inline: var(--space-1);
+  }
+
+  .comment-trigger,
+  .comment-input {
+    font-size: var(--d-meta);
+  }
+
+  .comment-trigger .comment-placeholder { display: none; }
 }
-
-.summary-section { padding: var(--space-5) var(--space-4); border-bottom: 1px solid var(--divider); }
-.summary-section h1 { margin: var(--space-3) 0 4px; font-family: var(--font-serif); font-size: var(--text-xl); line-height: 1.45; }
-.summary-section > p { margin: var(--space-3) 0 0; color: var(--ink-secondary); font-size: var(--text-base); line-height: 1.75; white-space: pre-wrap; }
-
-.price-row { display: flex; align-items: baseline; gap: 4px; }
-.price-row strong { color: var(--brand); font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
-.price-row span { color: var(--ink-tertiary); font-size: var(--text-xs); }
-
-.facts-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-2);
-  margin: var(--space-4);
-}
-
-.facts-grid div { display: grid; min-height: 112px; align-content: center; gap: 5px; padding: var(--space-4); border-radius: var(--radius-sm); background: var(--paper); box-shadow: var(--neu-inset); color: var(--brand); }
-.facts-grid span { color: var(--ink-tertiary); font-size: var(--text-xs); }
-.facts-grid strong { color: var(--ink); font-size: var(--text-sm); line-height: 1.45; }
-
-.photographer-card {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) 24px;
-  width: calc(100% - 32px);
-  align-items: center;
-  gap: var(--space-3);
-  margin: var(--space-5) var(--space-4);
-  padding: var(--space-4);
-  border: 0;
-  border-radius: var(--radius-lg);
-  background: var(--neu-surface);
-  box-shadow: var(--neu-raise);
-  color: var(--ink);
-  text-align: left;
-}
-
-.photographer-card > span { display: grid; gap: 3px; min-width: 0; }
-.photographer-card small { color: var(--brand); font-size: var(--text-2xs); font-weight: 700; }
-.photographer-card strong { font-size: var(--text-base); }
-.photographer-card em { overflow: hidden; color: var(--ink-tertiary); font-size: var(--text-xs); font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
-
-.booking-note { display: flex; gap: var(--space-3); margin: 0 var(--space-4) var(--space-4); padding: var(--space-4); border: 0; border-radius: var(--radius-md); background: var(--neu-surface); box-shadow: var(--neu-raise); color: var(--brand); }
-.booking-note p { margin: 0; color: var(--ink-secondary); font-size: var(--text-xs); line-height: 1.65; }
-.comments-section { padding: 0 var(--space-4) var(--space-8); }
 </style>

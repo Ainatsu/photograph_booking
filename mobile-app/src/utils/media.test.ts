@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getPackagePreviewUrl, getWorkMediaUrls, getWorkPreviewUrl, resolveMediaUrl } from './media'
+import { getInspirationPreviewUrl, getPackagePreviewUrl, getWorkMediaUrls, getWorkPreviewUrl, resolveMediaUrl } from './media'
 
 describe('media utilities', () => {
   it('keeps absolute and browser-owned URLs unchanged', () => {
@@ -33,5 +33,25 @@ describe('media utilities', () => {
         samples: ['/static/original.jpg'],
       }),
     ).toBe('/static/thumb.jpg')
+  })
+
+  it('uses inspiration cover_url first and falls back to image blocks', () => {
+    expect(getInspirationPreviewUrl({ cover_url: '/static/cover.jpg', content: [] })).toBe('/static/cover.jpg')
+    expect(
+      getInspirationPreviewUrl({
+        cover_url: null,
+        content: [
+          { type: 'paragraph', text: '想法' },
+          { type: 'image', url: '/static/original.jpg', thumb_url: '/static/thumb.jpg' },
+        ],
+      }),
+    ).toBe('/static/thumb.jpg')
+    expect(
+      getInspirationPreviewUrl({
+        cover_url: null,
+        content: [{ type: 'image', url: '/static/original.jpg' }],
+      }),
+    ).toBe('/static/original.jpg')
+    expect(getInspirationPreviewUrl({ cover_url: null, content: [{ type: 'paragraph', text: '只有文字' }] })).toBe('')
   })
 })

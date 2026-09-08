@@ -166,9 +166,33 @@
                 </div>
               </button>
 
-              <button type="button" class="content-card pressable inspiration-content-card" @click="goTo('inspirations', 'content_inspirations')">
-                <div class="inspiration-card-icon"><Lightbulb :size="28" aria-hidden="true" /></div>
-                <div class="content-card-label"><strong>灵感</strong><small>记录下一次拍摄的起点</small></div>
+              <!-- 灵感卡片 -->
+              <button type="button" class="content-card pressable" @click="goTo('inspirations', 'content_inspirations')">
+                <div v-if="inspirationCovers.length" class="cover-grid">
+                  <div
+                    v-for="(url, idx) in inspirationCovers.slice(0, 4)"
+                    :key="idx"
+                    class="cover-cell"
+                  >
+                    <img :src="url" alt="" loading="lazy" />
+                  </div>
+                  <div
+                    v-for="i in Math.max(0, 4 - Math.min(inspirationCovers.length, 4))"
+                    :key="'in-empty-' + i"
+                    class="cover-cell cover-empty"
+                  >
+                    <Lightbulb :size="20" />
+                  </div>
+                </div>
+                <div v-else class="cover-grid">
+                  <div v-for="i in 4" :key="'in-ph-' + i" class="cover-cell cover-empty">
+                    <Lightbulb :size="20" />
+                  </div>
+                </div>
+                <div class="content-card-label">
+                  <strong>灵感</strong>
+                  <small>{{ myInspirations.length ? `${myInspirations.length} 条灵感` : '记录下一次拍摄的起点' }}</small>
+                </div>
               </button>
             </div>
           </template>
@@ -276,6 +300,7 @@ import AvatarImage from '@/components/AvatarImage.vue'
 import FeedSkeleton from '@/components/FeedSkeleton.vue'
 import SegmentSwitch from '@/components/SegmentSwitch.vue'
 import { getPhotographerDetail } from '@/api/discovery'
+import { getInspirations } from '@/api/inspirations'
 import { getMyProjects } from '@/api/projects'
 import { getCustomerOrders } from '@/api/orders'
 import { getMyPhotographerApplication } from '@/api/photographerApplications'
@@ -283,8 +308,9 @@ import { getFollowCounts } from '@/api/social'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notifications'
 import type { PackageOffer, ProjectBrief, WorkItem } from '@/types/discovery'
+import type { Inspiration } from '@/types/inspiration'
 import type { FollowCounts } from '@/types/social'
-import { resolveMediaUrl, getWorkPreviewUrl, getPackagePreviewUrl } from '@/utils/media'
+import { resolveMediaUrl, getWorkPreviewUrl, getPackagePreviewUrl, getInspirationPreviewUrl } from '@/utils/media'
 import { isActiveOrder } from '@/utils/order'
 import { photographerApplicationSummary } from '@/utils/photographerApplication'
 import { formatResidencyLabel } from '@/utils/photographerProfile'
@@ -312,6 +338,7 @@ const photographerApplicationStatus = ref<string | null>(null)
 const portfolioWorks = ref<WorkItem[]>([])
 const portfolioPackages = ref<PackageOffer[]>([])
 const myProjects = ref<ProjectBrief[]>([])
+const myInspirations = ref<Inspiration[]>([])
 const loadingContent = ref(false)
 const residency = ref('')
 
@@ -338,6 +365,13 @@ const projectCovers = computed(() => {
     .filter(Boolean)
     .slice(0, 4)
     .map((url) => resolveMediaUrl(url))
+})
+
+const inspirationCovers = computed(() => {
+  return myInspirations.value
+    .map((item) => getInspirationPreviewUrl(item))
+    .filter(Boolean)
+    .slice(0, 4)
 })
 
 const contactSummary = computed(() => {
@@ -441,18 +475,21 @@ async function loadContentData() {
   if (!auth.user) return
   loadingContent.value = true
   try {
-    const [profile, projects] = await Promise.all([
+    const [profile, projects, inspirations] = await Promise.all([
       auth.isPhotographer ? getPhotographerDetail(auth.user.id).catch(() => null) : Promise.resolve(null),
       getMyProjects().catch(() => [] as ProjectBrief[]),
+      getInspirations({ limit: 100 }).catch(() => [] as Inspiration[]),
     ])
     portfolioWorks.value = profile?.portfolio || []
     portfolioPackages.value = profile?.packages || []
     myProjects.value = projects
+    myInspirations.value = inspirations
     residency.value = profile?.location || ''
   } catch {
     portfolioWorks.value = []
     portfolioPackages.value = []
     myProjects.value = []
+    myInspirations.value = []
     residency.value = ''
   } finally {
     loadingContent.value = false
@@ -536,8 +573,6 @@ onIonViewWillEnter(async () => {
 .content-card-label { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); }
 .content-card-label strong { font-size: var(--text-sm); color: var(--ink); }
 .content-card-label small { font-size: var(--text-xs); color: var(--ink-tertiary); }
-.inspiration-content-card { min-height: 118px; }
-.inspiration-card-icon { display: grid; min-height: 72px; place-items: center; background: linear-gradient(135deg, var(--brand-soft), var(--surface-secondary)); color: var(--brand); }
 
 .menu-section { margin-top: var(--space-6); }
 .menu-section h2 { margin: 0 0 var(--space-3); font-family: var(--font-serif); font-size: var(--text-lg); }
