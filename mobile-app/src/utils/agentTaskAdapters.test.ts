@@ -21,6 +21,10 @@ describe('shouldDisplayAgentTaskDock', () => {
     expect(shouldDisplayAgentTaskDock(createTask('generate_image'))).toBe(false)
   })
 
+  it('hides the generic task dock for inspiration creation, which has its own chat card', () => {
+    expect(shouldDisplayAgentTaskDock(createTask('create_inspiration'))).toBe(false)
+  })
+
   it('keeps the generic task dock for editable agent tasks', () => {
     expect(shouldDisplayAgentTaskDock(createTask('create_project'))).toBe(true)
   })

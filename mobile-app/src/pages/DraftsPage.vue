@@ -196,8 +196,7 @@ onIonViewWillEnter(() => {
 
 .draft-actions {
   display: flex;
-  border-top: 1px solid var(--neu-light);
-  box-shadow: inset 0 1px 0 var(--neu-shade-soft);
+  border-top: 1px solid var(--divider);
 }
 
 .draft-action {
@@ -213,7 +212,7 @@ onIonViewWillEnter(() => {
   font-weight: 600;
 }
 
-.draft-action + .draft-action { border-left: 1px solid var(--neu-light); box-shadow: inset 1px 0 0 var(--neu-shade-soft); }
+.draft-action + .draft-action { border-left: 1px solid var(--divider); }
 
 .draft-action.continue {
   color: var(--brand);

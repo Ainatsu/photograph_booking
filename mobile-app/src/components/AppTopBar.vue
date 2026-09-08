@@ -154,7 +154,7 @@ onBeforeUnmount(() => {
   padding-inline: var(--space-4);
   padding-top: env(safe-area-inset-top);
   background: var(--material-thin);
-  box-shadow: 0 12px 16px -18px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 12px 16px -18px var(--scrim);
   backdrop-filter: var(--material-blur);
   -webkit-backdrop-filter: var(--material-blur);
   transition: gap var(--motion-fast) ease-out;

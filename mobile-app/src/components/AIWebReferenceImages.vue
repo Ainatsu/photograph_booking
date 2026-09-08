@@ -26,10 +26,10 @@ const expanded = ref(false)
 <style scoped>
 .web-reference { width: 100%; margin-top: 10px; }
 .web-reference-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.web-reference-image-link { display: block; min-width: 44px; aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--radius-sm); background: var(--paper-deep); box-shadow: var(--neu-inset); transition: opacity 180ms ease-out, transform 180ms ease-out; }
+.web-reference-image-link { display: block; min-width: 44px; aspect-ratio: 4 / 3; overflow: hidden; border-radius: var(--radius-sm); background: var(--paper-deep); box-shadow: var(--neu-inset); transition: opacity var(--motion-fast) ease-out, transform var(--motion-fast) ease-out; }
 .web-reference-image-link:active { opacity: .78; transform: scale(.98); }
 .web-reference-image-link img { width: 100%; height: 100%; object-fit: cover; }
-.web-reference-sources { margin-top: 6px; color: var(--ink-tertiary); font-size: 10px; line-height: 1.45; opacity: .72; }
+.web-reference-sources { margin-top: 6px; color: var(--ink-tertiary); font-size: var(--text-2xs); line-height: 1.45; opacity: .72; }
 .web-reference-source-toggle { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 32px; padding: 4px 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; }
 .web-reference-url { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .web-reference-more { flex-shrink: 0; color: var(--ink-secondary); }

@@ -466,8 +466,7 @@ auth.initialize().then(() => load())
   padding: var(--space-3) var(--space-4);
   font-family: var(--font-serif);
   font-size: var(--text-sm);
-  border-bottom: 1px solid var(--neu-light);
-  box-shadow: 0 1px 0 var(--neu-shade-soft);
+  border-bottom: 1px solid var(--divider);
   color: var(--brand);
 }
 
@@ -484,8 +483,7 @@ auth.initialize().then(() => load())
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border: 0;
-  border-bottom: 1px solid var(--neu-light);
-  box-shadow: 0 1px 0 var(--neu-shade-soft);
+  border-bottom: 1px solid var(--divider);
   background: transparent;
   color: var(--ink);
   text-align: left;
@@ -588,8 +586,7 @@ auth.initialize().then(() => load())
   align-items: center;
   justify-content: space-between;
   padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--neu-light);
-  box-shadow: 0 1px 0 var(--neu-shade-soft);
+  border-bottom: 1px solid var(--divider);
 }
 
 .next-order-label {
@@ -711,8 +708,7 @@ auth.initialize().then(() => load())
   gap: var(--space-3);
   align-items: center;
   padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--neu-light);
-  box-shadow: 0 1px 0 var(--neu-shade-soft);
+  border-bottom: 1px solid var(--divider);
 }
 
 .top-package-item:last-child {
@@ -776,7 +772,7 @@ auth.initialize().then(() => load())
   padding: var(--space-2) 0;
 }
 
-.funnel-item + .funnel-item { border-top: 1px solid var(--neu-light); box-shadow: inset 0 1px 0 var(--neu-shade-soft); }
+.funnel-item + .funnel-item { border-top: 1px solid var(--divider); }
 
 .funnel-index {
   display: grid;

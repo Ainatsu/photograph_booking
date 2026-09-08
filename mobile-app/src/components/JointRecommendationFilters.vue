@@ -57,13 +57,13 @@ function submit() {
 .filters__heading, .filters__heading > div { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .filters__heading strong { font-size: var(--text-sm); }
 .text-button { min-height: 44px; padding: 0 var(--space-3); border: 0; background: transparent; color: var(--brand); font-weight: 700; }
-.filters__body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--neu-light); box-shadow: inset 0 1px 0 var(--neu-shade-soft); }
+.filters__body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--divider); }
 label { display: grid; gap: 6px; color: var(--ink-secondary); font-size: var(--text-xs); }
 input, select { width: 100%; min-height: 44px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-md); background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink); font: inherit; font-size: var(--text-sm); }
 input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .toggle { display: flex; min-height: 44px; grid-column: 1 / -1; align-items: center; gap: var(--space-2); }
 .toggle input { width: 20px; min-height: 20px; accent-color: var(--brand); }
-.apply { min-height: var(--touch-target); grid-column: 1 / -1; border: 0; border-radius: var(--radius-md); background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); font: inherit; font-weight: 750; }
+.apply { min-height: var(--touch-target); grid-column: 1 / -1; border: 0; border-radius: var(--radius-md); background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); font: inherit; font-weight: 750; }
 .apply:disabled { opacity: .5; }
 @media (max-width: 390px) { .filters__body { grid-template-columns: 1fr; } .toggle, .apply { grid-column: 1; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }

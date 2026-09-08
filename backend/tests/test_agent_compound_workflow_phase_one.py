@@ -3,6 +3,7 @@ from pydantic import ValidationError
 
 from backend.app.services.ai_agent_contracts import TaskPlan, TaskStep
 from backend.app.services.ai_orchestrator_service import (
+    AgentIntent,
     recognize_intent_by_rules,
     should_run_retrieval,
 )
@@ -20,6 +21,17 @@ def test_inspiration_without_style_waits_for_user():
     intent = recognize_intent_by_rules("帮我创建灵感")
     assert intent.intent == "create_inspiration_flow"
     assert intent.missing_slots == ["reference_images"]
+
+
+def test_compound_workflow_defaults_to_portfolio_retrieval_without_resource_slot():
+    intent = AgentIntent(
+        intent="compound_workflow",
+        sub_intents=["search_portfolio_item", "generate_inspiration"],
+        slots={"style": "绿色系"},
+        missing_slots=[],
+        route="workflow",
+    )
+    assert should_run_retrieval(intent)
 
 
 def test_plan_rejects_reordered_or_untrusted_steps():

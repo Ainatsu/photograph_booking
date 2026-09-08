@@ -1,7 +1,9 @@
 import type { AgentTask, AgentTaskType } from '@/types/agentTask'
 
+const DOCK_HIDDEN_TASK_TYPES: AgentTaskType[] = ['generate_image', 'create_inspiration']
+
 export function shouldDisplayAgentTaskDock(task: AgentTask | null | undefined): task is AgentTask {
-  return Boolean(task && task.task_type !== 'generate_image')
+  return Boolean(task && !DOCK_HIDDEN_TASK_TYPES.includes(task.task_type))
 }
 
 export function taskFields(task: AgentTask, type: AgentTaskType = task.task_type): Record<string, unknown> {

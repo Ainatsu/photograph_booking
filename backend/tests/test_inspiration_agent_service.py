@@ -26,11 +26,9 @@ from backend.app.services.inspiration_generation_service import process_next_bat
 def advice(index: int, **extra):
     return {
         "attachment_index": index,
-        "composition": f"composition-{index}",
-        "color": f"color-{index}",
-        "model_pose": f"pose-{index}",
-        "lighting": f"lighting-{index}",
-        "props": f"props-{index}",
+        "title": f"title-{index}",
+        "description": f"description-{index}",
+        "extension": f"extension-{index}",
         **extra,
     }
 
@@ -70,7 +68,7 @@ def test_creation_intent_without_image_requests_reference_images():
     assert intent.missing_slots == ["reference_images"]
 
 
-def test_multi_image_result_is_reordered_and_built_as_image_paragraph_pairs():
+def test_multi_image_result_is_reordered_and_built_as_image_heading_paragraphs():
     result = validate_batch_result(generation([advice(1), advice(0)]), [0, 1])
     blocks = build_inspiration_content(
         result,
@@ -81,15 +79,14 @@ def test_multi_image_result_is_reordered_and_built_as_image_paragraph_pairs():
     )
 
     assert result.tags == ["coast", "portrait"]
-    assert [block["type"] for block in blocks] == ["image", "paragraph", "image", "paragraph"]
-    assert [blocks[0]["url"], blocks[2]["url"]] == ["/uploads/0.jpg", "/uploads/1.jpg"]
-    assert blocks[1]["text"].splitlines() == [
-        "构图：composition-0",
-        "色彩：color-0",
-        "模特动作：pose-0",
-        "打光：lighting-0",
-        "道具：props-0",
+    assert [block["type"] for block in blocks] == [
+        "image", "heading", "paragraph", "paragraph",
+        "image", "heading", "paragraph", "paragraph",
     ]
+    assert [blocks[0]["url"], blocks[4]["url"]] == ["/uploads/0.jpg", "/uploads/1.jpg"]
+    assert blocks[1]["text"] == "title-0"
+    assert blocks[2]["text"] == "description-0"
+    assert blocks[3]["text"] == "创作延伸：extension-0"
 
 
 @pytest.mark.parametrize(
@@ -239,7 +236,7 @@ def _batch_response(indices):
 @pytest.mark.asyncio
 async def test_batch_generation_uses_batch_contract_and_prompt_version():
     provider = StubProvider({
-        "content": '{"batch_theme":"街头电影感","tags":["街拍"],"items":[{"attachment_index":0,"composition":"靠右","color":"冷灰","model_pose":"回望","lighting":"侧光","props":"透明伞"}]} trailing explanation',
+        "content": '{"batch_theme":"街头电影感","tags":["街拍"],"items":[{"attachment_index":0,"title":"湿漉漉的夜","description":"霓虹在雨里晕开，孤独感来自人物与环境的关系。","extension":"换一个橱窗前景继续拍。"}]} trailing explanation',
         "metadata": {"model": {"provider": "stub", "model": "stub-v1"}},
     })
     result, metadata = await generate_inspiration_batch(
@@ -250,7 +247,8 @@ async def test_batch_generation_uses_batch_contract_and_prompt_version():
         provider=provider,
     )
     assert result.batch_theme == "街头电影感"
-    assert metadata["prompt_version"] == "inspiration_agent_batch_v2"
+    assert result.items[0].title == "湿漉漉的夜"
+    assert metadata["prompt_version"] == "inspiration_agent_batch_v3"
     assert provider.calls == 1
 
 
@@ -312,8 +310,8 @@ async def test_workflow_returns_immediately_with_generation_job(db, customer_use
     provider = StubProvider({
         "content": '{"title":"Coastal portraits","summary":"Quiet portrait references",'
         '"tags":["portrait"],"items":[{"attachment_index":0,'
-        '"composition":"centered","color":"blue","model_pose":"walking",'
-        '"lighting":"soft","props":"none"}]}',
+        '"title":"Salt and stillness","description":"Wide horizon makes the figure feel solitary.",'
+        '"extension":"Try the same framing at dawn."}]}',
         "metadata": {"model": {"provider": "stub", "model": "stub-v1"}},
     })
     conversation = ai_service.create_conversation(db, customer_user.id)

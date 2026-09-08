@@ -374,8 +374,7 @@ onMounted(() => void load())
   width: min(100%, var(--content-max));
   margin: 0 auto;
   padding: calc(var(--space-2) + 3px) var(--space-4) calc(var(--space-2) + 3px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--neu-light);
-  box-shadow: inset 0 1px 0 var(--neu-shade-soft);
+  border-top: 1px solid var(--divider);
   background: var(--paper);
 }
 
@@ -416,7 +415,7 @@ onMounted(() => void load())
   border: 0;
   border-radius: var(--radius-md);
   background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  box-shadow: var(--shadow-1);
   color: var(--white);
   font-weight: 700;
 }
@@ -460,8 +459,7 @@ onMounted(() => void load())
   width: min(100%, var(--content-max));
   margin: 0 auto;
   padding: calc(var(--space-2) + 3px) var(--space-4) calc(var(--space-2) + 3px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--neu-light);
-  box-shadow: inset 0 1px 0 var(--neu-shade-soft);
+  border-top: 1px solid var(--divider);
   background: var(--paper);
 }
 
@@ -479,7 +477,7 @@ onMounted(() => void load())
   outline: none;
 }
 
-.comment-input:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px rgba(45, 90, 39, 0.26); }
+.comment-input:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px var(--focus-ring); }
 
 .comment-input:disabled {
   opacity: 0.6;
@@ -495,7 +493,7 @@ onMounted(() => void load())
   border: 0;
   border-radius: var(--radius-md);
   background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  box-shadow: var(--shadow-1);
   color: var(--white);
 }
 
@@ -516,12 +514,12 @@ onMounted(() => void load())
   box-shadow: var(--neu-inset);
 }
 
-.summary-section { padding: var(--space-5) var(--space-4); border-bottom: 1px solid var(--neu-light); box-shadow: 0 1px 0 var(--neu-shade-soft); }
+.summary-section { padding: var(--space-5) var(--space-4); border-bottom: 1px solid var(--divider); }
 .summary-section h1 { margin: var(--space-3) 0 4px; font-family: var(--font-serif); font-size: var(--text-xl); line-height: 1.45; }
-.summary-section > p { margin: var(--space-3) 0 0; color: var(--ink-secondary); font-size: var(--text-sm); line-height: 1.75; white-space: pre-wrap; }
+.summary-section > p { margin: var(--space-3) 0 0; color: var(--ink-secondary); font-size: var(--text-base); line-height: 1.75; white-space: pre-wrap; }
 
 .price-row { display: flex; align-items: baseline; gap: 4px; }
-.price-row strong { color: var(--brand); font-size: 26px; font-variant-numeric: tabular-nums; }
+.price-row strong { color: var(--brand); font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
 .price-row span { color: var(--ink-tertiary); font-size: var(--text-xs); }
 
 .facts-grid {
@@ -552,7 +550,7 @@ onMounted(() => void load())
 }
 
 .photographer-card > span { display: grid; gap: 3px; min-width: 0; }
-.photographer-card small { color: var(--brand); font-size: 11px; font-weight: 700; }
+.photographer-card small { color: var(--brand); font-size: var(--text-2xs); font-weight: 700; }
 .photographer-card strong { font-size: var(--text-base); }
 .photographer-card em { overflow: hidden; color: var(--ink-tertiary); font-size: var(--text-xs); font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 

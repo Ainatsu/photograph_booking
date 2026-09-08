@@ -271,20 +271,16 @@
           />
         </div>
 
-        <div v-if="uploadedImages.length" class="image-preview-list">
-          <div v-for="(img, idx) in uploadedImages" :key="idx" class="image-preview-item">
-            <img :src="img.thumbUrl || img.url" alt="已选图片" class="image-preview-thumb" />
-            <button type="button" class="image-remove-btn pressable" aria-label="移除图片" @click="removeUploadedImage(idx)">
-              <X :size="14" aria-hidden="true" />
-            </button>
-          </div>
-        </div>
-
         <form class="input-bar" @submit.prevent="submitMessage">
-          <div class="composer-heading">
-            <span class="composer-kicker">小龟J Agent</span>
-            <span class="composer-hint">选择 Agent 能力或联网工具</span>
+          <div v-if="uploadedImages.length" class="image-preview-list">
+            <div v-for="(img, idx) in uploadedImages" :key="idx" class="image-preview-item">
+              <img :src="img.thumbUrl || img.url" alt="已选图片" class="image-preview-thumb" />
+              <button type="button" class="image-remove-btn pressable" aria-label="移除图片" @click="removeUploadedImage(idx)">
+                <X :size="14" aria-hidden="true" />
+              </button>
+            </div>
           </div>
+
           <div v-if="selectedAgent" class="agent-brief-card">
             <div class="agent-brief-title">
               <span class="agent-brief-icon"><component :is="selectedAgent.icon" :size="16" aria-hidden="true" /></span>
@@ -315,7 +311,19 @@
             </div>
           </div>
           <div v-if="generationValidationMessage" class="generation-validation" role="alert">{{ generationValidationMessage }}</div>
-          <div class="composer-controls">
+          <label for="ai-message-draft" class="sr-only">输入消息</label>
+          <textarea
+            id="ai-message-draft"
+            ref="messageInputRef"
+            v-model="draft"
+            rows="1"
+            maxlength="2000"
+            :placeholder="inputPlaceholder"
+            :disabled="sending"
+            @keydown="onComposerKeydown"
+            @input="autoResizeTextarea"
+          />
+          <div class="composer-toolbar">
             <button
               type="button"
               class="attach-button pressable"
@@ -323,7 +331,7 @@
               :disabled="sending"
               @click="triggerFileInput"
             >
-              <Paperclip :size="20" aria-hidden="true" />
+              <Plus :size="18" aria-hidden="true" />
             </button>
             <input
               ref="fileInputRef"
@@ -333,48 +341,10 @@
               class="sr-only"
               @change="handleFileSelect"
             />
-            <label for="ai-message-draft" class="sr-only">输入消息</label>
-            <textarea
-              id="ai-message-draft"
-              ref="messageInputRef"
-              v-model="draft"
-              rows="1"
-              maxlength="2000"
-              :placeholder="inputPlaceholder"
-              :disabled="sending"
-              @keydown.enter.prevent="submitMessage"
-            />
-            <button
-              type="submit"
-              class="send-button pressable"
-              :class="{ 'send-button--revealing': !!activeRevealMessageId }"
-              aria-label="发送"
-              :disabled="sending || !hasComposerContent"
-            >
-              <template v-if="activeRevealMessageId">
-                <RotateCw :size="20" class="spin-icon" aria-hidden="true" />
-              </template>
-              <ion-spinner v-else-if="sending" name="crescent" aria-hidden="true" />
-              <ArrowUp v-else :size="20" aria-hidden="true" />
-            </button>
-          </div>
-          <div class="agent-capability-shell">
-            <button
-              v-if="capabilityOverflow"
-              type="button"
-              class="capability-nav pressable"
-              aria-label="向左查看更多 Agent 能力"
-              :disabled="!canScrollCapabilitiesLeft"
-              @click="scrollCapabilities(-1)"
-            >
-              <ChevronLeft :size="18" aria-hidden="true" />
-            </button>
             <div
-              ref="capabilityScrollerRef"
               class="agent-capability-row"
               role="list"
               aria-label="Agent 能力"
-              @scroll="updateCapabilityScrollState"
             >
               <button
                 type="button"
@@ -384,7 +354,7 @@
                 :disabled="sending"
                 @click="toggleWebSearch"
               >
-                <Globe2 :size="17" aria-hidden="true" />
+                <Globe2 :size="16" aria-hidden="true" />
                 <span>联网搜索</span>
               </button>
               <button
@@ -397,19 +367,22 @@
                 :disabled="sending"
                 @click="selectAgent(agent)"
               >
-                <component :is="agent.icon" :size="17" aria-hidden="true" />
+                <component :is="agent.icon" :size="16" aria-hidden="true" />
                 <span>{{ agent.label }}</span>
               </button>
             </div>
             <button
-              v-if="capabilityOverflow"
-              type="button"
-              class="capability-nav pressable"
-              aria-label="向右查看更多 Agent 能力"
-              :disabled="!canScrollCapabilitiesRight"
-              @click="scrollCapabilities(1)"
+              type="submit"
+              class="send-button pressable"
+              :class="{ 'send-button--revealing': !!activeRevealMessageId }"
+              aria-label="发送"
+              :disabled="sending || !hasComposerContent"
             >
-              <ChevronRight :size="18" aria-hidden="true" />
+              <template v-if="activeRevealMessageId">
+                <RotateCw :size="20" class="spin-icon" aria-hidden="true" />
+              </template>
+              <ion-spinner v-else-if="sending" name="crescent" aria-hidden="true" />
+              <ArrowUp v-else :size="20" aria-hidden="true" />
             </button>
           </div>
         </form>
@@ -430,7 +403,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { IonContent, IonPage, IonSpinner, IonToast, alertController } from '@ionic/vue'
-import { AlertCircle, ArrowUp, Bot, ChevronDown, ChevronLeft, ChevronRight, Clock, Globe2, Images, MapPin, Paperclip, RotateCw, Sparkles, SquarePen, WandSparkles, X } from 'lucide-vue-next'
+import { AlertCircle, Aperture, ArrowUp, Bot, ChevronDown, ChevronLeft, ChevronRight, Clock, Globe2, Images, MapPin, Plus, RotateCw, Sparkles, SquarePen, WandSparkles, X } from 'lucide-vue-next'
 import AIPageContextCard from '@/components/AIPageContextCard.vue'
 import AIShootContextCard from '@/components/AIShootContextCard.vue'
 import AIWebReferenceImages from '@/components/AIWebReferenceImages.vue'
@@ -494,11 +467,6 @@ const uploadedImages = ref<{ url: string; thumbUrl?: string; file: File; metadat
 const messageListRef = ref<HTMLElement | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const messageInputRef = ref<HTMLTextAreaElement | null>(null)
-const capabilityScrollerRef = ref<HTMLElement | null>(null)
-const capabilityOverflow = ref(false)
-const canScrollCapabilitiesLeft = ref(false)
-const canScrollCapabilitiesRight = ref(false)
-let capabilityResizeObserver: ResizeObserver | null = null
 const pageContext = ref<AIPageContext | null>(null)
 const activeTask = ref<AgentTask | null>(null)
 const visibleActiveTask = computed(() => (
@@ -533,7 +501,7 @@ interface AgentCapabilityField {
 }
 
 interface AgentCapability {
-  key: AgentTask['task_type'] | 'text_to_image' | 'image_to_image'
+  key: AgentTask['task_type'] | 'text_to_image' | 'image_to_image' | 'appreciate_work'
   label: string
   icon: Component
   fields: AgentCapabilityField[]
@@ -547,14 +515,20 @@ const agentCapabilities: AgentCapability[] = [
     fields: [],
   },
   {
+    key: 'appreciate_work',
+    label: '赏析作品',
+    icon: Aperture,
+    fields: [],
+  },
+  {
     key: 'text_to_image',
-    label: '文生图',
+    label: 'AI生图',
     icon: WandSparkles,
     fields: [],
   },
   {
     key: 'image_to_image',
-    label: '以图生图',
+    label: 'AI修图',
     icon: Images,
     fields: [],
   },
@@ -598,6 +572,7 @@ watch(
 const inputPlaceholder = computed(() => {
   if (visibleActiveTask.value?.summary.next_question) return visibleActiveTask.value.summary.next_question
   if (selectedAgent.value?.key === 'create_inspiration') return '上传参考图，并补充想要的风格或拍摄方向'
+  if (selectedAgent.value?.key === 'appreciate_work') return '上传摄影作品，AI 会从构图、光线、色彩赏析它为什么成立'
   if (selectedAgent.value?.key === 'text_to_image') return '描述想要生成的场景、人物、光线和风格'
   if (selectedAgent.value?.key === 'image_to_image') return '描述需要保留和修改的内容'
   if (selectedAgent.value) return `补充${selectedAgent.value.label}的需求，Agent 会继续引导你`
@@ -614,6 +589,7 @@ const generationValidationMessage = computed(() => {
   if (selectedAgent.value?.key === 'text_to_image' && uploadedImages.value.length) return '文生图不使用参考图片，请移除图片或切换到以图生图。'
   if (selectedAgent.value?.key === 'image_to_image' && uploadedImages.value.length > 1) return '以图生图第一版只支持一张参考图。'
   if (selectedAgent.value?.key === 'image_to_image' && !uploadedImages.value.length) return '请上传一张参考图，并填写修改指令。'
+  if (selectedAgent.value?.key === 'appreciate_work' && !uploadedImages.value.length) return '请先上传要赏析的摄影作品。'
   return ''
 })
 
@@ -633,7 +609,7 @@ function selectAgent(agent: AgentCapability) {
   generationSettingsOpen.value = false
   Object.keys(agentForm).forEach((key) => delete agentForm[key])
   void nextTick(() => {
-    if (['create_inspiration', 'image_to_image'].includes(agent.key) && !uploadedImages.value.length) triggerFileInput()
+    if (['create_inspiration', 'image_to_image', 'appreciate_work'].includes(agent.key) && !uploadedImages.value.length) triggerFileInput()
     else messageInputRef.value?.focus()
   })
 }
@@ -659,6 +635,12 @@ function structuredAgentMessage(): string {
   }
   if (!selectedAgent.value) return draft.value.trim()
   if (isImageGenerationMode.value) return draft.value.trim()
+  if (selectedAgent.value.key === 'appreciate_work') {
+    const supplement = draft.value.trim()
+    return supplement
+      ? `请赏析我上传的摄影作品。补充说明：${supplement}`
+      : '请赏析我上传的摄影作品'
+  }
   if (selectedAgent.value.key === 'create_inspiration') {
     const reference = draft.value.trim()
     return reference
@@ -675,25 +657,6 @@ function structuredAgentMessage(): string {
   if (draft.value.trim()) lines.push(`补充说明：${draft.value.trim()}`)
   lines.push('请根据以上信息创建结构化任务，并继续询问尚缺的必要信息。')
   return lines.join('\n')
-}
-
-function updateCapabilityScrollState() {
-  const scroller = capabilityScrollerRef.value
-  if (!scroller) return
-  const maxScrollLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth)
-  capabilityOverflow.value = maxScrollLeft > 1
-  canScrollCapabilitiesLeft.value = scroller.scrollLeft > 1
-  canScrollCapabilitiesRight.value = scroller.scrollLeft < maxScrollLeft - 1
-}
-
-function scrollCapabilities(direction: number) {
-  const scroller = capabilityScrollerRef.value
-  if (!scroller) return
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  scroller.scrollBy({
-    left: direction * Math.max(180, scroller.clientWidth * 0.72),
-    behavior: reduceMotion ? 'auto' : 'smooth',
-  })
 }
 
 type MessageAttachment = string | { type: string; url: string; mime_type?: string }
@@ -923,6 +886,21 @@ function goBack() {
 
 function triggerFileInput() {
   fileInputRef.value?.click()
+}
+
+function onComposerKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter') return
+  if (event.shiftKey) return
+  if (event.isComposing || event.keyCode === 229) return
+  event.preventDefault()
+  submitMessage()
+}
+
+function autoResizeTextarea() {
+  const el = messageInputRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = `${Math.min(el.scrollHeight, 220)}px`
 }
 
 async function handleFileSelect(event: Event) {
@@ -1309,6 +1287,10 @@ async function submitMessage() {
     toastMessage.value = generationValidationMessage.value || '请填写图片生成描述'
     return
   }
+  if (selectedAgent.value?.key === 'appreciate_work' && generationValidationMessage.value) {
+    toastMessage.value = generationValidationMessage.value
+    return
+  }
 
   sending.value = true
   const attachments = uploadedImages.value.map((img) => ({
@@ -1339,12 +1321,14 @@ async function submitMessage() {
         count: generationSettings.count,
         quality: generationSettings.quality,
         ...(generationMode === 'image_to_image' ? { strength: generationSettings.strength } : {}),
-        idempotency_key: createIdempotencyKey(),
-      }
+      idempotency_key: createIdempotencyKey(),
+    }
     : undefined
+  const appreciationRequest = selectedAgent.value?.key === 'appreciate_work' || undefined
 
   // Optimistically clear input
   draft.value = ''
+  void nextTick(autoResizeTextarea)
   uploadedImages.value = []
   pageContext.value = null
   clearAgentSelection()
@@ -1369,6 +1353,7 @@ async function submitMessage() {
       ...(attachments.length ? { attachments } : {}),
       ...(ctx ? { page_context: ctx } : {}),
       ...(generationRequest ? { generation_request: generationRequest } : {}),
+      ...(appreciationRequest ? { appreciation_request: true } : {}),
     })
     // Replace optimistic message with real server response
     const idx = messages.value.indexOf(optimisticMsg)
@@ -1435,11 +1420,7 @@ function editInspiration(inspirationId: number) {
 
 onMounted(async () => {
   await nextTick()
-  updateCapabilityScrollState()
-  if (typeof ResizeObserver !== 'undefined' && capabilityScrollerRef.value) {
-    capabilityResizeObserver = new ResizeObserver(updateCapabilityScrollState)
-    capabilityResizeObserver.observe(capabilityScrollerRef.value)
-  }
+  autoResizeTextarea()
 
   await auth.initialize()
 
@@ -1457,7 +1438,6 @@ onMounted(async () => {
 
 // ── 页面卸载时清理计时器 ──
 onBeforeUnmount(() => {
-  capabilityResizeObserver?.disconnect()
   clearRevealState()
 })
 </script>
@@ -1595,7 +1575,7 @@ onBeforeUnmount(() => {
 .message-user .message-bubble {
   border-radius: var(--radius-md) var(--radius-md) 4px var(--radius-md);
   background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  box-shadow: var(--shadow-1);
   color: var(--white);
 }
 
@@ -1616,7 +1596,7 @@ onBeforeUnmount(() => {
 
 .message-time {
   color: var(--ink-tertiary);
-  font-size: 10px;
+  font-size: var(--text-2xs);
 }
 
 .attachment-grid {
@@ -1684,7 +1664,7 @@ onBeforeUnmount(() => {
 }
 
 .assistant-bubble-enter-active {
-  transition: opacity 180ms ease-out, transform 180ms ease-out;
+  transition: opacity var(--motion-fast) ease-out, transform var(--motion-fast) ease-out;
 }
 
 .assistant-bubble-enter-from {
@@ -1715,7 +1695,7 @@ onBeforeUnmount(() => {
   max-height: min(42vh, 360px);
   overflow-y: auto;
   padding: var(--space-2) var(--space-3) 0;
-  border-top: 1px solid var(--neu-light);
+  border-top: 1px solid var(--divider);
   background: var(--paper);
   overscroll-behavior: contain;
 }
@@ -1736,13 +1716,14 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin-bottom: var(--space-2);
+  margin-bottom: 8px;
 }
 
 .image-preview-item {
   position: relative;
   width: 64px;
   height: 64px;
+  flex: 0 0 auto;
 }
 
 .image-preview-thumb {
@@ -1754,11 +1735,12 @@ onBeforeUnmount(() => {
 
 .image-remove-btn {
   position: absolute;
-  top: -6px;
-  right: -6px;
+  top: -7px;
+  right: -7px;
   display: grid;
   width: 22px;
   height: 22px;
+  min-height: 0;
   place-items: center;
   border: 2px solid var(--paper);
   border-radius: 50%;
@@ -1767,27 +1749,22 @@ onBeforeUnmount(() => {
 }
 
 .input-bar {
-  display: grid;
-  gap: 10px;
-  padding: 16px 14px 12px;
-  border: 1px solid color-mix(in srgb, var(--brand) 16%, var(--divider));
-  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px 10px;
+  border: 1px solid var(--divider);
+  border-radius: 20px;
   background: var(--surface-solid);
-  box-shadow: 0 8px 28px rgba(45, 90, 39, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.composer-heading { display: flex; align-items: center; gap: 8px; padding: 0 2px; }
-.composer-kicker { color: var(--ink); font-size: 13px; font-weight: 700; }
-.composer-hint { color: var(--ink-tertiary); font-size: 11px; }
-.agent-capability-shell { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px; min-width: 0; }
-.agent-capability-row { display: flex; min-width: 0; gap: 8px; overflow-x: auto; padding: 1px 2px 3px; scroll-behavior: smooth; scrollbar-width: none; }
+.agent-capability-row { display: flex; min-width: 0; flex: 1 1 auto; gap: 8px; overflow-x: auto; padding: 1px 2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .agent-capability-row::-webkit-scrollbar { display: none; }
-.agent-capability { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; flex: 0 0 auto; padding: 9px 13px; border: 1px solid var(--divider); border-radius: 999px; background: var(--paper); color: var(--ink-secondary); font: inherit; font-size: 12px; white-space: nowrap; transition: color .18s, border-color .18s, background .18s, transform .18s; }
-.agent-capability--active { border-color: var(--brand); background: var(--brand-soft); color: var(--brand); }
+.agent-capability { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; min-height: 0; flex: 0 0 auto; padding: 0 13px; border: 1px solid var(--divider); border-radius: 999px; background: transparent; color: var(--ink-secondary); font: inherit; font-size: var(--text-xs); white-space: nowrap; transition: color .18s, border-color .18s, background .18s, transform .18s; }
+.agent-capability--active { border-color: color-mix(in srgb, var(--brand) 45%, var(--divider)); background: var(--brand-soft); color: var(--brand); }
 .agent-capability:active { transform: scale(.97); }
-.capability-nav { display: grid; width: 44px; height: 44px; place-items: center; padding: 0; border: 1px solid var(--divider); border-radius: 50%; background: var(--paper); color: var(--brand); }
-.capability-nav:disabled { opacity: .38; }
-.agent-capability:focus-visible, .capability-nav:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.agent-capability:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .agent-brief-card { padding: 10px 11px; border: 1px solid color-mix(in srgb, var(--brand) 20%, var(--divider)); border-radius: 16px; background: color-mix(in srgb, var(--brand-soft) 45%, var(--surface-solid)); }
 .agent-brief-title { display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: 13px; }
 .agent-brief-icon { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 8px; background: var(--brand); color: #fff; }
@@ -1795,59 +1772,65 @@ onBeforeUnmount(() => {
 .agent-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
 .agent-field { display: grid; gap: 4px; min-width: 0; }
 .agent-field--wide { grid-column: 1 / -1; }
-.agent-field > span { color: var(--ink-secondary); font-size: 11px; }
+.agent-field > span { color: var(--ink-secondary); font-size: var(--text-2xs); }
 .agent-field input { width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--divider); border-radius: 10px; background: var(--surface-solid); color: var(--ink); font: inherit; font-size: 16px; outline: none; }
 .agent-field input:focus { border-color: var(--brand); box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 18%, transparent); }
 .generation-settings-toggle { display: flex; width: 100%; min-height: 44px; margin-top: 8px; padding: 0; align-items: center; justify-content: space-between; border: 0; border-top: 1px solid var(--divider); background: transparent; color: var(--brand); font: inherit; font-size: var(--text-xs); font-weight: 700; }.generation-settings-toggle svg { transition: transform var(--motion-fast) var(--spring-ui); }.generation-settings-toggle .settings-chevron-open { transform: rotate(90deg); }
 .generation-settings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--divider); }.generation-settings label { display: grid; gap: 4px; color: var(--ink-secondary); font-size: var(--text-xs); }.generation-settings select { width: 100%; min-height: 44px; padding: 0 8px; border: 1px solid var(--divider); border-radius: var(--radius-sm); background: var(--surface-solid); color: var(--ink); font: inherit; }.generation-settings .strength-field { grid-column: 1 / -1; }.generation-settings input[type='range'] { min-height: 32px; accent-color: var(--brand); }.generation-validation { padding: 8px 10px; border-radius: var(--radius-sm); background: var(--warning-soft); color: var(--warning); font-size: var(--text-xs); line-height: 1.5; }
-.composer-controls { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: end; gap: 8px; }
+.composer-toolbar { display: flex; align-items: center; gap: 8px; min-width: 0; }
 
 .attach-button {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: 34px;
+  height: 34px;
+  min-height: 0;
+  aspect-ratio: 1 / 1;
+  flex: 0 0 auto;
   place-items: center;
-  border: 0;
-  border-radius: var(--radius-md);
+  border: 1px solid var(--divider);
+  border-radius: 50%;
   background: transparent;
-  color: var(--ink-tertiary);
+  color: var(--ink-secondary);
 }
 
-.attach-button:active { background: var(--paper); box-shadow: var(--neu-inset); }
+.attach-button:active { background: var(--paper-deep); }
 
 .input-bar textarea {
   width: 100%;
-  min-height: 44px;
-  max-height: 112px;
-  padding: 10px 12px;
-  resize: vertical;
+  min-height: 55px;
+  max-height: 220px;
+  padding: 10px 14px;
+  resize: none;
+  overflow-y: auto;
   border: 0;
-  border-radius: 14px;
-  background: var(--paper);
-  box-shadow: var(--neu-inset);
+  border-radius: var(--radius-md);
+  background: transparent;
   color: var(--ink);
   font-size: var(--text-base);
-  line-height: 1.45;
+  line-height: 1.55;
   outline: none;
 }
 
-.input-bar textarea:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px rgba(45, 90, 39, 0.26); }
+.input-bar textarea::placeholder { color: var(--ink-tertiary); }
+
+.input-bar textarea:focus { background: transparent; box-shadow: none; }
 
 .send-button {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
+  min-height: 0;
+  aspect-ratio: 1 / 1;
+  flex: 0 0 auto;
   place-items: center;
   border: 0;
   border-radius: 50%;
-  background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  background: var(--brand);
   color: var(--white);
 }
 
 .send-button:disabled {
   background: var(--paper-deep);
-  box-shadow: none;
   color: var(--ink-tertiary);
   opacity: 0.75;
 }
@@ -1859,10 +1842,8 @@ onBeforeUnmount(() => {
 
 /* ── 旋转箭头动画（Agent 输出中） ── */
 .send-button--revealing {
-  background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  background: var(--brand);
   color: var(--white);
-  border: 0;
 }
 
 .send-button--revealing:disabled {
@@ -1975,7 +1956,7 @@ onBeforeUnmount(() => {
   text-align: left;
   color: inherit;
   font: inherit;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color var(--motion-fast) ease-out, box-shadow var(--motion-fast) ease-out;
 }
 
 .ref-card:active {
@@ -2054,7 +2035,7 @@ onBeforeUnmount(() => {
 .ref-card-sub {
   display: block;
   color: var(--ink-tertiary);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2063,7 +2044,7 @@ onBeforeUnmount(() => {
 .ref-card-reason {
   display: block;
   color: var(--brand);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2102,8 +2083,8 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--divider, #e8e3da);
-  background: var(--brand-soft, rgba(45, 90, 39, 0.06));
+  border-bottom: 1px solid var(--divider);
+  background: var(--brand-soft);
 }
 
 .task-card-title-row {
@@ -2126,7 +2107,7 @@ onBeforeUnmount(() => {
 .task-status-badge {
   padding: 3px 10px;
   border-radius: var(--radius-pill);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   white-space: nowrap;
   background: var(--brand-soft);
@@ -2134,13 +2115,13 @@ onBeforeUnmount(() => {
 }
 
 .task-status-badge.status--completed {
-  background: #e8f5e9;
-  color: #2e7d32;
+  background: var(--success-soft);
+  color: var(--success);
 }
 
 .task-status-badge.status--failed {
-  background: #ffebee;
-  color: #c62828;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .task-status-badge.status--cancelled {
@@ -2150,8 +2131,8 @@ onBeforeUnmount(() => {
 }
 
 .task-status-badge.status--awaiting_confirmation {
-  background: #fff3e0;
-  color: #e65100;
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 /* ── 卡片内容区 ── */
@@ -2174,7 +2155,7 @@ onBeforeUnmount(() => {
 }
 
 .slot-label {
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--ink-tertiary);
   text-transform: none;
   letter-spacing: 0.01em;
@@ -2192,7 +2173,7 @@ onBeforeUnmount(() => {
 .missing-slots-section {
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px dashed var(--divider, #e8e3da);
+  border-top: 1px dashed var(--divider);
 }
 
 .missing-slots-header {
@@ -2200,7 +2181,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 5px;
   margin-bottom: 10px;
-  color: var(--warning, #8B6914);
+  color: var(--warning);
   font-size: var(--text-xs);
   font-weight: 600;
 }
@@ -2234,17 +2215,17 @@ onBeforeUnmount(() => {
   min-width: 0;
   padding: 8px 10px;
   border: 0;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm);
   background: var(--paper);
   box-shadow: var(--neu-inset);
   color: var(--ink);
   font-size: var(--text-sm);
   font-family: inherit;
   outline: none;
-  transition: box-shadow 0.15s;
+  transition: box-shadow var(--motion-fast) ease-out;
 }
 
-.slot-input:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px rgba(45, 90, 39, 0.26); }
+.slot-input:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px var(--focus-ring); }
 
 .slot-input::placeholder {
   color: var(--ink-tertiary);
@@ -2261,7 +2242,7 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: 50%;
   background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  box-shadow: var(--shadow-1);
   color: #fff;
   cursor: pointer;
   transition: opacity 0.15s, box-shadow var(--motion-fast) ease;
@@ -2277,8 +2258,8 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 8px;
   padding: 10px 14px;
-  border-top: 1px solid var(--divider, #e8e3da);
-  background: var(--paper-deep, #f5f2ed);
+  border-top: 1px solid var(--divider);
+  background: var(--paper-deep);
 }
 
 .task-action-btn {
@@ -2289,12 +2270,12 @@ onBeforeUnmount(() => {
   flex: 1;
   padding: 9px 12px;
   border: 0;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm);
   font-size: var(--text-sm);
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: opacity 0.15s, background 0.15s;
+  transition: opacity var(--motion-fast) ease-out, background var(--motion-fast) ease-out;
 }
 
 .task-action-btn:disabled {
@@ -2304,7 +2285,7 @@ onBeforeUnmount(() => {
 
 .task-action-confirm {
   background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  box-shadow: var(--shadow-1);
   color: #fff;
 }
 
@@ -2315,7 +2296,7 @@ onBeforeUnmount(() => {
 .task-action-cancel {
   background: var(--paper);
   color: var(--ink-tertiary);
-  border: 1px solid var(--border, #d9d3cb);
+  border: 1px solid var(--border);
 }
 
 .task-action-cancel:active:not(:disabled) { background: var(--paper-deep); box-shadow: none; }

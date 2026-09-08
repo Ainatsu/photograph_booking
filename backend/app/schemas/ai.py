@@ -158,6 +158,7 @@ class AIMessageCreate(BaseModel):
     task_submission: AITaskSubmission | None = None
     shoot_context_selection: AIShootContextSelection | None = None
     generation_request: AIImageGenerationRequest | None = None
+    appreciation_request: bool | None = None
 
 
 class AIMessageResponse(BaseModel):

@@ -1,4 +1,12 @@
 from logging.config import fileConfig
+import sys
+from pathlib import Path
+
+# Alembic is launched with ``backend`` as its working directory by the
+# application, so the repository root is not necessarily importable yet.
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool

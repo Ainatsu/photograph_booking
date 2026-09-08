@@ -161,10 +161,10 @@ onBeforeUnmount(() => {
 .entry-cover img { width: 100%; height: 100%; object-fit: cover; }
 .entry-placeholder { display: grid; place-items: center; }
 .entry-copy { display: grid; min-width: 0; gap: 4px; }
-.entry-meta { color: var(--brand); font-size: 11px; font-weight: 750; }
+.entry-meta { color: var(--brand); font-size: var(--text-2xs); font-weight: 750; }
 .entry-copy strong { overflow: hidden; font-size: var(--text-sm); line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
 .entry-copy small { display: -webkit-box; overflow: hidden; color: var(--ink-secondary); font-size: var(--text-xs); line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.entry-generation { color: var(--brand); font-size: 11px; line-height: 1.35; }
+.entry-generation { color: var(--brand); font-size: var(--text-2xs); line-height: 1.35; }
 .entry-main > svg { color: var(--ink-tertiary); }
 .entry-retry { display: grid; width: 44px; height: 44px; place-items: center; padding: 0; border: 0; border-radius: 50%; background: var(--brand-soft); color: var(--brand); }
 .entry-retry:disabled { opacity: .5; }

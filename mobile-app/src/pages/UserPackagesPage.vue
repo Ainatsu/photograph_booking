@@ -153,8 +153,8 @@ onIonViewWillEnter(() => void load())
 .user-packages-shell { display: grid; width: min(100%, 720px); margin: 0 auto; padding: var(--space-4) var(--space-4) var(--space-8); gap: var(--space-5); }
 
 .list-intro { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: var(--space-3); padding: var(--space-4); border: 0; border-radius: var(--radius-lg); background: var(--brand-soft); box-shadow: var(--neu-raise); }
-.list-intro > span { display: grid; width: 46px; height: 46px; place-items: center; border-radius: 50%; background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); }
-.list-intro p { margin: 0 0 3px; color: var(--brand); font-size: 10px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+.list-intro > span { display: grid; width: 46px; height: 46px; place-items: center; border-radius: 50%; background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); }
+.list-intro p { margin: 0 0 3px; color: var(--brand); font-size: var(--text-2xs); font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
 .list-intro h1 { margin: 0; font-family: var(--font-serif); font-size: var(--text-xl); line-height: 1.35; }
 .list-intro small { display: block; margin-top: 6px; color: var(--ink-secondary); font-size: var(--text-xs); line-height: 1.65; }
 
@@ -168,7 +168,7 @@ onIonViewWillEnter(() => void load())
 .package-copy h2 { margin: 0; font-size: var(--text-base); line-height: 1.45; }
 .package-copy header strong { color: var(--brand); font-size: var(--text-lg); font-variant-numeric: tabular-nums; }
 .package-copy > p { display: -webkit-box; margin: var(--space-2) 0 var(--space-3); overflow: hidden; color: var(--ink-secondary); font-size: var(--text-sm); line-height: 1.65; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.package-facts { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--neu-light); box-shadow: inset 0 1px 0 var(--neu-shade-soft); color: var(--ink-tertiary); font-size: var(--text-xs); }
+.package-facts { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--divider); color: var(--ink-tertiary); font-size: var(--text-xs); }
 .package-facts span { display: inline-flex; min-width: 0; align-items: center; gap: 5px; }
 .package-facts svg { flex: 0 0 auto; color: var(--brand); }
 

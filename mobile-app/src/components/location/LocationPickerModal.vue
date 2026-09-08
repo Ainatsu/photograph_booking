@@ -233,7 +233,7 @@ const confirm = () => {
   border: 0;
   border-radius: var(--radius-md);
   background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  box-shadow: var(--shadow-1);
   color: var(--white);
   font-weight: 700;
 }
@@ -249,7 +249,7 @@ const confirm = () => {
   gap: 3px;
   padding: 12px 14px;
   border: 0;
-  border-bottom: 1px solid var(--neu-light);
+  border-bottom: 1px solid var(--divider);
   background: var(--neu-surface);
   box-shadow: var(--neu-raise-sm);
   color: var(--ink);
@@ -274,7 +274,7 @@ const confirm = () => {
 .selected-location div { display: grid; gap: 4px; min-width: 0; }
 .selected-location span { color: var(--ink-secondary); font-size: var(--text-xs); line-height: 1.5; word-break: break-all; }
 
-.picker-footer { padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom)); border-top: 1px solid var(--neu-light); box-shadow: inset 0 1px 0 var(--neu-shade-soft); background: var(--paper); }
+.picker-footer { padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom)); border-top: 1px solid var(--divider); background: var(--paper); }
 
 .confirm-btn {
   display: flex;
@@ -285,7 +285,7 @@ const confirm = () => {
   border: 0;
   border-radius: var(--radius-md);
   background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  box-shadow: var(--shadow-1);
   color: var(--white);
   font-weight: 750;
 }

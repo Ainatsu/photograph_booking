@@ -68,6 +68,7 @@
 
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   --font-serif: var(--font-sans);
+  --text-2xs: 11px;
   --text-xs: 12px;
   --text-sm: 14px;
   --text-base: 16px;
@@ -85,6 +86,7 @@
   --motion-slow: 400ms;
   --spring-ui: cubic-bezier(0.2, 0.8, 0.2, 1);
   --focus-ring: rgba(10, 103, 208, 0.42);
+  --glow-brand: 0 4px 12px rgba(10, 103, 208, 0.28);
   --layer-content: 0;
   --layer-sticky: 20;
   --layer-dropdown: 40;
@@ -138,6 +140,7 @@
   --neu-shade: rgba(0, 0, 0, 0.4);
   --neu-shade-soft: rgba(0, 0, 0, 0.24);
   --focus-ring: rgba(64, 156, 255, 0.55);
+  --glow-brand: 0 4px 12px rgba(64, 156, 255, 0.35);
   --ion-color-primary: #409cff;
   --ion-color-primary-rgb: 64, 156, 255;
   --ion-color-primary-contrast: #000000;

@@ -47,14 +47,14 @@ const formattedDate = computed(() => new Intl.DateTimeFormat('zh-CN', { month: '
 .card-main { display: grid; grid-template-columns: 116px minmax(0, 1fr); min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; }
 .card-cover { position: relative; display: grid; min-height: 148px; place-items: center; overflow: hidden; background: var(--brand-soft); color: var(--brand); }
 .card-cover img { width: 100%; height: 100%; object-fit: cover; }
-.card-cover > span { position: absolute; top: 9px; left: 9px; min-height: 24px; padding: 3px 8px; border-radius: var(--radius-pill); background: var(--material-thick); color: var(--ink); font-size: 10px; font-weight: 750; backdrop-filter: var(--material-blur); }
+.card-cover > span { position: absolute; top: 9px; left: 9px; min-height: 24px; padding: 3px 8px; border-radius: var(--radius-pill); background: var(--material-thick); color: var(--ink); font-size: var(--text-2xs); font-weight: 750; backdrop-filter: var(--material-blur); }
 .card-copy { display: grid; align-content: center; gap: 6px; min-width: 0; padding: var(--space-3); }
-.card-meta { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); color: var(--ink-tertiary); font-size: 10px; }
+.card-meta { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); color: var(--ink-tertiary); font-size: var(--text-2xs); }
 .card-meta span { display: flex; min-width: 0; align-items: center; gap: 3px; overflow: hidden; color: var(--brand); text-overflow: ellipsis; white-space: nowrap; }
 .card-copy > strong { overflow: hidden; font-size: var(--text-base); line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
 .card-copy > p { display: -webkit-box; overflow: hidden; margin: 0; color: var(--ink-secondary); font-size: var(--text-xs); line-height: 1.55; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .card-tags { display: flex; gap: 5px; overflow: hidden; }
-.card-tags span { flex: 0 0 auto; padding: 2px 7px; border-radius: var(--radius-pill); background: var(--surface-secondary); color: var(--ink-secondary); font-size: 10px; }
+.card-tags span { flex: 0 0 auto; padding: 2px 7px; border-radius: var(--radius-pill); background: var(--surface-secondary); color: var(--ink-secondary); font-size: var(--text-2xs); }
 .card-actions { display: grid; width: 48px; grid-template-rows: 1fr 1fr; border-left: 1px solid var(--border); background: var(--surface-secondary); }
 .card-action { display: grid; min-width: 48px; min-height: 48px; place-items: center; border: 0; background: transparent; color: var(--brand); cursor: pointer; touch-action: manipulation; }
 .card-action + .card-action { border-top: 1px solid var(--border); }

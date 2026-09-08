@@ -168,6 +168,17 @@ def infer_explicit_search_decision(content: str | None) -> AgentDecision | None:
     )
 
 
+def is_explicit_web_search_request(content: str | None) -> bool:
+    """判断用户是否明确要求联网搜索（与决策层的触发词保持同一来源）。
+
+    显式联网搜索必须优先于工作区里的资源引用解析：active 任务里的序数引用
+    （“第一个”类）走的是 ai_service 的确定性分支，根本不进决策层，所以调用方
+    要在进入该分支之前先调这个谓词排除掉联网搜索请求。
+    """
+    text = " ".join((content or "").strip().split())
+    return bool(text) and any(term in text for term in _EXPLICIT_WEB_SEARCH_TERMS)
+
+
 def infer_explicit_web_search_decision(content: str | None) -> AgentDecision | None:
     """Deterministically honor an explicit request for public web search.
 
@@ -175,9 +186,9 @@ def infer_explicit_web_search_decision(content: str | None) -> AgentDecision | N
     default is ``search_photographers``. Provider availability is checked later
     by the tool executor so a disabled provider yields a truthful failure.
     """
-    text = " ".join((content or "").strip().split())
-    if not text or not any(term in text for term in _EXPLICIT_WEB_SEARCH_TERMS):
+    if not is_explicit_web_search_request(content):
         return None
+    text = " ".join((content or "").strip().split())
     query = text
     for term in _EXPLICIT_WEB_SEARCH_TERMS:
         query = query.replace(term, "")

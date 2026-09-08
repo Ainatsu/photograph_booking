@@ -35,6 +35,7 @@ from backend.app.services.ai_agent_decision_service import (
     AgentDecisionOutcome,
     compare_decision_with_intent,
     decide_agent_action,
+    is_explicit_web_search_request,
     resolve_decision_plan,
 )
 from backend.app.services.ai_agent_decision_contracts import AgentDecision
@@ -55,6 +56,8 @@ from backend.app.services.ai_web_search_metrics import increment as increment_we
 from backend.app.services.ai_orchestrator_service import (
     AgentIntent,
     _is_project_consultation,
+    _is_style_analysis_intent,
+    _is_work_appreciation_intent,
     recognize_intent,
     recognize_intent_by_rules,
     should_run_retrieval,
@@ -66,7 +69,8 @@ from backend.app.services.ai_planner_service import (
     booking_plan_result,
     should_run_booking_plan,
 )
-from backend.app.services.ai_prompts import AI_SYSTEM_PROMPT
+from backend.app.services.ai_entity_grounding_service import enforce_chat_entity_grounding
+from backend.app.services.ai_prompts import AI_SYSTEM_PROMPT, CHAT_NO_PLATFORM_DATA_PROMPT
 from backend.app.services.ai_provider import get_ai_provider
 from backend.app.services.ai_retrieval_service import (
     build_empty_retrieval_prompt,
@@ -143,6 +147,10 @@ from backend.app.services.image_generation_workflow_service import (
 )
 from backend.app.services.shoot_context_service import ShootContextService
 from backend.app.services.ai_vision_service import (
+    APPRECIATION_SCHEMA_VERSION,
+    APPRECIATION_SYSTEM_PROMPT,
+    STYLE_ANALYSIS_SCHEMA_VERSION,
+    STYLE_ANALYSIS_SYSTEM_PROMPT,
     VISION_SYSTEM_PROMPT,
     build_vision_reply,
     build_vision_retrieval_reply,
@@ -2035,6 +2043,58 @@ def _vision_agent_result(
     }
 
 
+def _appreciation_agent_result(
+    provider_result: dict,
+    *,
+    reply_text: str,
+    content: str | None,
+    attachments: list[dict] | None,
+) -> dict:
+    """生成作品赏析场景的助手回复结果：正文即赏析 skill 的自由文本输出。"""
+    metadata = dict(provider_result.get("metadata") or {})
+    metadata["tool_calls"] = [
+        {
+            "tool": "appreciate_image",
+            "status": "success",
+            "input": {
+                "content": content,
+                "attachment_count": len(_attachment_image_urls(attachments)),
+            },
+            "result": {"schema_version": APPRECIATION_SCHEMA_VERSION},
+        }
+    ]
+    return {
+        "content": reply_text,
+        "metadata": metadata,
+    }
+
+
+def _style_analysis_agent_result(
+    provider_result: dict,
+    *,
+    reply_text: str,
+    content: str | None,
+    attachments: list[dict] | None,
+) -> dict:
+    """生成作品风格分析场景的助手回复结果：正文即风格分析 skill 的自由文本输出。"""
+    metadata = dict(provider_result.get("metadata") or {})
+    metadata["tool_calls"] = [
+        {
+            "tool": "analyze_style",
+            "status": "success",
+            "input": {
+                "content": content,
+                "attachment_count": len(_attachment_image_urls(attachments)),
+            },
+            "result": {"schema_version": STYLE_ANALYSIS_SCHEMA_VERSION},
+        }
+    ]
+    return {
+        "content": reply_text,
+        "metadata": metadata,
+    }
+
+
 def _vision_retrieval_agent_result(
     provider_result: dict,
     vision_analysis: dict,
@@ -3143,6 +3203,7 @@ async def send_ai_message(
     task_submission: dict | None = None,
     shoot_context_selection: dict | None = None,
     generation_request: AIImageGenerationRequest | None = None,
+    appreciation_request: bool | None = None,
 ) -> tuple[AIMessage, AIMessage]:
     """AI 会话主入口：保存用户消息，完成意图识别、检索与工具编排后生成助手回复。"""
     trace_started_at = perf_counter()
@@ -3169,6 +3230,8 @@ async def send_ai_message(
         user_metadata["shoot_context_selection"] = shoot_context_selection
     if generation_request:
         user_metadata["generation_request"] = generation_request.model_dump(mode="json")
+    if appreciation_request:
+        user_metadata["appreciation_request"] = True
 
     user_message = AIMessage(
         conversation_id=conversation.id,
@@ -3185,7 +3248,7 @@ async def send_ai_message(
     db.refresh(conversation)
 
     active_task_before = get_active_task(db, user_id, conversation.id)
-    if active_task_before and not task_submission and not generation_request and content and not _is_task_cancel_request(content):
+    if active_task_before and not task_submission and not generation_request and not appreciation_request and content and not _is_task_cancel_request(content):
         patch = extract_task_patch(
             active_task_before.task_type,
             content,
@@ -3451,16 +3514,6 @@ async def send_ai_message(
                 db.commit()
             except Exception:
                 db.rollback()
-    resource_reference = (
-        resolve_resource_reference(working_memory, content)
-        if (
-            not is_task_exit_request(content)
-            and not is_search_refinement(content)
-            and not _extract_booking_slots(content)
-        )
-        else None
-    )
-    resource_reference_prompt = build_resource_reference_prompt(resource_reference)
     search_refinement = None
 
     # 灰度门（阶段C §4-C.1、§4-C.2）：先算出本轮生效的 routing mode，
@@ -3472,6 +3525,7 @@ async def send_ai_message(
     routing_mode = routing_rollout.mode
     deterministic_entry = (
         generation_request is not None
+        or appreciation_request
         or submitted_intent is not None
         or cancel_task_state is not None
         or pending_action is not None
@@ -3551,6 +3605,17 @@ async def send_ai_message(
             confidence=1.0,
             parser="rules",
         )
+    elif appreciation_request:
+        intent = AgentIntent(
+            intent="image_analysis",
+            sub_intents=["work_appreciation"],
+            slots={},
+            missing_slots=["reference_images"] if not vision_attachments else [],
+            requires_confirmation=False,
+            route="vision",
+            confidence=1.0,
+            parser="rules",
+        )
     elif selected_shoot_context_arguments:
         intent = recognize_intent("查询天气")
     elif submitted_intent:
@@ -3591,10 +3656,67 @@ async def send_ai_message(
     vision_analysis = None
     vision_search_text = None
     vision_reused_context = False
+    appreciation_reply = None
+    style_analysis_reply = None
     page_context_prompt = _build_page_context_prompt(normalized_page_context)
+    # 显式选择「赏析作品」或识别到赏析语言时，走赏析 skill 而非标准视觉分析。
+    is_appreciation = intent.intent == "image_analysis" and (
+        "work_appreciation" in intent.sub_intents or _is_work_appreciation_intent(content)
+    )
+    # 风格分析 skill：仅由意图识别触发（无显式按钮），赏析优先级更高。
+    is_style_analysis = (
+        not is_appreciation
+        and intent.intent == "image_analysis"
+        and ("style_analysis" in intent.sub_intents or _is_style_analysis_intent(content))
+    )
+    # 没有图片时给出引导语，而不是让分类/检索链路空转。
+    appreciation_guard_result = (
+        {
+            "content": "请先上传要赏析的摄影作品，我可以从构图、光线、色彩等角度分析它为什么成立。",
+            "metadata": {
+                "workflow_status": "waiting_user",
+                "missing_slots": ["reference_images"],
+            },
+        }
+        if is_appreciation and not vision_attachments
+        else None
+    )
+    style_analysis_guard_result = (
+        {
+            "content": "请先上传要分析风格的摄影作品。一张可以看出风格信号，多张更容易找到稳定的视觉习惯。",
+            "metadata": {
+                "workflow_status": "waiting_user",
+                "missing_slots": ["reference_images"],
+            },
+        }
+        if is_style_analysis and not vision_attachments
+        else None
+    )
 
     if not deterministic_entry:
         intent, search_refinement = _contextualize(intent)
+
+    # Resolve references only after high-level intent recognition. Creation
+    # workflows own phrases such as "创建一份灵感"; an active search task must
+    # not reinterpret the quantity word "一份" as a resource ordinal.
+    reference_blocking_intents = {
+        "compound_workflow",
+        "create_inspiration_flow",
+        "image_generation_flow",
+        "project_flow",
+        "package_publish_flow",
+    }
+    resource_reference = (
+        resolve_resource_reference(working_memory, content)
+        if (
+            intent.intent not in reference_blocking_intents
+            and not is_task_exit_request(content)
+            and not is_search_refinement(content)
+            and not _extract_booking_slots(content)
+        )
+        else None
+    )
+    resource_reference_prompt = build_resource_reference_prompt(resource_reference)
     if resource_reference is not None:
         booking_reference_request = intent.intent == "booking_flow" or any(
             term in (content or "") for term in ("预约", "预订", "订这个")
@@ -3793,20 +3915,37 @@ async def send_ai_message(
     # MiMo 从图片推断出的风格进入检索文本做软排序，不应冒充用户明确的硬过滤条件。
     explicit_retrieval_criteria = criteria_from_slots(intent.slots)
 
-    if cancel_task_state is None and pending_action is None and _should_run_vision_analysis(intent, vision_attachments):
+    if cancel_task_state is None and pending_action is None and (
+        _should_run_vision_analysis(intent, vision_attachments)
+        or ((is_appreciation or is_style_analysis) and vision_attachments)
+    ):
+        skill_prompt = (
+            APPRECIATION_SYSTEM_PROMPT
+            if is_appreciation
+            else STYLE_ANALYSIS_SYSTEM_PROMPT
+            if is_style_analysis
+            else VISION_SYSTEM_PROMPT
+        )
         provider_messages = _build_provider_messages(
             db,
             conversation.id,
-            extra_system_prompts=[VISION_SYSTEM_PROMPT],
+            extra_system_prompts=[skill_prompt],
         )
         provider = get_ai_provider()
         vision_provider_result = await provider.chat(provider_messages)
-        vision_analysis = normalize_vision_analysis(
-            vision_provider_result,
-            content=content,
-            attachments=vision_attachments,
-        )
-        intent = _apply_vision_slots(intent, vision_analysis)
+        if is_appreciation:
+            # 赏析 skill 输出自由文本；不做结构化解析，也不写检索槽位。
+            appreciation_reply = (vision_provider_result.get("content") or "").strip() or None
+        elif is_style_analysis:
+            # 风格分析 skill 同样输出自由文本（视觉事实→风格DNA 逐层结论）。
+            style_analysis_reply = (vision_provider_result.get("content") or "").strip() or None
+        else:
+            vision_analysis = normalize_vision_analysis(
+                vision_provider_result,
+                content=content,
+                attachments=vision_attachments,
+            )
+            intent = _apply_vision_slots(intent, vision_analysis)
 
     elif cancel_task_state is None and pending_action is None and _should_reuse_latest_vision_analysis(intent, content, vision_attachments):
         vision_analysis = _latest_vision_analysis(db, conversation.id)
@@ -3878,7 +4017,10 @@ async def send_ai_message(
             db,
             retrieval_content,
             limit=intent.slots.get("limit", 3),
-            resource_types=intent.slots.get("resource_types"),
+            resource_types=(
+                intent.slots.get("resource_types")
+                or (["portfolio_items"] if intent.intent == "compound_workflow" else None)
+            ),
             vision_analysis=vision_analysis,
             image_attachments=vision_attachments,
             # 本轮意图已确认的城市、风格、预算直接作为检索条件，
@@ -3980,6 +4122,24 @@ async def send_ai_message(
             conversation_id=conversation.id,
             message_id=user_message.id,
             pending=pending_action,
+        )
+    elif appreciation_guard_result is not None:
+        result = appreciation_guard_result
+    elif style_analysis_guard_result is not None:
+        result = style_analysis_guard_result
+    elif appreciation_reply is not None:
+        result = _appreciation_agent_result(
+            vision_provider_result,
+            reply_text=appreciation_reply,
+            content=content,
+            attachments=vision_attachments,
+        )
+    elif style_analysis_reply is not None:
+        result = _style_analysis_agent_result(
+            vision_provider_result,
+            reply_text=style_analysis_reply,
+            content=content,
+            attachments=vision_attachments,
         )
     elif (
         active_task_before is not None
@@ -4224,15 +4384,30 @@ async def send_ai_message(
             )
             if prompt
         ]
+        retrieval_context = build_retrieval_context(retrieval)
+        # 本轮没有任何平台数据时显式告知场景，替代旧提示词里依赖"上下文缺失"的条件式禁令。
+        has_platform_context = bool(
+            retrieval_context or tool_result_prompt or resource_reference_prompt
+        )
+        if not has_platform_context:
+            extra_system_prompts.append(CHAT_NO_PLATFORM_DATA_PROMPT)
         provider_messages = _build_provider_messages(
             db,
             conversation.id,
-            build_retrieval_context(retrieval),
+            retrieval_context,
             extra_system_prompts=extra_system_prompts or None,
             page_context_prompt=page_context_prompt,
         )
         provider = get_ai_provider()
         result = await provider.chat(provider_messages)
+        # 代码层接地兜底：提示词失效、模型仍点名平台中不存在的实体时，重答或剔除。
+        if not has_platform_context:
+            result = await enforce_chat_entity_grounding(
+                db,
+                provider=provider,
+                provider_messages=provider_messages,
+                result=result,
+            )
 
     if (
         active_task_before is not None
@@ -4240,6 +4415,8 @@ async def send_ai_message(
         and not task_submission
         and cancel_task_state is None
         and not web_search_call
+        and not is_appreciation
+        and not is_style_analysis
         and intent.intent not in {"create_inspiration_flow", "image_generation_flow"}
     ):
         progress_result = _active_task_progress_result(active_task_before)

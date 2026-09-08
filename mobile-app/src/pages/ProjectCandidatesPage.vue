@@ -240,26 +240,26 @@ onMounted(() => void load())
 .candidate-identity > span { display: grid; min-width: 0; gap: 3px; }
 .candidate-identity strong { overflow: hidden; font-size: var(--text-sm); text-overflow: ellipsis; white-space: nowrap; }
 .candidate-identity small { color: var(--ink-tertiary); font-size: var(--text-xs); }
-.application-status { display: inline-flex; min-height: 28px; flex: 0 0 auto; align-items: center; padding: 3px 9px; border-radius: var(--radius-pill); background: var(--brand-soft); color: var(--brand); font-size: 11px; font-weight: 750; }
+.application-status { display: inline-flex; min-height: 28px; flex: 0 0 auto; align-items: center; padding: 3px 9px; border-radius: var(--radius-pill); background: var(--brand-soft); color: var(--brand); font-size: var(--text-2xs); font-weight: 750; }
 .application-status.rejected, .application-status.withdrawn { background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink-secondary); }
-.application-status.selected { background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); }
-.application-price { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--neu-light); box-shadow: inset 0 1px 0 var(--neu-shade-soft); }
+.application-status.selected { background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); }
+.application-price { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--divider); }
 .application-price span { color: var(--ink-tertiary); font-size: var(--text-xs); }
 .application-price strong { color: var(--brand); font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
 .package-snapshot { display: grid; gap: 4px; padding: var(--space-3); border-left: 3px solid var(--brand); background: var(--brand-soft); }
-.package-snapshot small { color: var(--brand); font-size: 11px; font-weight: 700; }
+.package-snapshot small { color: var(--brand); font-size: var(--text-2xs); font-weight: 700; }
 .package-snapshot strong { font-size: var(--text-sm); line-height: 1.5; }
 .application-proposal, .application-note, .equipment-note { margin: 0; color: var(--ink-secondary); font-size: var(--text-sm); line-height: 1.7; white-space: pre-wrap; }
-.application-note, .equipment-note { padding-top: var(--space-2); border-top: 1px solid var(--neu-light); box-shadow: inset 0 1px 0 var(--neu-shade-soft); font-size: var(--text-xs); }
+.application-note, .equipment-note { padding-top: var(--space-2); border-top: 1px solid var(--divider); font-size: var(--text-xs); }
 .application-portfolio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
 .application-portfolio img { width: 100%; aspect-ratio: 1 / 1; border-radius: var(--radius-sm); object-fit: cover; }
-.candidate-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--neu-light); box-shadow: inset 0 1px 0 var(--neu-shade-soft); }
+.candidate-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--divider); }
 .candidate-actions button { display: inline-flex; min-height: var(--touch-target); align-items: center; justify-content: center; gap: var(--space-2); border-radius: var(--radius-md); font-size: var(--text-xs); font-weight: 750; }
 .candidate-actions .secondary { border: 0; background: var(--neu-surface); box-shadow: var(--neu-raise-sm); color: var(--brand); }
-.candidate-actions .primary { border: 0; background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); }
+.candidate-actions .primary { border: 0; background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); }
 .candidate-actions button:disabled { background: var(--paper-deep); box-shadow: none; color: var(--ink-tertiary); }
 .candidate-actions ion-spinner { width: 18px; height: 18px; }
-.application-empty { display: grid; min-height: 260px; place-items: center; align-content: center; padding: var(--space-7) var(--space-5); border: 0; border-radius: var(--radius-lg); background: var(--paper); box-shadow: var(--neu-inset); color: var(--brand); text-align: center; }
+.application-empty { display: grid; min-height: 260px; place-items: center; align-content: center; padding: var(--space-6) var(--space-5); border: 0; border-radius: var(--radius-lg); background: var(--paper); box-shadow: var(--neu-inset); color: var(--brand); text-align: center; }
 .application-empty strong { margin-top: var(--space-3); color: var(--ink); font-family: var(--font-serif); font-size: var(--text-lg); }
 .application-empty p { max-width: 300px; margin: var(--space-2) 0 0; color: var(--ink-secondary); font-size: var(--text-sm); line-height: 1.65; }
 

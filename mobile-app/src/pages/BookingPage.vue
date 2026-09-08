@@ -405,12 +405,12 @@ onUnmounted(() => { if (taskNotesTimer !== null) window.clearTimeout(taskNotesTi
 .booking-content { --background: var(--paper); }
 .booking-shell { width: min(100%, var(--content-max)); margin: 0 auto; padding: var(--space-4) var(--space-4) var(--space-8); }
 .booking-intro { display: grid; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: var(--space-3); padding: var(--space-4); border: 0; border-radius: var(--radius-lg); background: var(--neu-surface); box-shadow: var(--neu-raise); }
-.booking-intro small { color: var(--brand); font-size: 11px; font-weight: 750; }
+.booking-intro small { color: var(--brand); font-size: var(--text-2xs); font-weight: 750; }
 .booking-intro h1 { margin: 2px 0; font-family: var(--font-serif); font-size: var(--text-lg); }
 .booking-intro p { margin: 0; color: var(--ink-tertiary); font-size: var(--text-xs); }
 .form-section { margin-top: var(--space-6); }
 .section-heading { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: var(--space-3); align-items: start; margin-bottom: var(--space-3); }
-.section-heading > span { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); font-size: var(--text-sm); font-weight: 750; }
+.section-heading > span { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 50%; background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); font-size: var(--text-sm); font-weight: 750; }
 .section-heading h2 { margin: 0; font-family: var(--font-serif); font-size: var(--text-lg); }
 .section-heading p { margin: 3px 0 0; color: var(--ink-tertiary); font-size: var(--text-xs); line-height: 1.5; }
 .package-options { display: grid; gap: var(--space-3); }
@@ -430,20 +430,20 @@ onUnmounted(() => { if (taskNotesTimer !== null) window.clearTimeout(taskNotesTi
 .availability-meta span { display: inline-flex; min-height: 32px; align-items: center; gap: 5px; padding: 4px 9px; border-radius: var(--radius-pill); background: var(--brand-soft); color: var(--brand); font-size: var(--text-xs); }
 .date-strip { display: flex; gap: var(--space-2); margin-inline: calc(var(--space-4) * -1); padding: 2px var(--space-4) var(--space-3); overflow-x: auto; scroll-snap-type: x proximity; }
 .date-option { display: grid; min-width: 78px; min-height: 82px; place-items: center; align-content: center; gap: 3px; scroll-snap-align: start; border: 0; border-radius: var(--radius-md); background: var(--neu-surface); box-shadow: var(--neu-raise-sm); color: var(--ink); }
-.date-option small { color: var(--ink-tertiary); font-size: 11px; }
+.date-option small { color: var(--ink-tertiary); font-size: var(--text-2xs); }
 .date-option strong { font-size: var(--text-sm); }
-.date-option em { color: var(--brand); font-size: 11px; font-style: normal; }
-.date-option.selected { background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); border: 0; }
+.date-option em { color: var(--brand); font-size: var(--text-2xs); font-style: normal; }
+.date-option.selected { background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); border: 0; }
 .date-option.selected small, .date-option.selected em { color: var(--white); }
 .date-option:disabled { opacity: .42; }
 .slot-hint { margin: var(--space-3) 0 0; padding: var(--space-4); border: 0; border-radius: var(--radius-md); background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink-tertiary); font-size: var(--text-sm); text-align: center; }
 .notes-field { width: 100%; min-height: 132px; padding: var(--space-3) var(--space-4); resize: vertical; border: 0; border-radius: var(--radius-md); background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink); font-size: var(--text-base); line-height: 1.65; outline: none; }
-.notes-field:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px rgba(45, 90, 39, 0.26); }
+.notes-field:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px var(--focus-ring); }
 .character-count { display: block; margin-top: 5px; color: var(--ink-tertiary); font-size: var(--text-xs); text-align: right; font-variant-numeric: tabular-nums; }
 .order-summary { display: flex; gap: var(--space-3); margin-top: var(--space-6); padding: var(--space-4); border: 0; border-radius: var(--radius-md); background: var(--neu-surface); box-shadow: var(--neu-raise); color: var(--brand); }
 .order-summary strong { color: var(--ink); font-size: var(--text-sm); }
 .order-summary p { margin: 4px 0 0; color: var(--ink-secondary); font-size: var(--text-xs); line-height: 1.6; }
-.submit-error { display: flex; gap: var(--space-2); margin-top: var(--space-4); padding: var(--space-3); border: 1px solid rgba(163, 59, 50, .25); border-radius: var(--radius-md); background: #fbefed; color: var(--danger); font-size: var(--text-sm); line-height: 1.55; }
+.submit-error { display: flex; gap: var(--space-2); margin-top: var(--space-4); padding: var(--space-3); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); border-radius: var(--radius-md); background: var(--danger-soft); color: var(--danger); font-size: var(--text-sm); line-height: 1.55; }
 .submit-error svg { flex: 0 0 auto; }
 .booking-task-editor { display: grid; gap: var(--space-4); padding: var(--space-4); border: 0; border-radius: var(--radius-lg); background: var(--neu-surface); box-shadow: var(--neu-raise); }
 .booking-task-editor-heading { display: flex; align-items: center; gap: var(--space-3); color: var(--brand); }
@@ -453,6 +453,6 @@ onUnmounted(() => { if (taskNotesTimer !== null) window.clearTimeout(taskNotesTi
 .task-editor-field { display: grid; gap: 6px; color: var(--ink-secondary); font-size: var(--text-sm); font-weight: 650; }
 .task-editor-field input, .task-editor-field textarea { width: 100%; min-height: var(--touch-target); padding: 10px 12px; border: 0; border-radius: var(--radius-md); background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink); font: inherit; font-weight: 400; outline: none; }
 .task-editor-field textarea { min-height: 132px; resize: vertical; line-height: 1.6; }
-.task-editor-field input:focus, .task-editor-field textarea:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px rgba(45, 90, 39, .26); }
+.task-editor-field input:focus, .task-editor-field textarea:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px var(--focus-ring); }
 .task-editor-chat-button { min-height: var(--touch-target); padding: 10px 14px; border: 0; border-radius: var(--radius-sm); background: var(--neu-surface-brand); color: var(--white); font: inherit; font-size: var(--text-sm); font-weight: 700; }
 </style>

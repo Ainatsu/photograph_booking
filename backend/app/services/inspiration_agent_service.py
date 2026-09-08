@@ -12,7 +12,7 @@ from backend.app.schemas.inspiration import InspirationBatchResult, InspirationS
 from backend.app.services.ai_provider import AIProvider, get_ai_provider
 
 
-INSPIRATION_AGENT_BATCH_PROMPT_VERSION = "inspiration_agent_batch_v2"
+INSPIRATION_AGENT_BATCH_PROMPT_VERSION = "inspiration_agent_batch_v3"
 INSPIRATION_SUMMARY_PROMPT_VERSION = "inspiration_summary_v1"
 
 
@@ -86,16 +86,9 @@ def build_inspiration_content(result: InspirationBatchResult, trusted_images: li
                 "thumb_url": image.get("thumb_url"),
                 "alt": f"{result_title}参考图 {advice.attachment_index + 1}",
             },
-            {
-                "type": "paragraph",
-                "text": "\n".join([
-                    f"构图：{advice.composition}",
-                    f"色彩：{advice.color}",
-                    f"模特动作：{advice.model_pose}",
-                    f"打光：{advice.lighting}",
-                    f"道具：{advice.props}",
-                ]),
-            },
+            {"type": "heading", "text": advice.title},
+            {"type": "paragraph", "text": advice.description},
+            {"type": "paragraph", "text": f"创作延伸：{advice.extension}"},
         ])
     return blocks
 
@@ -115,36 +108,39 @@ async def generate_inspiration_batch(
         "language": data.language,
         "attachment_indices": expected_indices,
         "output_limits": {
-            "max_total_characters": 900,
+            "max_total_characters": 1000,
             "batch_theme": 24,
             "tags": 4,
             "tag": 8,
-            "advice_field": 32,
+            "title": 24,
+            "description": 160,
+            "extension": 120,
         },
     }, ensure_ascii=False)
     user_content: list[dict[str, Any]] = [{"type": "text", "text": request_text}]
     user_content.extend({"type": "image_url", "image_url": {"url": image.provider_image_url}} for image in data.images)
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": (
-            "You are an internal photography Inspiration Agent. Return one JSON object only with "
-            "batch_theme, tags, and exactly one item for each supplied attachment_index. "
-            "Do not return title, summary, URLs, locations, markdown, or explanations. "
-            "Keep JSON under 900 characters; batch_theme <=24 Chinese characters, at most 4 tags "
-            "(each <=8), and each advice field <=32 Chinese characters."
+            "你是摄影灵感 Agent，为每张参考图写一条自然的摄影灵感笔记。"
+            "只返回一个 JSON 对象，包含 batch_theme、tags，以及与每个传入 "
+            "attachment_index 恰好对应的 item；每个 item 只含字段 "
+            "attachment_index、title（灵感标题）、description（灵感描述）、"
+            "extension（创作延伸）。写作要求：不要机械罗列构图、色彩、打光、"
+            "道具等参数；重点描述照片带来的情绪、氛围、视觉语言和创作意图，"
+            "思考「这张照片为什么有感觉」，而不只是「画面里有什么」；"
+            "创作延伸要给出沿着这种感觉可以继续拍摄的方向；语言可以有画面感"
+            "和适度文学性，但不要堆砌华丽辞藻，避免空泛的诗意；所有内容必须"
+            "基于图片本身，不要臆造拍摄地点、参数、故事等未知信息；让输出像"
+            "摄影师自己的灵感笔记，而不是一份照片体检报告。"
+            "不要返回 summary、URL、地点、markdown 或解释。JSON 总长不超过 1000 字符；"
+            "batch_theme 不超过 24 个汉字，最多 4 个 tag 且每个不超过 8 字，"
+            "title 不超过 24 字，description 不超过 160 字，extension 不超过 120 字。"
         )},
         {"role": "user", "content": user_content},
     ]
     last_error: Exception | None = None
     for attempt in range(max_repairs + 1):
-        try:
-            response = await provider.chat(messages, temperature=0.2, response_format={"type": "json_object"})
-        except Exception as exc:
-            return fallback_inspiration_summary(reference_text, batches), {
-                "prompt_version": INSPIRATION_SUMMARY_PROMPT_VERSION,
-                "attempts": attempt + 1,
-                "summary_degraded": True,
-                "primary_error": str(exc)[:300],
-            }
+        response = await provider.chat(messages, temperature=0.2, response_format={"type": "json_object"})
         metadata = response.get("metadata") or {}
         if metadata.get("degraded"):
             fallback = metadata.get("fallback") or {}

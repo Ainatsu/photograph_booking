@@ -98,7 +98,7 @@ function formatConversationDate(value: string) {
   z-index: var(--layer-modal, 1000);
   inset: 0;
   display: flex;
-  background: rgba(15, 23, 42, 0.48);
+  background: var(--scrim);
 }
 
 .conversation-panel {
@@ -138,7 +138,7 @@ function formatConversationDate(value: string) {
   color: var(--ink-secondary);
 }
 .icon-button:active { background: var(--surface-secondary); }
-.icon-button.danger { color: var(--danger, #b42318); }
+.icon-button.danger { color: var(--danger); }
 
 .new-conversation-button {
   min-height: var(--touch-target);
@@ -156,12 +156,12 @@ function formatConversationDate(value: string) {
   flex: 1;
   overflow-y: auto;
 }
-.conversation-search { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); color: var(--ink-tertiary); }
+.conversation-search { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 10px; border: 1px solid var(--divider); border-radius: var(--radius-sm); color: var(--ink-tertiary); }
 .conversation-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; }
 
 .conversation-row {
   min-height: 64px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--divider);
 }
 .conversation-row.active { background: var(--brand-soft); }
 
@@ -184,9 +184,9 @@ function formatConversationDate(value: string) {
 .empty-state { padding: var(--space-8) var(--space-4); color: var(--ink-secondary); text-align: center; }
 
 .conversation-panel-enter-active,
-.conversation-panel-leave-active { transition: opacity 180ms ease-out; }
+.conversation-panel-leave-active { transition: opacity var(--motion-fast) ease-out; }
 .conversation-panel-enter-active .conversation-panel,
-.conversation-panel-leave-active .conversation-panel { transition: transform 220ms ease-out; }
+.conversation-panel-leave-active .conversation-panel { transition: transform var(--motion-fast) ease-out; }
 .conversation-panel-enter-from,
 .conversation-panel-leave-to { opacity: 0; }
 .conversation-panel-enter-from .conversation-panel,

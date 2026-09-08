@@ -92,6 +92,17 @@ def test_resource_text_summary_keeps_package_facts():
     assert "恶劣天气时不接" in summary
 
 
+def test_bare_quantity_does_not_resolve_as_resource_ordinal():
+    memory = {
+        "status": "active",
+        "resources": [{"index": 1, "resource_id": "work-1", "snapshot": {"title": "森"}}],
+    }
+
+    assert memory_service.resolve_resource_reference(memory, "创建一份绿色系的灵感") is None
+    reference = memory_service.resolve_resource_reference(memory, "查看第一份作品")
+    assert reference["resource_id"] == "work-1"
+
+
 def test_workspace_key_and_payload_are_conversation_scoped(monkeypatch):
     values = _fake_cache(monkeypatch)
     memory = memory_service.update_working_memory(

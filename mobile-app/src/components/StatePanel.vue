@@ -60,7 +60,7 @@ defineEmits<{
 }
 
 .error .state-icon {
-  background: #f4e6e3;
+  background: var(--danger-soft);
   color: var(--danger);
 }
 
@@ -88,7 +88,7 @@ p {
   border: 0;
   border-radius: var(--radius-md);
   background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  box-shadow: var(--shadow-1);
   color: var(--white);
   font-weight: 650;
 }

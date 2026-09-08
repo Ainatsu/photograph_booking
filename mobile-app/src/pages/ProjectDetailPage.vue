@@ -370,7 +370,7 @@ onMounted(() => void load())
 
 .header-action { display: grid; width: var(--touch-target); height: var(--touch-target); place-items: center; border: 0; background: transparent; color: var(--ink); }
 
-.summary-section { padding: var(--space-5) var(--space-4); border-bottom: 1px solid var(--neu-light); box-shadow: 0 1px 0 var(--neu-shade-soft); }
+.summary-section { padding: var(--space-5) var(--space-4); border-bottom: 1px solid var(--divider); }
 .label-row { display: flex; align-items: center; gap: var(--space-2); color: var(--ink-tertiary); font-size: var(--text-xs); }
 .status { display: inline-flex; min-height: 27px; align-items: center; padding: 3px 9px; border-radius: var(--radius-pill); background: var(--brand-soft); color: var(--brand); font-weight: 700; }
 .status.expired, .status.closed { background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink-secondary); }
@@ -424,27 +424,27 @@ onMounted(() => void load())
 
 .customer-card { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: var(--space-3); align-items: center; margin: var(--space-5) var(--space-4); padding: var(--space-4); border: 0; border-radius: var(--radius-md); background: var(--neu-surface); box-shadow: var(--neu-raise); }
 .customer-card > div { display: grid; gap: 3px; }
-.customer-card small { color: var(--brand); font-size: 11px; font-weight: 700; }
+.customer-card small { color: var(--brand); font-size: var(--text-2xs); font-weight: 700; }
 .customer-card strong { font-size: var(--text-sm); }
 .customer-card span { color: var(--ink-tertiary); font-size: var(--text-xs); line-height: 1.5; }
 
-.application-section { padding: var(--space-5) var(--space-4); border-top: 1px solid var(--neu-light); box-shadow: inset 0 1px 0 var(--neu-shade-soft); }
+.application-section { padding: var(--space-5) var(--space-4); border-top: 1px solid var(--divider); }
 .my-application-section { background: var(--brand-soft); }
 .application-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
 .application-heading h2 { margin: 0; font-family: var(--font-serif); font-size: var(--text-lg); }
 .application-heading p { margin: 4px 0 0; color: var(--ink-tertiary); font-size: var(--text-xs); line-height: 1.55; }
 .application-card { display: grid; gap: var(--space-3); padding: var(--space-4); border: 0; border-radius: var(--radius-lg); background: var(--neu-surface); box-shadow: var(--neu-raise); }
-.application-status { display: inline-flex; min-height: 28px; flex: 0 0 auto; align-items: center; padding: 3px 9px; border-radius: var(--radius-pill); background: var(--brand-soft); color: var(--brand); font-size: 11px; font-weight: 750; }
+.application-status { display: inline-flex; min-height: 28px; flex: 0 0 auto; align-items: center; padding: 3px 9px; border-radius: var(--radius-pill); background: var(--brand-soft); color: var(--brand); font-size: var(--text-2xs); font-weight: 750; }
 .application-status.rejected, .application-status.withdrawn { background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink-secondary); }
-.application-status.selected { background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); }
-.application-price { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--neu-light); box-shadow: inset 0 1px 0 var(--neu-shade-soft); }
+.application-status.selected { background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); }
+.application-price { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--divider); }
 .application-price span { color: var(--ink-tertiary); font-size: var(--text-xs); }
 .application-price strong { color: var(--brand); font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
 .package-snapshot { display: grid; gap: 4px; padding: var(--space-3); border-left: 3px solid var(--brand); background: var(--brand-soft); }
-.package-snapshot small { color: var(--brand); font-size: 11px; font-weight: 700; }
+.package-snapshot small { color: var(--brand); font-size: var(--text-2xs); font-weight: 700; }
 .package-snapshot strong { font-size: var(--text-sm); line-height: 1.5; }
 .application-proposal, .application-note, .equipment-note { margin: 0; color: var(--ink-secondary); font-size: var(--text-sm); line-height: 1.7; white-space: pre-wrap; }
-.application-note, .equipment-note { padding-top: var(--space-2); border-top: 1px solid var(--neu-light); box-shadow: inset 0 1px 0 var(--neu-shade-soft); font-size: var(--text-xs); }
+.application-note, .equipment-note { padding-top: var(--space-2); border-top: 1px solid var(--divider); font-size: var(--text-xs); }
 .application-portfolio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
 .application-portfolio img { width: 100%; aspect-ratio: 1 / 1; border-radius: var(--radius-sm); object-fit: cover; }
 .response-note { display: flex; gap: var(--space-3); margin: 0 var(--space-4); padding: var(--space-4); border-left: 3px solid var(--brand); background: var(--brand-soft); color: var(--brand); }

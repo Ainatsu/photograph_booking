@@ -71,10 +71,10 @@ h3 { font-family: var(--font-serif); font-size: var(--text-base); line-height: 1
 .availability--unknown { color: var(--ink-secondary); }
 .reason { color: var(--ink-secondary); font-size: var(--text-xs); line-height: 1.55; }
 .warning { color: var(--warning); }
-.bookable-card__actions { padding-top: var(--space-2); border-top: 1px solid var(--neu-light); box-shadow: inset 0 1px 0 var(--neu-shade-soft); }
+.bookable-card__actions { padding-top: var(--space-2); border-top: 1px solid var(--divider); }
 button { min-width: 0; min-height: var(--touch-target); flex: 1; border-radius: var(--radius-md); font: inherit; font-size: var(--text-sm); font-weight: 700; cursor: pointer; transition: background-color var(--motion-fast), border-color var(--motion-fast), color var(--motion-fast); }
 button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .secondary { border: 0; background: var(--neu-surface); box-shadow: var(--neu-raise-sm); color: var(--ink); }
-.primary { border: 0; background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); }
+.primary { border: 0; background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); }
 @media (prefers-reduced-motion: reduce) { button { transition: none; } }
 </style>

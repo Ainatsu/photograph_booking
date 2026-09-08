@@ -180,18 +180,18 @@ onMounted(async () => {
 .message-shortcuts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
 .shortcut { display: grid; min-height: 132px; align-content: center; justify-items: start; gap: 6px; padding: var(--space-4); border: 0; border-radius: var(--radius-lg); background: var(--neu-surface); box-shadow: var(--neu-raise); color: var(--ink); text-align: left; }
 .shortcut > span { position: relative; display: grid; width: 42px; height: 42px; margin-bottom: var(--space-2); place-items: center; border-radius: var(--radius-md); background: var(--brand-soft); color: var(--brand); }
-.shortcut-badge { position: absolute; top: -7px; right: -9px; display: grid; min-width: 22px; height: 22px; place-items: center; padding: 0 5px; border: 2px solid var(--paper); border-radius: var(--radius-pill); background: var(--danger); color: var(--white); font-size: 10px; font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums; }
+.shortcut-badge { position: absolute; top: -7px; right: -9px; display: grid; min-width: 22px; height: 22px; place-items: center; padding: 0 5px; border: 2px solid var(--paper); border-radius: var(--radius-pill); background: var(--danger); color: var(--white); font-size: var(--text-2xs); font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums; }
 .shortcut strong { font-size: var(--text-sm); }
 .shortcut small { color: var(--ink-tertiary); font-size: var(--text-xs); }
 
 .contact-list { display: grid; gap: var(--space-3); }
 .contact-card { display: grid; grid-template-columns: 52px minmax(0, 1fr) 24px; min-height: 78px; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3); border: 0; border-radius: var(--radius-lg); background: var(--neu-surface); box-shadow: var(--neu-raise); color: var(--ink); text-align: left; }
 .avatar-wrap { position: relative; display: block; width: 52px; height: 52px; }
-.unread-badge { position: absolute; top: -6px; right: -7px; display: grid; min-width: 22px; height: 22px; place-items: center; padding: 0 5px; border: 2px solid var(--paper); border-radius: var(--radius-pill); background: var(--danger); color: var(--white); font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.unread-badge { position: absolute; top: -6px; right: -7px; display: grid; min-width: 22px; height: 22px; place-items: center; padding: 0 5px; border: 2px solid var(--paper); border-radius: var(--radius-pill); background: var(--danger); color: var(--white); font-size: var(--text-2xs); font-weight: 800; font-variant-numeric: tabular-nums; }
 .contact-copy { display: grid; min-width: 0; gap: 6px; }
 .contact-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .contact-heading strong { overflow: hidden; font-size: var(--text-sm); text-overflow: ellipsis; white-space: nowrap; }
-.contact-heading small { flex: 0 0 auto; color: var(--brand); font-size: 11px; font-weight: 700; }
+.contact-heading small { flex: 0 0 auto; color: var(--brand); font-size: var(--text-2xs); font-weight: 700; }
 .contact-copy > span:last-child { overflow: hidden; color: var(--ink-tertiary); font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; }
 .contact-card > svg { color: var(--ink-tertiary); }
 

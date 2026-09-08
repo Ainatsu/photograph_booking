@@ -399,8 +399,7 @@ onMounted(() => void load())
 
 .work-copy {
   padding: var(--space-5) 2px;
-  border-bottom: 1px solid var(--neu-light);
-  box-shadow: 0 1px 0 var(--neu-shade-soft);
+  border-bottom: 1px solid var(--divider);
 }
 
 .work-copy h1 {
@@ -447,7 +446,7 @@ onMounted(() => void load())
 
 .author-copy small {
   color: var(--brand);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 700;
 }
 
@@ -484,8 +483,7 @@ onMounted(() => void load())
   width: min(100%, var(--content-max));
   margin: 0 auto;
   padding: calc(var(--space-2) + 3px) var(--space-4) calc(var(--space-2) + 3px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--neu-light);
-  box-shadow: inset 0 1px 0 var(--neu-shade-soft);
+  border-top: 1px solid var(--divider);
   background: var(--paper);
 }
 
@@ -560,8 +558,7 @@ onMounted(() => void load())
   width: min(100%, var(--content-max));
   margin: 0 auto;
   padding: calc(var(--space-2) + 3px) var(--space-4) calc(var(--space-2) + 3px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--neu-light);
-  box-shadow: inset 0 1px 0 var(--neu-shade-soft);
+  border-top: 1px solid var(--divider);
   background: var(--paper);
 }
 
@@ -583,7 +580,7 @@ onMounted(() => void load())
   outline: none;
 }
 
-.comment-input:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px rgba(45, 90, 39, 0.26); }
+.comment-input:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px var(--focus-ring); }
 
 .comment-input:disabled {
   opacity: 0.6;
@@ -599,7 +596,7 @@ onMounted(() => void load())
   border: 0;
   border-radius: var(--radius-md);
   background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  box-shadow: var(--shadow-1);
   color: var(--white);
 }
 

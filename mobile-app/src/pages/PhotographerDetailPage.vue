@@ -748,12 +748,12 @@ onMounted(() => void load())
 }
 
 .profile-stat strong {
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-variant-numeric: tabular-nums;
 }
 
 .profile-stat span {
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: rgba(255,255,255,.7);
 }
 
@@ -792,8 +792,7 @@ onMounted(() => void load())
   padding: var(--space-3) var(--space-4);
   font-family: var(--font-serif);
   font-size: var(--text-sm);
-  border-bottom: 1px solid var(--neu-light);
-  box-shadow: 0 1px 0 var(--neu-shade-soft);
+  border-bottom: 1px solid var(--divider);
   color: var(--brand);
 }
 
@@ -813,8 +812,7 @@ onMounted(() => void load())
   align-items: center;
   gap: var(--space-3);
   padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--neu-light);
-  box-shadow: 0 1px 0 var(--neu-shade-soft);
+  border-bottom: 1px solid var(--divider);
 }
 
 .section-icon {
@@ -856,7 +854,7 @@ onMounted(() => void load())
 }
 
 .status-dot.active {
-  background: var(--success, #22c55e);
+  background: var(--success);
 }
 
 .status-dot.inactive {
@@ -903,8 +901,7 @@ onMounted(() => void load())
   align-items: start;
   min-height: 48px;
   padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--neu-light);
-  box-shadow: 0 1px 0 var(--neu-shade-soft);
+  border-bottom: 1px solid var(--divider);
   color: var(--ink-secondary);
   font-size: var(--text-sm);
   line-height: 1.55;
@@ -925,10 +922,10 @@ onMounted(() => void load())
   background: var(--neu-surface);
   box-shadow: var(--neu-raise);
 }
-.rule-item { display: grid; min-height: 72px; place-items: center; align-content: center; gap: 4px; border-right: 1px solid var(--neu-light); box-shadow: 1px 0 0 var(--neu-shade-soft); background: var(--paper); text-align: center; }
+.rule-item { display: grid; min-height: 72px; place-items: center; align-content: center; gap: 4px; border-right: 1px solid var(--divider); background: var(--paper); text-align: center; }
 .rule-item:last-child { border-right: 0; }
 .rule-item strong { color: var(--brand); font-family: var(--font-serif); font-size: var(--text-base); font-variant-numeric: tabular-nums; }
-.rule-item span { color: var(--ink-tertiary); font-size: 10px; }
+.rule-item span { color: var(--ink-tertiary); font-size: var(--text-2xs); }
 .service-note { margin: 0; color: var(--ink-tertiary); font-size: var(--text-xs); line-height: 1.65; }
 
 .calendar-card { gap: var(--space-4); }
@@ -937,22 +934,22 @@ onMounted(() => void load())
 .month-button { display: grid; width: 48px; height: 48px; place-items: center; border: 0; border-radius: var(--radius-md); background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink); }
 .month-button:disabled { color: var(--ink-tertiary); opacity: .45; }
 .month-stats { display: grid; grid-template-columns: repeat(3, 1fr); overflow: hidden; border: 0; border-radius: var(--radius-md); background: var(--neu-surface); box-shadow: var(--neu-raise-sm); }
-.month-stats span { display: grid; min-height: 58px; place-items: center; align-content: center; gap: 2px; border-right: 1px solid var(--neu-light); box-shadow: 1px 0 0 var(--neu-shade-soft); background: var(--paper); }
+.month-stats span { display: grid; min-height: 58px; place-items: center; align-content: center; gap: 2px; border-right: 1px solid var(--divider); background: var(--paper); }
 .month-stats span:last-child { border-right: 0; }
-.month-stats small { color: var(--ink-tertiary); font-size: 10px; }
+.month-stats small { color: var(--ink-tertiary); font-size: var(--text-2xs); }
 .month-stats strong { color: var(--brand); font-size: var(--text-base); font-variant-numeric: tabular-nums; }
 .month-stats .busy strong { color: var(--danger); }
-.calendar-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; color: var(--ink-secondary); font-size: 11px; }
+.calendar-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; color: var(--ink-secondary); font-size: var(--text-2xs); }
 .calendar-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .calendar-legend i { width: 9px; height: 9px; border: 0; border-radius: 50%; background: var(--neu-surface); box-shadow: var(--neu-raise-sm); }
-.calendar-legend i.busy { border-color: var(--danger); background: rgba(163, 59, 50, .15); }
+.calendar-legend i.busy { border-color: var(--danger); background: var(--danger-soft); }
 .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
-.weekday { display: grid; min-height: 28px; place-items: center; color: var(--ink-tertiary); font-size: 10px; font-weight: 750; }
+.weekday { display: grid; min-height: 28px; place-items: center; color: var(--ink-tertiary); font-size: var(--text-2xs); font-weight: 750; }
 .date-cell { position: relative; display: grid; min-width: 0; min-height: 52px; place-items: center; align-content: center; gap: 2px; padding: 3px 1px; border: 0; border-radius: var(--radius-sm); background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink); }
 .date-cell > span { font-size: var(--text-xs); font-weight: 800; font-variant-numeric: tabular-nums; }
 .date-cell > small { color: var(--brand); font-size: 9px; font-weight: 800; }
 .date-cell > i { position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--warning); }
-.date-cell.busy { border-color: rgba(163, 59, 50, .25); background: #fbefed; }
+.date-cell.busy { border-color: color-mix(in srgb, var(--danger) 35%, transparent); background: var(--danger-soft); }
 .date-cell.busy > small { color: var(--danger); }
 .date-cell.today { box-shadow: inset 0 0 0 1px var(--brand); }
 .date-cell.disabled { background: var(--paper-deep); box-shadow: none; color: var(--ink-tertiary); opacity: .42; }
@@ -1033,7 +1030,7 @@ onMounted(() => void load())
   box-shadow: var(--neu-raise);
 }
 
-.availability-icon { display: grid; width: 42px; height: 42px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); }
+.availability-icon { display: grid; width: 42px; height: 42px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); }
 .availability-card strong { font-size: var(--text-sm); }
 .availability-card p { margin: 4px 0 0; color: var(--ink-secondary); font-size: var(--text-xs); line-height: 1.6; }
 </style>

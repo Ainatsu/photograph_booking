@@ -13,7 +13,7 @@ import json
 from typing import Any
 
 
-DECISION_PROMPT_VERSION = "agent_decision_v2"
+DECISION_PROMPT_VERSION = "agent_decision_v3"
 
 _BASE_RULES = """\
 你是一个摄影平台 AI 助手的决策器。根据用户最新一条消息、有限的对话历史、当前页面上下文
@@ -46,6 +46,10 @@ _BASE_RULES = """\
    地点有歧义由后端返回候选，不要自行替用户选择。
 10. 数量词必须写入 arguments.limit。用户说“一份作品/案例”“一张照片/图片”“一组样片/作品”
     或相应的数字 1 表达时，limit=1；不要因为附图或视觉分析而忽略原始文字里的数量约束。
+11. 问题依赖平台之外的实时或公开信息时，使用 search_web，不要用 chat 应付。典型信号：
+    “最新”“最近”“新闻”“新发布”“政策”“价格行情”“某个产品或型号的动态”，
+    以及所有平台数据库里不可能有的外部事实。chat 模式回答不了这些问题，
+    只会让模型自认无法联网。摄影师、作品、套餐、企划等平台内检索仍然走各自的检索工具。
 
 # 进行中的资源搜索（search_context）
 
@@ -95,6 +99,11 @@ search_context.slots：{{"resource_types": ["packages"], "city": "重庆", "styl
 正例 - 知识问答：
 输入：婚礼跟拍一般需要注意什么？
 输出：{{"mode": "chat", "needs_clarification": false, "confidence": 0.96, "reason": "摄影知识问答，不需要平台数据"}}
+
+正例 - 时效性外部信息：
+输入：大理最近有没有什么旅游相关的政策。
+输出：{{"mode": "tool_call", "tool": "search_web", "arguments": {{"query": "大理 最近 旅游 政策", "limit": 5, "language": "zh-CN"}}, "needs_clarification": false, "confidence": 0.9, "reason": "外部实时政策资讯，平台数据里没有"}}
+说明：涉及“最近/最新/政策/新闻/产品动态”的问题一律 search_web，chat 回答不了。
 
 正例 - 追问：
 输入：帮我找个摄影师

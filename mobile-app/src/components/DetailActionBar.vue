@@ -58,8 +58,7 @@ defineEmits<{
   width: min(100%, var(--content-max));
   margin: 0 auto;
   padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--neu-light);
-  box-shadow: inset 0 1px 0 var(--neu-shade-soft);
+  border-top: 1px solid var(--divider);
   background: var(--paper);
 }
 
@@ -91,7 +90,7 @@ button {
 .primary-button {
   border: 0;
   background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  box-shadow: var(--shadow-1);
   color: var(--white);
 }
 

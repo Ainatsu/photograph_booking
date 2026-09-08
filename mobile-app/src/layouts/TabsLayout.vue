@@ -87,7 +87,7 @@ function openPublishSheet() {
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: var(--material-thick);
-  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.18), 0 3px 10px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-2);
   backdrop-filter: var(--material-blur);
   -webkit-backdrop-filter: var(--material-blur);
 }
@@ -100,7 +100,7 @@ ion-tab-button {
   --background-focused: transparent;
   --border-radius: calc(var(--radius-xl) - var(--space-1));
   min-width: 0;
-  font-size: 10px;
+  font-size: var(--text-2xs);
   letter-spacing: 0;
 }
 
@@ -134,7 +134,7 @@ ion-tab-button.tab-selected ion-label { font-weight: 650; }
   border-radius: 50%;
   background: var(--brand);
   color: var(--white);
-  box-shadow: 0 4px 12px rgba(10, 103, 208, 0.28);
+  box-shadow: var(--glow-brand);
   transition: filter var(--motion-fast) ease-out, transform var(--motion-normal) var(--spring-ui);
 }
 

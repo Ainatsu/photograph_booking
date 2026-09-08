@@ -19,6 +19,6 @@ import { Image } from 'lucide-vue-next'
   gap: 6px;
   background: var(--brand-soft);
   color: var(--brand);
-  font-size: 11px;
+  font-size: var(--text-2xs);
 }
 </style>

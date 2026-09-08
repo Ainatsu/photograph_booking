@@ -401,5 +401,5 @@ onUnmounted(() => { if (agentSyncTimer !== null) window.clearTimeout(agentSyncTi
 .existing-reference-grid img { width: 100%; height: 100%; object-fit: cover; }
 .remove-reference { position: absolute; top: 4px; right: 4px; display: grid; width: 44px; height: 44px; place-items: center; border: 0; border-radius: 50%; background: rgba(26, 26, 26, .68); color: var(--white); }
 .mobile-publish-actions.single { grid-template-columns: 1fr; }
-.mobile-publish-actions .withdraw-button { border-color: rgba(163, 59, 50, .38); color: var(--danger); }
+.mobile-publish-actions .withdraw-button { border-color: color-mix(in srgb, var(--danger) 35%, transparent); color: var(--danger); }
 </style>

@@ -67,7 +67,7 @@ const focused = ref(false)
 
 .search-field.focused {
   border-color: var(--brand);
-  box-shadow: 0 0 0 3px rgba(10, 103, 208, 0.14);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 input {

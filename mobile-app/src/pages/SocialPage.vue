@@ -288,7 +288,7 @@ onIonViewWillEnter(() => {
 .social-content { --background: var(--paper); }
 .social-shell { display: grid; width: min(100%, var(--content-max)); margin: 0 auto; padding: var(--space-4) var(--space-4) var(--space-8); gap: var(--space-5); }
 .social-intro { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-4); border: 0; border-radius: var(--radius-lg); background: var(--brand-soft); box-shadow: var(--neu-raise); }
-.social-intro > span { display: grid; width: 46px; height: 46px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); }
+.social-intro > span { display: grid; width: 46px; height: 46px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); }
 .social-intro h1 { margin: 0 0 5px; font-family: var(--font-serif); font-size: var(--text-lg); line-height: 1.4; }
 .social-intro p { margin: 0; color: var(--ink-secondary); font-size: var(--text-xs); line-height: 1.65; }
 .work-grid { columns: 2; column-gap: var(--space-3); }
@@ -298,10 +298,10 @@ onIonViewWillEnter(() => {
 .person-copy { display: grid; min-width: 0; gap: 5px; }
 .person-copy > span { display: flex; min-width: 0; align-items: center; gap: var(--space-2); }
 .person-copy strong { overflow: hidden; font-size: var(--text-sm); text-overflow: ellipsis; white-space: nowrap; }
-.person-copy small { flex: 0 0 auto; padding: 2px 6px; border-radius: var(--radius-pill); background: var(--brand-soft); color: var(--brand); font-size: 10px; font-weight: 700; }
+.person-copy small { flex: 0 0 auto; padding: 2px 6px; border-radius: var(--radius-pill); background: var(--brand-soft); color: var(--brand); font-size: var(--text-2xs); font-weight: 700; }
 .person-copy em { overflow: hidden; color: var(--ink-tertiary); font-size: var(--text-xs); font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 .person-main > svg { color: var(--ink-tertiary); }
-.follow-button { display: inline-flex; min-width: 86px; min-height: var(--touch-target); align-items: center; justify-content: center; gap: 5px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-md); background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); font-size: var(--text-xs); font-weight: 750; }
+.follow-button { display: inline-flex; min-width: 86px; min-height: var(--touch-target); align-items: center; justify-content: center; gap: 5px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-md); background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); font-size: var(--text-xs); font-weight: 750; }
 .follow-button.active { background: var(--neu-surface); box-shadow: var(--neu-raise-sm); color: var(--brand); }
 .follow-button:disabled { background: var(--paper-deep); box-shadow: none; color: var(--ink-tertiary); }
 .follow-button ion-spinner { width: 18px; height: 18px; }

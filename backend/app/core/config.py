@@ -155,7 +155,7 @@ class Settings(BaseSettings):
     AI_IMAGE_EMBEDDING_DEVICE: str = "cpu"
     AI_IMAGE_EMBEDDING_MAX_BYTES: int = 12 * 1024 * 1024
     AI_IMAGE_EMBEDDING_TIMEOUT_SECONDS: int = 20
-    AI_PROMPT_VERSION: str = "agent_prompt_v1"
+    AI_PROMPT_VERSION: str = "agent_prompt_v2"
     AI_ORCHESTRATOR_VERSION: str = "deterministic_orchestrator_v2"
     AI_INDEX_VERSION: str = "resource_index_v3"
     AI_PROVIDER_FALLBACK_ENABLED: bool = True

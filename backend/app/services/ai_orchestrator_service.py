@@ -220,6 +220,24 @@ def recognize_intent_by_rules(content: str | None, attachments: list[dict] | Non
             confidence=0.9,
         )
 
+    if has_image and _is_work_appreciation_intent(text):
+        return AgentIntent(
+            intent="image_analysis",
+            sub_intents=["work_appreciation"],
+            slots=slots,
+            route="vision",
+            confidence=0.9,
+        )
+
+    if has_image and _is_style_analysis_intent(text):
+        return AgentIntent(
+            intent="image_analysis",
+            sub_intents=["style_analysis"],
+            slots=slots,
+            route="vision",
+            confidence=0.9,
+        )
+
     if has_image:
         return AgentIntent(
             intent="image_analysis",
@@ -227,6 +245,17 @@ def recognize_intent_by_rules(content: str | None, attachments: list[dict] | Non
             slots=slots,
             route="vision",
             confidence=0.86,
+        )
+
+    if _is_work_appreciation_intent(text) or _is_style_analysis_intent(text):
+        # 赏析/风格分析需要的是上传图片，不是平台资源检索。
+        return AgentIntent(
+            intent="image_analysis",
+            sub_intents=["style_analysis"] if _is_style_analysis_intent(text) else ["work_appreciation"],
+            slots=slots,
+            route="vision",
+            confidence=0.86,
+            missing_slots=["reference_images"],
         )
 
     if _is_resource_retrieval_intent(text):
@@ -256,7 +285,11 @@ def should_run_retrieval(intent: AgentIntent) -> bool:
     """判断该意图是否需要触发资源检索。"""
     if intent.intent == "resource_search":
         return True
-    if intent.intent == "compound_workflow" and intent.slots.get("resource_types") == ["portfolio_items"]:
+    # The phase-one compound workflow is intentionally fixed to
+    # portfolio-item search followed by inspiration creation.  Do not rely on
+    # the classifier preserving the derived resource_types slot: model/context
+    # normalization may retain only the user's style slot.
+    if intent.intent == "compound_workflow":
         return True
     if intent.intent == "booking_flow" and "search_package" in intent.sub_intents:
         return True
@@ -531,6 +564,34 @@ def _is_create_inspiration_intent(text: str) -> bool:
     if any(phrase in text for phrase in direct_phrases):
         return True
     return "灵感" in text and any(term in text for term in ("创建", "生成", "保存", "整理", "做成"))
+
+
+def _is_work_appreciation_intent(text: str) -> bool:
+    """检测显式的作品赏析语言，区别于普通的图片分析。"""
+    if not text:
+        return False
+    direct_phrases = (
+        "赏析", "点评这张", "点评照片", "点评一下", "品评",
+        "好在哪", "为什么好", "好在哪儿", "为什么成立",
+        "评价这张", "评价这张照片", "怎么赏析",
+    )
+    return any(phrase in text for phrase in direct_phrases)
+
+
+def _is_style_analysis_intent(text: str) -> bool:
+    """检测显式的风格分析语言，区别于作品赏析与“适合什么风格”式推荐咨询。"""
+    if not text:
+        return False
+    # “适合什么风格”问的是推荐/检索方向，不是分析既有作品的风格。
+    if re.search(r"适合[^。？?！!]{0,12}风格", text):
+        return False
+    if any(phrase in text for phrase in ("视觉语言", "风格DNA", "风格dna", "观看世界", "个人风格", "摄影师风格", "风格特点", "风格倾向", "风格信号", "风格习惯")):
+        return True
+    if re.search(r"(?:分析|解析|研究|评估)[^。？?！!]{0,12}风格", text):
+        return True
+    if re.search(r"风格[^。？?！!]{0,6}(?:分析|特点|倾向|DNA|dna|信号|习惯|是什么)", text):
+        return True
+    return bool(re.search(r"(?:什么|哪种|哪类|是什么)风格", text))
 
 
 def _has_portfolio_search_language(text: str) -> bool:

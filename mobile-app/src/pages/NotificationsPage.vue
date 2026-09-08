@@ -266,12 +266,12 @@ onIonViewWillEnter(() => {
 
 .notification-intro { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); padding: var(--space-4); border: 0; border-radius: var(--radius-lg); background: var(--neu-surface); box-shadow: var(--neu-raise); }
 .intro-icon { display: grid; width: 48px; height: 48px; place-items: center; border-radius: var(--radius-md); background: var(--brand-soft); color: var(--brand); }
-.notification-intro p { margin: 0 0 3px; color: var(--brand); font-size: 10px; font-weight: 750; letter-spacing: .13em; text-transform: uppercase; }
+.notification-intro p { margin: 0 0 3px; color: var(--brand); font-size: var(--text-2xs); font-weight: 750; letter-spacing: .13em; text-transform: uppercase; }
 .notification-intro h1 { margin: 0; font-family: var(--font-serif); font-size: var(--text-lg); line-height: 1.35; }
 .notification-intro div small { display: block; margin-top: 5px; color: var(--ink-secondary); font-size: var(--text-xs); line-height: 1.55; }
-.unread-stat { display: grid; min-width: 54px; justify-items: center; gap: 1px; padding-left: var(--space-3); border-left: 1px solid var(--neu-light); box-shadow: inset 1px 0 0 var(--neu-shade-soft); }
+.unread-stat { display: grid; min-width: 54px; justify-items: center; gap: 1px; padding-left: var(--space-3); border-left: 1px solid var(--divider); }
 .unread-stat strong { color: var(--brand); font-size: var(--text-xl); font-variant-numeric: tabular-nums; line-height: 1; }
-.unread-stat small { color: var(--ink-tertiary); font-size: 10px; }
+.unread-stat small { color: var(--ink-tertiary); font-size: var(--text-2xs); }
 
 .list-heading { display: flex; min-height: 64px; align-items: end; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-3); }
 .list-heading h2 { margin: 0; font-family: var(--font-serif); font-size: var(--text-lg); }
@@ -284,17 +284,17 @@ onIonViewWillEnter(() => {
 .notification-card.unread { border-left: 4px solid var(--brand); background: var(--brand-soft); }
 .notification-card:disabled { opacity: .72; }
 .notification-icon { display: grid; width: 44px; height: 44px; place-items: center; border-radius: var(--radius-md); background: var(--paper); box-shadow: var(--neu-inset); color: var(--brand); }
-.payment .notification-icon { background: rgba(154, 100, 31, .12); color: var(--warning); }
-.safety .notification-icon { background: rgba(163, 59, 50, .11); color: var(--danger); }
+.payment .notification-icon { background: var(--warning-soft); color: var(--warning); }
+.safety .notification-icon { background: var(--danger-soft); color: var(--danger); }
 .delivery .notification-icon { background: var(--brand-soft); }
 .unread .notification-icon { background: var(--neu-surface); box-shadow: var(--neu-raise-sm); }
 
 .notification-copy { display: grid; min-width: 0; gap: 6px; }
-.notification-meta { display: flex; min-width: 0; align-items: center; gap: 7px; color: var(--ink-tertiary); font-size: 10px; }
+.notification-meta { display: flex; min-width: 0; align-items: center; gap: 7px; color: var(--ink-tertiary); font-size: var(--text-2xs); }
 .notification-meta time { margin-left: auto; white-space: nowrap; }
 .category-label { color: var(--brand); font-weight: 750; }
 .unread-label { display: inline-flex; align-items: center; gap: 4px; color: var(--brand); font-weight: 750; }
-.unread-label i { width: 6px; height: 6px; border-radius: 50%; background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); }
+.unread-label i { width: 6px; height: 6px; border-radius: 50%; background: var(--neu-surface-brand); box-shadow: var(--shadow-1); }
 .notification-copy > strong { font-size: var(--text-sm); line-height: 1.45; }
 .notification-content-copy { color: var(--ink-secondary); font-size: var(--text-xs); line-height: 1.6; overflow-wrap: anywhere; }
 .notification-action { display: grid; width: 28px; height: 44px; place-items: center; color: var(--ink-tertiary); }
@@ -313,7 +313,7 @@ onIonViewWillEnter(() => {
 
 @media (max-width: 420px) {
   .notification-intro { grid-template-columns: 48px minmax(0, 1fr); }
-  .unread-stat { grid-column: 1 / -1; grid-template-columns: auto auto; min-height: 42px; align-items: center; justify-content: center; gap: 6px; padding: var(--space-2) 0 0; border-top: 1px solid var(--neu-light); box-shadow: inset 0 1px 0 var(--neu-shade-soft); border-left: 0; }
+  .unread-stat { grid-column: 1 / -1; grid-template-columns: auto auto; min-height: 42px; align-items: center; justify-content: center; gap: 6px; padding: var(--space-2) 0 0; border-top: 1px solid var(--divider); border-left: 0; }
   .unread-stat strong { font-size: var(--text-lg); }
   .notification-meta { flex-wrap: wrap; }
   .notification-meta time { width: 100%; margin-left: 0; }

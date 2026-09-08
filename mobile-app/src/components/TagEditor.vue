@@ -81,7 +81,7 @@ function removeTag(tag: string) {
 .tag-remove { display: grid; width: var(--touch-target); height: var(--touch-target); place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--brand); }
 .tag-input-row { position: relative; }
 .tag-input { width: 100%; min-height: var(--touch-target); padding: 0 62px 0 var(--space-4); border: 0; border-radius: var(--radius-md); background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink); font-size: var(--text-base); outline: none; }
-.tag-input:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px rgba(45, 90, 39, 0.26); }
+.tag-input:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px var(--focus-ring); }
 .tag-input:disabled { background: var(--paper-deep); box-shadow: none; color: var(--ink-tertiary); }
-.tag-input-row > span { position: absolute; top: 50%; right: var(--space-3); color: var(--ink-tertiary); font-size: 11px; transform: translateY(-50%); }
+.tag-input-row > span { position: absolute; top: 50%; right: var(--space-3); color: var(--ink-tertiary); font-size: var(--text-2xs); transform: translateY(-50%); }
 </style>

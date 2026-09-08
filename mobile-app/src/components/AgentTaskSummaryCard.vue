@@ -75,7 +75,7 @@ const actionLabel = computed(() => {
 <style scoped>
 .agent-task-summary { width: 100%; margin-top: 8px; padding: 14px; border: 1px solid var(--divider); border-radius: var(--radius-md); background: var(--surface-solid); color: var(--ink); box-shadow: var(--neu-raise-sm); }
 .summary-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.eyebrow { margin: 0 0 3px; color: var(--ink-tertiary); font-size: 11px; }
+.eyebrow { margin: 0 0 3px; color: var(--ink-tertiary); font-size: var(--text-2xs); }
 h3 { margin: 0; font-size: var(--text-base); }
 .status { color: var(--brand); font-size: var(--text-xs); white-space: nowrap; }
 .summary-lines { display: grid; gap: 6px; margin-top: 12px; }
@@ -87,7 +87,7 @@ h3 { margin: 0; font-size: var(--text-base); }
 .media-count { margin-top: 4px; }
 .next-question { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; align-items: start; margin-top: 12px; padding: 10px 12px; border-left: 3px solid var(--brand); background: var(--neu-surface); color: var(--ink-secondary); }
 .next-question p { margin: 0; font-size: var(--text-sm); line-height: 1.5; overflow-wrap: anywhere; }
-.next-question span { display: block; margin-bottom: 2px; color: var(--brand); font-size: 11px; font-weight: 750; }
+.next-question span { display: block; margin-bottom: 2px; color: var(--brand); font-size: var(--text-2xs); font-weight: 750; }
 .summary-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
 .summary-actions button { display: inline-flex; min-width: 0; min-height: 48px; padding: 0 12px; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: var(--radius-sm); font: inherit; font-size: var(--text-sm); font-weight: 650; cursor: pointer; touch-action: manipulation; }
 .summary-actions button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }

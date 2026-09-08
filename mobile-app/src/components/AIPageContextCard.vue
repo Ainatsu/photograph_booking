@@ -108,7 +108,7 @@ function handleClick() {
   background: var(--neu-surface);
   box-shadow: var(--neu-raise);
   overflow: hidden;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color var(--motion-fast) ease-out, box-shadow var(--motion-fast) ease-out;
 }
 
 .context-card--clickable {
@@ -117,7 +117,7 @@ function handleClick() {
 
 .context-card--clickable:active {
   border-color: var(--brand);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-1);
 }
 
 .context-card--sent {
@@ -157,7 +157,7 @@ function handleClick() {
 }
 
 .context-card-type {
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--brand);
   font-weight: 700;
   line-height: 1.2;

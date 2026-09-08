@@ -228,6 +228,7 @@ async def create_ai_message(
             else None
         ),
         data.generation_request,
+        data.appreciation_request,
     )
     # Events are appended after messages have committed, so consumers never see
     # an event pointing at an uncommitted message.

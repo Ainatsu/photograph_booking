@@ -80,7 +80,7 @@ defineEmits<{
 .segment-button.active {
   background: var(--surface-solid);
   color: var(--ink);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.13);
+  box-shadow: var(--shadow-1);
 }
 
 .count {
@@ -90,7 +90,7 @@ defineEmits<{
   background: var(--surface-secondary);
   box-shadow: none;
   color: var(--ink-tertiary);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-variant-numeric: tabular-nums;
 }
 

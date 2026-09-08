@@ -15,8 +15,18 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # SQLite batch_alter_table uses this fixed temporary name. If a previous
+    # migration was interrupted after creating it, the next retry must remove
+    # the incomplete copy before Alembic can recreate it.
+    bind = op.get_bind()
+    if bind.dialect.name == "sqlite":
+        bind.exec_driver_sql("DROP TABLE IF EXISTS _alembic_tmp_ai_conversations")
+
     with op.batch_alter_table("ai_conversations") as batch_op:
-        batch_op.add_column(sa.Column("status", sa.String(length=32), nullable=False, server_default="active"))
+        # Add this column as nullable first. SQLite's batch copy does not
+        # apply a newly-added server default to rows selected from the old
+        # table, so a NOT NULL column would fail on existing conversations.
+        batch_op.add_column(sa.Column("status", sa.String(length=32), nullable=True))
         batch_op.add_column(sa.Column("last_message_preview", sa.String(length=500), nullable=True))
         batch_op.add_column(sa.Column("last_message_at", sa.DateTime(timezone=True), nullable=True))
         batch_op.add_column(sa.Column("summary", sa.Text(), nullable=True))
@@ -25,6 +35,10 @@ def upgrade() -> None:
         batch_op.create_index("ix_ai_conversations_status", ["status"], unique=False)
         batch_op.create_index("ix_ai_conversations_last_message_at", ["last_message_at"], unique=False)
         batch_op.create_index("ix_ai_conversations_active_task_id", ["active_task_id"], unique=False)
+
+    op.execute("UPDATE ai_conversations SET status = 'active' WHERE status IS NULL")
+    with op.batch_alter_table("ai_conversations") as batch_op:
+        batch_op.alter_column("status", nullable=False, server_default="active")
         batch_op.alter_column("status", server_default=None)
 
 

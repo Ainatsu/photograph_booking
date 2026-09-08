@@ -155,25 +155,25 @@ function formatUpdatedAt(value: string): string {
 
 <style scoped>
 .shoot-context-card { width: 100%; overflow: hidden; border: 0; border-radius: var(--radius-md); background: var(--neu-surface); box-shadow: var(--neu-raise); color: var(--ink); }
-.card-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: 12px 14px; border-bottom: 1px solid var(--neu-light); box-shadow: 0 1px 0 var(--neu-shade-soft); }
+.card-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: 12px 14px; border-bottom: 1px solid var(--divider); }
 .title-group { display: flex; min-width: 0; align-items: center; gap: 9px; color: var(--brand); }
 .title-group > div { min-width: 0; }
-.eyebrow { margin: 0 0 2px; color: var(--ink-tertiary); font-size: 10px; }
+.eyebrow { margin: 0 0 2px; color: var(--ink-tertiary); font-size: var(--text-2xs); }
 h3 { margin: 0; overflow: hidden; font-size: var(--text-sm); text-overflow: ellipsis; white-space: nowrap; }
-.status-label { flex-shrink: 0; padding: 3px 7px; border-radius: var(--radius-sm); background: var(--brand-soft); color: var(--brand); font-size: 11px; font-weight: 600; }
-.status-partial .status-label, .status-ambiguous .status-label { background: rgba(139, 105, 20, .12); color: var(--warning); }
-.status-failed .status-label { background: rgba(197, 48, 48, .1); color: var(--danger); }
-.map-frame { height: 170px; border-bottom: 1px solid var(--neu-light); box-shadow: 0 1px 0 var(--neu-shade-soft); }
+.status-label { flex-shrink: 0; padding: 3px 7px; border-radius: var(--radius-sm); background: var(--brand-soft); color: var(--brand); font-size: var(--text-2xs); font-weight: 600; }
+.status-partial .status-label, .status-ambiguous .status-label { background: var(--warning-soft); color: var(--warning); }
+.status-failed .status-label { background: var(--danger-soft); color: var(--danger); }
+.map-frame { height: 170px; border-bottom: 1px solid var(--divider); }
 .address-row { display: flex; align-items: flex-start; gap: 6px; padding: 10px 14px 0; color: var(--ink-secondary); font-size: 12px; line-height: 1.45; }
 .state-block { display: flex; align-items: flex-start; gap: 10px; padding: 18px 14px; color: var(--warning); }
 .state-block > div { min-width: 0; }
 .state-block strong { color: var(--ink); font-size: var(--text-sm); }
 .state-block p { margin: 4px 0 0; color: var(--ink-secondary); font-size: 12px; line-height: 1.5; }
 .candidate-list { display: grid; gap: 8px; margin-top: 12px; }
-.candidate-button { display: flex; width: 100%; min-height: 44px; align-items: center; gap: 9px; padding: 8px 10px; border: 0; border-radius: var(--radius-sm); background: var(--paper); box-shadow: var(--neu-raise); color: var(--brand); text-align: left; touch-action: manipulation; transition: opacity 160ms ease, box-shadow 160ms ease; }
+.candidate-button { display: flex; width: 100%; min-height: 44px; align-items: center; gap: 9px; padding: 8px 10px; border: 0; border-radius: var(--radius-sm); background: var(--paper); box-shadow: var(--neu-raise); color: var(--brand); text-align: left; touch-action: manipulation; transition: opacity var(--motion-fast) ease-out, box-shadow var(--motion-fast) ease-out; }
 .candidate-button > span { display: grid; min-width: 0; gap: 2px; }
 .candidate-button strong { color: var(--ink); font-size: 12px; }
-.candidate-button small { color: var(--ink-secondary); font-size: 11px; line-height: 1.4; }
+.candidate-button small { color: var(--ink-secondary); font-size: var(--text-2xs); line-height: 1.4; }
 .candidate-button:active:not(:disabled) { box-shadow: var(--neu-inset); }
 .candidate-button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .candidate-button:disabled { cursor: default; opacity: .45; }
@@ -182,17 +182,17 @@ h3 { margin: 0; overflow: hidden; font-size: var(--text-sm); text-overflow: elli
 .section-heading { display: flex; align-items: center; gap: 6px; margin-bottom: 9px; color: var(--ink-secondary); font-size: 12px; font-weight: 600; }
 .weather-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
 .weather-hour { display: grid; min-width: 80px; gap: 3px; padding: 8px; border: 0; border-radius: var(--radius-sm); background: var(--paper); box-shadow: var(--neu-inset); }
-.hour-time, .hour-meta, .sunlight-item span { color: var(--ink-tertiary); font-size: 10px; }
+.hour-time, .hour-meta, .sunlight-item span { color: var(--ink-tertiary); font-size: var(--text-2xs); }
 .weather-hour strong { font-size: var(--text-base); }
 .hour-meta { white-space: nowrap; }
-.sunlight-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; margin: 0 14px; border: 0; background: var(--border-light); box-shadow: var(--neu-raise); }
+.sunlight-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; margin: 0 14px; border: 0; background: var(--divider); box-shadow: var(--neu-raise); }
 .sunlight-item { display: grid; gap: 3px; padding: 8px 10px; background: var(--paper); }
 .sunlight-item strong { font-size: 12px; }
 .recommendation-list { display: grid; gap: 8px; }
 .recommendation-row { display: flex; align-items: flex-start; gap: 8px; padding: 9px; border-left: 2px solid var(--brand); background: var(--brand-soft); }
-.recommendation-row.severity-warning { border-left-color: var(--warning); background: rgba(139, 105, 20, .08); }
+.recommendation-row.severity-warning { border-left-color: var(--warning); background: var(--warning-soft); }
 .recommendation-row strong { font-size: 12px; }
-.recommendation-row p { margin: 2px 0 0; color: var(--ink-secondary); font-size: 11px; line-height: 1.45; }
-.data-source { padding: 0 14px 12px; color: var(--ink-tertiary); font-size: 10px; }
+.recommendation-row p { margin: 2px 0 0; color: var(--ink-secondary); font-size: var(--text-2xs); line-height: 1.45; }
+.data-source { padding: 0 14px 12px; color: var(--ink-tertiary); font-size: var(--text-2xs); }
 @media (prefers-reduced-motion: reduce) { .weather-strip { scroll-behavior: auto; } .candidate-button { transition: none; } }
 </style>

@@ -520,36 +520,36 @@ onMounted(async () => {
 .orders-content { --background: var(--paper); }
 .orders-shell { width: min(100%, var(--content-max)); min-height: 100%; margin: 0 auto; padding: var(--space-4) var(--space-4) var(--space-8); }
 .orders-intro { display: flex; gap: var(--space-3); padding: var(--space-4); border: 0; border-radius: var(--radius-lg); background: var(--brand-soft); box-shadow: var(--neu-raise); }
-.orders-intro > span { display: grid; width: 46px; height: 46px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); }
+.orders-intro > span { display: grid; width: 46px; height: 46px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); }
 .orders-intro h1 { margin: 1px 0 4px; font-family: var(--font-serif); font-size: var(--text-lg); }
 .orders-intro p { margin: 0; color: var(--ink-secondary); font-size: var(--text-xs); line-height: 1.6; }
 .module-segment { margin-top: var(--space-4); }
 .application-proposal { margin: var(--space-3) 0 0; color: var(--ink-secondary); font-size: var(--text-xs); line-height: 1.6; }
 .filter-strip { display: flex; gap: var(--space-2); margin: var(--space-4) calc(var(--space-4) * -1); padding: 0 var(--space-4) 3px; overflow-x: auto; }
 .filter-button { display: inline-flex; min-height: 40px; flex: 0 0 auto; align-items: center; gap: 6px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-pill); background: var(--neu-surface); box-shadow: var(--neu-raise-sm); color: var(--ink-secondary); font-size: var(--text-sm); font-weight: 650; }
-.filter-button span { min-width: 19px; padding: 1px 5px; border-radius: var(--radius-pill); background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink-tertiary); font-size: 10px; }
-.filter-button.active { background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); border: 0; }
+.filter-button span { min-width: 19px; padding: 1px 5px; border-radius: var(--radius-pill); background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink-tertiary); font-size: var(--text-2xs); }
+.filter-button.active { background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); border: 0; }
 .filter-button.active span { background: rgba(255,255,255,.18); color: var(--white); }
 .order-list { display: grid; gap: var(--space-4); }
 .order-card { padding: var(--space-4); border: 0; border-radius: var(--radius-lg); background: var(--neu-surface); box-shadow: var(--neu-raise); }
-.order-card.highlighted { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(45, 90, 39, .11); }
+.order-card.highlighted { border-color: var(--brand); box-shadow: 0 0 0 3px var(--focus-ring); }
 .order-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
-.order-card-header small { color: var(--ink-tertiary); font-size: 11px; font-variant-numeric: tabular-nums; }
+.order-card-header small { color: var(--ink-tertiary); font-size: var(--text-2xs); font-variant-numeric: tabular-nums; }
 .order-card-header h2 { margin: 4px 0 0; font-family: var(--font-serif); font-size: var(--text-base); line-height: 1.45; }
-.status-badge { display: inline-flex; min-height: 29px; flex: 0 0 auto; align-items: center; padding: 4px 9px; border-radius: var(--radius-pill); background: var(--brand-soft); color: var(--brand); font-size: 11px; font-weight: 750; }
-.status-badge.awaiting_customer_payment { background: #f8edda; color: var(--warning); }
+.status-badge { display: inline-flex; min-height: 29px; flex: 0 0 auto; align-items: center; padding: 4px 9px; border-radius: var(--radius-pill); background: var(--brand-soft); color: var(--brand); font-size: var(--text-2xs); font-weight: 750; }
+.status-badge.awaiting_customer_payment { background: var(--warning-soft); color: var(--warning); }
 .status-badge.cancelled { background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink-secondary); }
-.status-badge.delivered { background: #e8eef8; color: #365b8c; }
+.status-badge.delivered { background: var(--brand-soft); color: var(--brand); }
 .order-facts { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2); margin-top: var(--space-4); padding: var(--space-3); border-radius: var(--radius-md); background: var(--paper); }
 .order-facts div { display: flex; min-width: 0; align-items: center; gap: 6px; color: var(--brand); }
 .order-facts span { overflow: hidden; color: var(--ink-secondary); font-size: var(--text-xs); line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
 .next-step { margin: var(--space-3) 0 0; color: var(--ink); font-size: var(--text-sm); font-weight: 650; line-height: 1.55; }
 .order-notes { margin: var(--space-2) 0 0; color: var(--ink-tertiary); font-size: var(--text-xs); line-height: 1.6; }
-.order-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--neu-light); box-shadow: inset 0 1px 0 var(--neu-shade-soft); }
+.order-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--divider); }
 .order-actions button { display: inline-flex; min-height: var(--touch-target); align-items: center; justify-content: center; gap: 6px; padding: 0 var(--space-4); border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: 750; }
-.order-actions button.primary { border: 0; background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); }
+.order-actions button.primary { border: 0; background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); }
 .order-actions button.secondary { border: 0; background: var(--neu-surface); box-shadow: var(--neu-raise-sm); color: var(--brand); }
-.order-actions button.danger { border: 1px solid rgba(163, 59, 50, .35); background: var(--neu-surface); box-shadow: var(--neu-raise-sm); color: var(--danger); }
+.order-actions button.danger { border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); background: var(--neu-surface); box-shadow: var(--neu-raise-sm); color: var(--danger); }
 .order-actions .detail-button { margin-right: auto; }
 .order-actions button:disabled { opacity: .55; }
 .order-actions ion-spinner { width: 18px; height: 18px; }

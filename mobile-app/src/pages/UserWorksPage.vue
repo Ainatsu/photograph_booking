@@ -107,7 +107,7 @@ onIonViewWillEnter(() => void load())
 .gallery-content { --background: var(--paper); }
 .gallery-shell { width: min(100%, var(--content-max)); min-height: 100%; margin: 0 auto; padding: var(--space-4) var(--space-4) var(--space-8); }
 .gallery-intro { display: flex; gap: var(--space-3); padding: var(--space-4); border: 0; border-radius: var(--radius-lg); background: var(--brand-soft); box-shadow: var(--neu-raise); }
-.gallery-intro > span { display: grid; width: 46px; height: 46px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); }
+.gallery-intro > span { display: grid; width: 46px; height: 46px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); }
 .gallery-intro h1 { margin: 1px 0 4px; font-family: var(--font-serif); font-size: var(--text-lg); }
 .gallery-intro p { margin: 0; color: var(--ink-secondary); font-size: var(--text-xs); line-height: 1.6; }
 .work-grid { columns: 2; column-gap: var(--space-3); margin-top: var(--space-5); }

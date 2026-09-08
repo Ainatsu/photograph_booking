@@ -140,8 +140,7 @@ function optionalNumber(event: Event) {
 
 .filters-form {
   padding: var(--space-4);
-  border-top: 1px solid var(--neu-light);
-  box-shadow: inset 0 1px 0 var(--neu-shade-soft);
+  border-top: 1px solid var(--divider);
 }
 
 .filter-grid {
@@ -173,7 +172,7 @@ input {
 }
 
 input:focus {
-  box-shadow: var(--neu-inset-deep), 0 0 0 2px rgba(45, 90, 39, 0.26);
+  box-shadow: var(--neu-inset-deep), 0 0 0 2px var(--focus-ring);
 }
 
 input::placeholder {
@@ -214,7 +213,7 @@ input::placeholder {
 .primary-button {
   border: 0;
   background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  box-shadow: var(--shadow-1);
   color: var(--white);
 }
 

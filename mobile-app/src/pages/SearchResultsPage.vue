@@ -448,7 +448,7 @@ onMounted(() => {
   background: var(--paper);
   box-shadow: var(--neu-inset);
   color: var(--ink-tertiary);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-variant-numeric: tabular-nums;
 }
 

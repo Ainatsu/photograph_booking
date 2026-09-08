@@ -128,7 +128,7 @@ watch(preview, async (url) => {
   border-radius: var(--radius-pill);
   background: rgba(26, 26, 26, 0.76);
   color: var(--white);
-  font-size: 10px;
+  font-size: var(--text-2xs);
 }
 
 .body {
@@ -153,8 +153,7 @@ h3 {
   gap: var(--space-2);
   margin-top: var(--space-2);
   padding-top: var(--space-2);
-  border-top: 1px solid var(--neu-light);
-  box-shadow: inset 0 1px 0 var(--neu-shade-soft);
+  border-top: 1px solid var(--divider);
 }
 
 .author {
@@ -163,7 +162,7 @@ h3 {
   min-width: 0;
   gap: 6px;
   color: var(--ink-secondary);
-  font-size: 11px;
+  font-size: var(--text-2xs);
 }
 
 .author > span:last-child {

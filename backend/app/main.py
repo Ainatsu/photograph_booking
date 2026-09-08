@@ -52,6 +52,7 @@ def run_migrations():
     )
     if result.returncode != 0:
         print(f"[Migration] 迁移失败: {result.stderr}")
+        raise RuntimeError("数据库迁移失败，应用未启动")
     else:
         print("[Migration] 数据库迁移完成")
 

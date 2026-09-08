@@ -89,7 +89,7 @@ function formatFileSize(bytes: number): string {
 
 .file-copy small {
   color: var(--ink-tertiary);
-  font-size: 11px;
+  font-size: var(--text-2xs);
 }
 
 .remove-button {
@@ -104,7 +104,7 @@ function formatFileSize(bytes: number): string {
 }
 
 .remove-button:focus-visible {
-  outline: 3px solid rgba(45, 90, 39, 0.24);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 1px;
 }
 </style>

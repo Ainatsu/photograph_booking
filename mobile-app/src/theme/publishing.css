@@ -86,8 +86,7 @@
   align-items: center;
   gap: var(--space-3);
   padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--neu-light);
-  box-shadow: 0 1px 0 var(--neu-shade-soft);
+  border-bottom: 1px solid var(--divider);
 }
 
 .publish-section-heading > span {
@@ -126,7 +125,7 @@
 }
 
 .publish-textarea { min-height: 126px; padding-block: var(--space-3); line-height: 1.65; resize: vertical; }
-.publish-input:focus, .publish-select:focus, .publish-textarea:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px rgba(45, 90, 39, .26); }
+.publish-input:focus, .publish-select:focus, .publish-textarea:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px var(--focus-ring); }
 .publish-input[aria-invalid="true"], .publish-select[aria-invalid="true"], .publish-textarea[aria-invalid="true"] { box-shadow: var(--neu-inset), 0 0 0 2px rgba(163, 59, 50, .34); }
 .publish-input:disabled, .publish-select:disabled, .publish-textarea:disabled { background: var(--paper-deep); box-shadow: none; color: var(--ink-tertiary); }
 .publish-error { margin: 0; color: var(--danger); font-size: var(--text-xs); line-height: 1.5; }
@@ -186,7 +185,7 @@
 .mobile-publish-actions.with-agent.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .mobile-publish-actions.with-agent button { min-width: 0; padding-inline: var(--space-2); font-size: var(--text-xs); white-space: nowrap; }
 .mobile-publish-actions button:first-child { background: var(--neu-surface); box-shadow: var(--neu-raise-sm); color: var(--brand); }
-.mobile-publish-actions button:last-child { background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); }
+.mobile-publish-actions button:last-child { background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); }
 .mobile-publish-actions.with-agent .publish-agent-action { background: var(--paper); box-shadow: var(--neu-inset); color: var(--brand); }
 .mobile-publish-actions.with-agent .publish-agent-action:active { box-shadow: var(--neu-inset-deep); }
 .mobile-publish-actions button:first-child:active { box-shadow: var(--neu-inset); }

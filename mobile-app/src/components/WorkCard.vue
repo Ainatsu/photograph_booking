@@ -127,7 +127,7 @@ watch(preview, async (url) => {
   border-radius: var(--radius-pill);
   background: rgba(26, 26, 26, 0.74);
   color: var(--white);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 650;
 }
 
@@ -166,7 +166,7 @@ h3 {
 .author > span:last-child {
   overflow: hidden;
   color: var(--ink-secondary);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -176,7 +176,7 @@ h3 {
   align-items: center;
   gap: 3px;
   color: var(--ink-tertiary);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   white-space: nowrap;
 }
 </style>

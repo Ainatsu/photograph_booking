@@ -177,7 +177,7 @@ async function startPublishing() {
   place-items: center;
   border-radius: 50%;
   background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  box-shadow: var(--shadow-1);
   color: var(--white);
 }
 
@@ -237,7 +237,7 @@ async function startPublishing() {
 
 .selected .action-icon {
   background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  box-shadow: var(--shadow-1);
   color: var(--white);
 }
 
@@ -284,7 +284,7 @@ async function startPublishing() {
   border: 0;
   border-radius: var(--radius-md);
   background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  box-shadow: var(--shadow-1);
   color: var(--white);
   font-weight: 700;
 }
@@ -321,8 +321,7 @@ async function startPublishing() {
   gap: var(--space-3);
   margin-top: var(--space-6);
   padding: var(--space-4);
-  border-top: 1px solid var(--neu-light);
-  box-shadow: inset 0 1px 0 var(--neu-shade-soft);
+  border-top: 1px solid var(--divider);
   color: var(--ink-secondary);
 }
 
@@ -342,7 +341,7 @@ async function startPublishing() {
   border: 0;
   border-radius: var(--radius-md);
   background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  box-shadow: var(--shadow-1);
   color: var(--white);
   font-size: var(--text-sm);
   font-weight: 650;

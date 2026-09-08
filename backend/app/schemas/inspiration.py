@@ -142,16 +142,14 @@ class InspirationUploadResponse(BaseModel):
 
 
 class InspirationImageAdvice(BaseModel):
-    """One image's generated shooting guidance. Business identifiers are forbidden."""
+    """One image's generated inspiration note. Business identifiers are forbidden."""
 
     model_config = ConfigDict(extra="forbid")
 
     attachment_index: int = Field(ge=0)
-    composition: str = Field(min_length=1, max_length=1000)
-    color: str = Field(min_length=1, max_length=1000)
-    model_pose: str = Field(min_length=1, max_length=1000)
-    lighting: str = Field(min_length=1, max_length=1000)
-    props: str = Field(min_length=1, max_length=1000)
+    title: str = Field(min_length=1, max_length=40)
+    description: str = Field(min_length=1, max_length=400)
+    extension: str = Field(min_length=1, max_length=300)
 
 
 class InspirationGenerationResult(BaseModel):
@@ -173,16 +171,14 @@ class InspirationGenerationResult(BaseModel):
 
 
 class InspirationBatchImageAdvice(BaseModel):
-    """Validated advice for one image in a small generation batch."""
+    """Validated inspiration note for one image in a small generation batch."""
 
     model_config = ConfigDict(extra="forbid")
 
     attachment_index: int = Field(ge=0)
-    composition: str = Field(min_length=1, max_length=32)
-    color: str = Field(min_length=1, max_length=32)
-    model_pose: str = Field(min_length=1, max_length=32)
-    lighting: str = Field(min_length=1, max_length=32)
-    props: str = Field(min_length=1, max_length=32)
+    title: str = Field(min_length=1, max_length=24)
+    description: str = Field(min_length=1, max_length=160)
+    extension: str = Field(min_length=1, max_length=120)
 
 
 class InspirationBatchResult(BaseModel):

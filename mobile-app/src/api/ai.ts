@@ -63,6 +63,7 @@ export interface AIMessagePayload {
     longitude: number
   }
   generation_request?: AIImageGenerationRequest
+  appreciation_request?: boolean
 }
 
 export type AIImageGenerationMode = 'text_to_image' | 'image_to_image'

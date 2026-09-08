@@ -336,10 +336,10 @@ onMounted(async () => {
 .management-intro { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: var(--space-3); padding: var(--space-4); border: 0; border-radius: var(--radius-lg); background: var(--neu-surface); box-shadow: var(--neu-raise); }
 .intro-icon { display: grid; width: 48px; height: 48px; place-items: center; border-radius: var(--radius-md); background: var(--brand-soft); color: var(--brand); }
 .management-intro div { min-width: 0; }
-.management-intro p { margin: 0 0 3px; color: var(--brand); font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.management-intro p { margin: 0 0 3px; color: var(--brand); font-size: var(--text-2xs); font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
 .management-intro h1 { margin: 0; font-family: var(--font-serif); font-size: var(--text-lg); line-height: 1.4; }
 .management-intro small { display: block; margin-top: 5px; color: var(--ink-secondary); font-size: var(--text-xs); line-height: 1.6; }
-.intro-action { display: inline-flex; grid-column: 1 / -1; min-height: var(--touch-target); align-items: center; justify-content: center; gap: var(--space-2); border: 0; border-radius: var(--radius-md); background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); font-weight: 750; }
+.intro-action { display: inline-flex; grid-column: 1 / -1; min-height: var(--touch-target); align-items: center; justify-content: center; gap: var(--space-2); border: 0; border-radius: var(--radius-md); background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); font-weight: 750; }
 .status-tabs { display: flex; gap: var(--space-2); margin: var(--space-4) calc(var(--space-4) * -1); padding: 0 var(--space-4) var(--space-2); overflow-x: auto; scrollbar-width: none; }
 .status-tabs::-webkit-scrollbar { display: none; }
 .status-tabs button { min-width: max-content; min-height: 44px; padding: 0 var(--space-4); border: 0; border-radius: var(--radius-pill); background: var(--neu-surface); box-shadow: var(--neu-raise-sm); color: var(--ink-secondary); font-size: var(--text-xs); font-weight: 700; }
@@ -351,24 +351,24 @@ onMounted(async () => {
 .project-cover { width: 96px; height: 112px; border: 0; border-radius: var(--radius-md); background: var(--paper); box-shadow: var(--neu-inset); object-fit: cover; }
 .card-copy { min-width: 0; }
 .card-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
-.status-badge { display: inline-flex; min-height: 27px; align-items: center; padding: 3px 9px; border-radius: var(--radius-pill); background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink-secondary); font-size: 11px; font-weight: 800; }
+.status-badge { display: inline-flex; min-height: 27px; align-items: center; padding: 3px 9px; border-radius: var(--radius-pill); background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink-secondary); font-size: var(--text-2xs); font-weight: 800; }
 .status-badge.open, .status-badge.selected { background: var(--paper); box-shadow: var(--neu-inset); color: var(--brand); border: 0; }
 .status-badge.expired { background: #f4ead8; color: var(--warning); }
 .status-badge.rejected, .status-badge.withdrawn, .status-badge.closed, .status-badge.cancelled { background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink-secondary); }
-.card-date { flex: 0 0 auto; color: var(--ink-tertiary); font-size: 10px; font-variant-numeric: tabular-nums; }
+.card-date { flex: 0 0 auto; color: var(--ink-tertiary); font-size: var(--text-2xs); font-variant-numeric: tabular-nums; }
 .card-copy h2 { margin: var(--space-2) 0 5px; font-family: var(--font-serif); font-size: var(--text-base); line-height: 1.45; }
 .card-copy p { display: -webkit-box; margin: 0; overflow: hidden; color: var(--ink-secondary); font-size: var(--text-xs); line-height: 1.6; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.fact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--neu-light); border-bottom: 1px solid var(--neu-light); box-shadow: 0 1px 0 var(--neu-shade-soft); }
+.fact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--divider); border-bottom: 1px solid var(--divider); }
 .fact-grid > div { display: grid; grid-template-columns: 24px minmax(0, 1fr); min-height: 68px; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); color: var(--brand); }
-.fact-grid > div:nth-child(odd) { border-right: 1px solid var(--neu-light); box-shadow: 1px 0 0 var(--neu-shade-soft); }
-.fact-grid > div:nth-child(-n + 2) { border-bottom: 1px solid var(--neu-light); box-shadow: 0 1px 0 var(--neu-shade-soft); }
+.fact-grid > div:nth-child(odd) { border-right: 1px solid var(--divider); }
+.fact-grid > div:nth-child(-n + 2) { border-bottom: 1px solid var(--divider); }
 .fact-grid span { display: grid; min-width: 0; gap: 2px; }
-.fact-grid small { color: var(--ink-tertiary); font-size: 10px; }
+.fact-grid small { color: var(--ink-tertiary); font-size: var(--text-2xs); }
 .fact-grid strong { overflow: hidden; color: var(--ink); font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; }
 .card-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); padding: var(--space-3); }
 .card-actions button { display: inline-flex; min-height: var(--touch-target); align-items: center; justify-content: center; gap: 6px; padding: 0 var(--space-2); border: 0; border-radius: var(--radius-md); background: var(--neu-surface); box-shadow: var(--neu-raise-sm); color: var(--ink-secondary); font-size: var(--text-xs); font-weight: 750; }
-.card-actions button.primary { background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); border: 0; }
-.card-actions button.danger { border-color: rgba(163, 59, 50, .35); color: var(--danger); }
+.card-actions button.primary { background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); border: 0; }
+.card-actions button.danger { border-color: color-mix(in srgb, var(--danger) 35%, transparent); color: var(--danger); }
 .card-actions button:disabled { opacity: .55; }
 .card-actions ion-spinner { width: 18px; height: 18px; }
 @media (max-width: 374px) { .card-main { grid-template-columns: 80px minmax(0, 1fr); } .project-cover { width: 80px; height: 104px; } .card-actions { grid-template-columns: 1fr; } }

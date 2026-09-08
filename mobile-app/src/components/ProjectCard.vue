@@ -131,8 +131,7 @@ p {
   gap: var(--space-2);
   margin: 0 var(--space-4);
   padding: var(--space-3) 0 var(--space-4);
-  border-top: 1px solid var(--neu-light);
-  box-shadow: inset 0 1px 0 var(--neu-shade-soft);
+  border-top: 1px solid var(--divider);
 }
 
 .meta-item {
@@ -144,7 +143,7 @@ p {
 .customer {
   gap: 6px;
   color: var(--ink-secondary);
-  font-size: 11px;
+  font-size: var(--text-2xs);
 }
 
 .customer > span:last-child {
@@ -157,7 +156,7 @@ p {
   justify-content: center;
   gap: 3px;
   color: var(--ink-tertiary);
-  font-size: 10px;
+  font-size: var(--text-2xs);
 }
 
 .budget {

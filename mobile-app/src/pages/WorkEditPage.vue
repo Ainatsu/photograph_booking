@@ -177,13 +177,13 @@ onMounted(() => void load())
 .edit-input, .edit-textarea { width: 100%; border: 0; border-radius: var(--radius-md); background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink); font-size: var(--text-base); outline: none; }
 .edit-input { min-height: var(--touch-target); padding: 0 var(--space-3); }
 .edit-textarea { min-height: 150px; padding: var(--space-3); line-height: 1.65; resize: vertical; }
-.edit-input:focus, .edit-textarea:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px rgba(45, 90, 39, 0.26); }
+.edit-input:focus, .edit-textarea:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px var(--focus-ring); }
 .edit-input:disabled, .edit-textarea:disabled { opacity: .6; }
-.edit-help { margin: 0; color: var(--ink-tertiary); font-size: 11px; text-align: right; }
+.edit-help { margin: 0; color: var(--ink-tertiary); font-size: var(--text-2xs); text-align: right; }
 .request-error { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--danger); border-radius: var(--radius-md); color: var(--danger); font-size: var(--text-sm); line-height: 1.5; }
 .edit-footer { background: var(--paper); }
-.edit-actions { width: min(100%, var(--content-max)); margin: 0 auto; padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom)); border-top: 1px solid var(--neu-light); box-shadow: inset 0 1px 0 var(--neu-shade-soft); }
-.edit-actions .primary { display: inline-flex; width: 100%; min-height: 48px; align-items: center; justify-content: center; gap: var(--space-2); border: 0; border-radius: var(--radius-md); background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); font-weight: 750; }
+.edit-actions { width: min(100%, var(--content-max)); margin: 0 auto; padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom)); border-top: 1px solid var(--divider); }
+.edit-actions .primary { display: inline-flex; width: 100%; min-height: 48px; align-items: center; justify-content: center; gap: var(--space-2); border: 0; border-radius: var(--radius-md); background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); font-weight: 750; }
 .edit-actions .primary:disabled { background: var(--paper-deep); box-shadow: none; color: var(--ink-tertiary); }
 .edit-actions ion-spinner { width: 18px; height: 18px; }
 </style>

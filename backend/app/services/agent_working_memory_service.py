@@ -22,12 +22,14 @@ DEFAULT_TTL_SECONDS = 24 * 60 * 60
 MAX_RESOURCE_SNAPSHOTS = 20
 MAX_EVENTS = 30
 
+# 序数必须带“第”前缀或量词后缀（个/位/份/条）才算显式引用；
+# 裸数字会被“查一查”“一下”“唯一”这类普通用语误命中，禁止匹配。
 ORDINAL_PATTERNS = (
-    (re.compile(r"(?:第\s*)?(?:一|1)(?:\s*个|\s*位|\s*份|\s*条)?"), 1),
-    (re.compile(r"(?:第\s*)?(?:二|两|2)(?:\s*个|\s*位|\s*份|\s*条)?"), 2),
-    (re.compile(r"(?:第\s*)?(?:三|3)(?:\s*个|\s*位|\s*份|\s*条)?"), 3),
-    (re.compile(r"(?:第\s*)?(?:四|4)(?:\s*个|\s*位|\s*份|\s*条)?"), 4),
-    (re.compile(r"(?:第\s*)?(?:五|5)(?:\s*个|\s*位|\s*份|\s*条)?"), 5),
+    (re.compile(r"第\s*一(?:\s*[个位份条])?|[一1]\s*[个位份条]"), 1),
+    (re.compile(r"第\s*[二两2](?:\s*[个位份条])?|[二两2]\s*[个位份条]"), 2),
+    (re.compile(r"第\s*三(?:\s*[个位份条])?|[三3]\s*[个位份条]"), 3),
+    (re.compile(r"第\s*四(?:\s*[个位份条])?|[四4]\s*[个位份条]"), 4),
+    (re.compile(r"第\s*五(?:\s*[个位份条])?|[五5]\s*[个位份条]"), 5),
 )
 RESOURCE_REFERENCE_TERMS = (
     "方案", "套餐", "摄影师", "作品", "企划", "这个", "那个", "刚才", "上一个",
@@ -263,8 +265,12 @@ def resolve_resource_reference(
         return None
 
     requested_index = None
+    # Bare "一份" is a quantity expression (for example, "创建一份灵感" or
+    # "找一份作品"), not an ordinal resource reference. Keep explicit
+    # "第一份"/"第1份" support below.
+    bare_single_copy = re.search(r"(?<!第)[一1]\s*\u4efd", text) is not None
     for pattern, index in ORDINAL_PATTERNS:
-        if pattern.search(text):
+        if pattern.search(text) and not (index == 1 and bare_single_copy):
             requested_index = index
             break
 

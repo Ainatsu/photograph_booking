@@ -5,6 +5,7 @@ Revises: z5a6b7c8d9e0
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 revision = "b6c7d8e9f0a2"
 down_revision = "z5a6b7c8d9e0"
@@ -13,7 +14,12 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
+    # A prior SQLite run may have completed the DDL and failed before Alembic
+    # could record the revision. Treat that state as already applied so the
+    # migration can be retried safely.
+    inspector = inspect(op.get_bind())
+    if not inspector.has_table("ai_conversation_folders"):
+        op.create_table(
         "ai_conversation_folders",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=False),
@@ -22,8 +28,9 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.UniqueConstraint("user_id", "name", name="uq_ai_conversation_folder_user_name"),
     )
-    op.create_index("ix_ai_conversation_folders_user_id", "ai_conversation_folders", ["user_id"])
-    op.create_table(
+        op.create_index("ix_ai_conversation_folders_user_id", "ai_conversation_folders", ["user_id"])
+    if not inspector.has_table("ai_conversation_task_links"):
+        op.create_table(
         "ai_conversation_task_links",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("source_task_id", sa.String(36), nullable=False),
@@ -34,22 +41,35 @@ def upgrade() -> None:
         sa.Column("relation_type", sa.String(32), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    for name, cols in (
+        for name, cols in (
         ("ix_ai_conversation_task_links_source_task_id", ["source_task_id"]),
         ("ix_ai_conversation_task_links_target_task_id", ["target_task_id"]),
         ("ix_ai_conversation_task_links_source_conversation_id", ["source_conversation_id"]),
         ("ix_ai_conversation_task_links_target_conversation_id", ["target_conversation_id"]),
         ("ix_ai_conversation_task_links_user_id", ["user_id"]),
     ):
-        op.create_index(name, "ai_conversation_task_links", cols)
-    with op.batch_alter_table("ai_conversations") as batch_op:
-        batch_op.add_column(sa.Column("root_conversation_id", sa.Integer(), sa.ForeignKey("ai_conversations.id"), nullable=True))
-        batch_op.add_column(sa.Column("forked_from_conversation_id", sa.Integer(), sa.ForeignKey("ai_conversations.id"), nullable=True))
-        batch_op.add_column(sa.Column("fork_boundary", sa.String(64), nullable=True))
-        batch_op.add_column(sa.Column("folder_id", sa.Integer(), sa.ForeignKey("ai_conversation_folders.id"), nullable=True))
-        batch_op.create_index("ix_ai_conversations_root_conversation_id", ["root_conversation_id"])
-        batch_op.create_index("ix_ai_conversations_forked_from_conversation_id", ["forked_from_conversation_id"])
-        batch_op.create_index("ix_ai_conversations_folder_id", ["folder_id"])
+            op.create_index(name, "ai_conversation_task_links", cols)
+
+    existing_columns = {column["name"] for column in inspector.get_columns("ai_conversations")}
+    missing_columns = {
+        "root_conversation_id": sa.Column("root_conversation_id", sa.Integer(), sa.ForeignKey("ai_conversations.id"), nullable=True),
+        "forked_from_conversation_id": sa.Column("forked_from_conversation_id", sa.Integer(), sa.ForeignKey("ai_conversations.id"), nullable=True),
+        "fork_boundary": sa.Column("fork_boundary", sa.String(64), nullable=True),
+        "folder_id": sa.Column("folder_id", sa.Integer(), sa.ForeignKey("ai_conversation_folders.id"), nullable=True),
+    }
+    if any(name not in existing_columns for name in missing_columns):
+        with op.batch_alter_table("ai_conversations") as batch_op:
+            for name, column in missing_columns.items():
+                if name not in existing_columns:
+                    batch_op.add_column(column)
+            existing_indexes = {index["name"] for index in inspector.get_indexes("ai_conversations")}
+            for name, column in (
+                ("ix_ai_conversations_root_conversation_id", "root_conversation_id"),
+                ("ix_ai_conversations_forked_from_conversation_id", "forked_from_conversation_id"),
+                ("ix_ai_conversations_folder_id", "folder_id"),
+            ):
+                if name not in existing_indexes:
+                    batch_op.create_index(name, [column])
 
 
 def downgrade() -> None:

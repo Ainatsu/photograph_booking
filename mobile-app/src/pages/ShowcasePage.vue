@@ -339,7 +339,7 @@ watch(() => route.query.section, (section) => {
   place-items: center;
   border-radius: 50%;
   background: var(--neu-surface-brand);
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  box-shadow: var(--shadow-1);
   color: var(--white);
 }
 
@@ -415,10 +415,10 @@ watch(() => route.query.section, (section) => {
   border-radius: var(--radius-pill);
   background: var(--neu-surface-brand);
   color: var(--white);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   font-weight: 700;
   line-height: 1;
-  box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade);
+  box-shadow: var(--shadow-1);
   pointer-events: none;
 }
 

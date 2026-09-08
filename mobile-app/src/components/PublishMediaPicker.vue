@@ -193,8 +193,8 @@ onUnmounted(revokePreviews)
 .preview-card { position: relative; min-width: 0; overflow: hidden; aspect-ratio: 1 / 1; border: 0; border-radius: var(--radius-md); background: var(--ink); box-shadow: var(--neu-raise); }
 .preview-card img, .preview-card video { width: 100%; height: 100%; object-fit: cover; }
 .remove-media { position: absolute; top: 4px; right: 4px; display: grid; width: 48px; height: 48px; place-items: center; border: 0; border-radius: 50%; background: rgba(26, 26, 26, .68); color: var(--white); }
-.media-index { position: absolute; top: 8px; left: 8px; display: grid; min-width: 24px; height: 24px; place-items: center; border-radius: var(--radius-pill); background: rgba(26, 26, 26, .68); color: var(--white); font-size: 11px; font-weight: 800; }
-.media-name { position: absolute; right: 0; bottom: 0; left: 0; overflow: hidden; padding: 22px 8px 7px; background: linear-gradient(transparent, rgba(26, 26, 26, .78)); color: var(--white); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.media-index { position: absolute; top: 8px; left: 8px; display: grid; min-width: 24px; height: 24px; place-items: center; border-radius: var(--radius-pill); background: rgba(26, 26, 26, .68); color: var(--white); font-size: var(--text-2xs); font-weight: 800; }
+.media-name { position: absolute; right: 0; bottom: 0; left: 0; overflow: hidden; padding: 22px 8px 7px; background: linear-gradient(transparent, rgba(26, 26, 26, .78)); color: var(--white); font-size: var(--text-2xs); text-overflow: ellipsis; white-space: nowrap; }
 .picker-button { display: inline-flex; min-height: var(--touch-target); align-items: center; justify-content: center; gap: var(--space-2); border: 0; border-radius: var(--radius-md); background: var(--paper); box-shadow: var(--neu-inset); color: var(--brand); font-weight: 750; }
 .picker-button:disabled { background: var(--paper-deep); box-shadow: none; color: var(--ink-tertiary); opacity: .7; }
 .picker-meta { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }

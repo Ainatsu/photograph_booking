@@ -234,24 +234,24 @@ async function submit() {
 .auth-content { --background: var(--paper); }
 .auth-shell { width: min(100%, 520px); margin: 0 auto; padding: var(--space-5) var(--space-4) var(--space-8); }
 .auth-intro { display: flex; gap: var(--space-4); padding: var(--space-5); border: 0; border-radius: var(--radius-lg); background: var(--brand-soft); box-shadow: var(--neu-raise); }
-.auth-mark { display: grid; width: 48px; height: 48px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); }
-.eyebrow { margin: 0 0 4px !important; color: var(--brand) !important; font-size: 11px !important; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.auth-mark { display: grid; width: 48px; height: 48px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); }
+.eyebrow { margin: 0 0 4px !important; color: var(--brand) !important; font-size: var(--text-2xs) !important; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
 .auth-intro h1 { margin: 0 0 var(--space-2); font-family: var(--font-serif); font-size: var(--text-xl); line-height: 1.4; }
 .auth-intro p { margin: 0; color: var(--ink-secondary); font-size: var(--text-sm); line-height: 1.65; }
 .auth-form { display: grid; gap: var(--space-2); margin-top: var(--space-5); }
 .field-label { margin-top: var(--space-3); color: var(--ink); font-size: var(--text-sm); font-weight: 700; }
 .field-label span { color: var(--ink-tertiary); font-size: var(--text-xs); font-weight: 500; }
 .text-field { width: 100%; min-height: var(--touch-target); padding: 0 var(--space-4); border: 0; border-radius: var(--radius-md); background: var(--paper); box-shadow: var(--neu-inset); color: var(--ink); font-size: var(--text-base); outline: none; }
-.text-field:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px rgba(45, 90, 39, 0.26); }
+.text-field:focus { box-shadow: var(--neu-inset-deep), 0 0 0 2px var(--focus-ring); }
 .text-field[aria-invalid="true"] { border-color: var(--danger); }
 .password-field { position: relative; }
 .password-field .text-field { padding-right: 58px; }
 .password-toggle { position: absolute; top: 0; right: 3px; display: grid; width: var(--touch-target); height: var(--touch-target); place-items: center; border: 0; background: transparent; color: var(--ink-secondary); }
 .field-hint { margin: 0; color: var(--brand); font-size: var(--text-xs); line-height: 1.5; }
 .field-hint.error { color: var(--danger); }
-.request-error { display: flex; gap: var(--space-2); align-items: flex-start; margin-top: var(--space-3); padding: var(--space-3); border: 1px solid rgba(163, 59, 50, .25); border-radius: var(--radius-md); background: #fbefed; color: var(--danger); font-size: var(--text-sm); line-height: 1.55; }
+.request-error { display: flex; gap: var(--space-2); align-items: flex-start; margin-top: var(--space-3); padding: var(--space-3); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); border-radius: var(--radius-md); background: var(--danger-soft); color: var(--danger); font-size: var(--text-sm); line-height: 1.55; }
 .request-error svg { flex: 0 0 auto; margin-top: 1px; }
-.submit-button { display: flex; min-height: var(--touch-target); align-items: center; justify-content: center; gap: var(--space-2); margin-top: var(--space-4); border: 0; border-radius: var(--radius-md); background: var(--neu-surface-brand); box-shadow: -4px -4px 10px var(--neu-light), 4px 4px 12px var(--neu-shade); color: var(--white); font-weight: 750; }
+.submit-button { display: flex; min-height: var(--touch-target); align-items: center; justify-content: center; gap: var(--space-2); margin-top: var(--space-4); border: 0; border-radius: var(--radius-md); background: var(--neu-surface-brand); box-shadow: var(--shadow-1); color: var(--white); font-weight: 750; }
 .submit-button:disabled { opacity: .55; }
 .submit-button ion-spinner { width: 20px; height: 20px; }
 .auth-switch { margin: var(--space-5) 0 0; color: var(--ink-secondary); font-size: var(--text-sm); text-align: center; }
