@@ -1,0 +1,166 @@
+/**
+ * 全局基础样式。按 DESIGN.md §14，这里只放重置、基础元素、布局助手类与点按反馈。
+ * 页内样式写在各 SFC 的 <style scoped>；颜色/间距/圆角一律用 tokens.css 的语义变量。
+ * 材质与高对比的媒体查询在 tokens.css，不要在这里重复。
+ */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  background: var(--paper);
+  font: 100% / var(--leading-normal) var(--font-sans);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100dvh;
+  margin: 0;
+  overflow-wrap: anywhere;
+  background: var(--paper);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  font: inherit;
+  /* 中文不用负字间距，见 DESIGN.md §4 */
+  letter-spacing: 0;
+  touch-action: manipulation;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled),
+a[href],
+[role='button']:not([aria-disabled='true']) {
+  cursor: pointer;
+}
+
+/* 焦点环只在键盘/开关导航时出现，且不得为美观去掉，见 DESIGN.md §10 */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+button,
+[role='button'] {
+  min-height: var(--touch-target);
+}
+
+button:disabled,
+[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.42;
+}
+
+img,
+video {
+  max-width: 100%;
+}
+
+img {
+  font-style: italic;
+}
+
+h1,
+h2,
+h3,
+p {
+  overflow-wrap: anywhere;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: 0;
+}
+
+/**
+ * Ionic 页面容器：底部留白 = 导航高度 + 偏移 + 安全区 + 一个间距单位。
+ * 不要用固定 padding 顶替 env(safe-area-inset-bottom)。
+ */
+.page-content {
+  --background: var(--paper);
+  --padding-bottom: calc(
+    var(--bottom-nav-height) + var(--bottom-nav-offset) + env(safe-area-inset-bottom) + var(--space-4)
+  );
+}
+
+.page-shell {
+  width: min(100%, var(--content-max));
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 0 var(--space-4) var(--space-8);
+}
+
+/* 供屏幕阅读器专用，不要用 display:none 替代 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/**
+ * 点按反馈：100ms 内可见，只动 transform，不引起布局位移，见 DESIGN.md §8。
+ */
+.pressable {
+  transition:
+    background-color var(--motion-fast) ease-out,
+    border-color var(--motion-fast) ease-out,
+    box-shadow var(--motion-fast) ease-out,
+    color var(--motion-fast) ease-out,
+    opacity var(--motion-fast) ease-out,
+    transform var(--motion-normal) var(--spring-ui);
+  will-change: transform;
+}
+
+.pressable:active {
+  transform: scale(0.97);
+  transition-duration: var(--motion-instant);
+}
+
+@media (min-width: 768px) {
+  .page-shell {
+    padding-inline: var(--space-6);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .page-shell {
+    padding-inline: max(var(--space-6), env(safe-area-inset-left));
+  }
+}
+
+/* 减少动态效果时把过渡压到几乎瞬时，位移改用直接状态切换 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

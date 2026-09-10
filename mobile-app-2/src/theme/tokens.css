@@ -1,0 +1,194 @@
+/**
+ * 设计 token —— 定义见 DESIGN.md §3 与 §13，取值不得在此之外另立。
+ * 组件只消费语义层（--ink / --space-4 / --radius-md 这类），不直接写原始值。
+ *
+ * 视觉方向来自 reference/ 的米画师截图：白底、描边卡片、蓝＝可操作、橙＝价格。
+ * 截图里的亮蓝 #2E9BFF 与亮橙 #FF7A00 在白底上只有 2.90:1 / 2.61:1，不达 AA，
+ * 这里已按对比度压深；与截图的具体出入见 DESIGN.md §3.4。
+ */
+:root {
+  color-scheme: light dark;
+
+  /* ---- 表面：纯白底，卡片与底色同色，靠描边区分 ---- */
+  --paper: #ffffff;
+  --surface-solid: #ffffff;
+  --surface-secondary: #f5f6f8;
+  --surface-tertiary: #eeeff2;
+  --surface-overlay: rgba(0, 0, 0, 0.45);
+  /* 压在 --surface-overlay 上的文字与图标。
+     遮罩在两个主题下都是深色，所以这个值不随主题变化。 */
+  --on-overlay: #ffffff;
+
+  /* ---- 文字 ---- */
+  --ink: #1a1a1a;
+  --ink-secondary: #666c78;
+  --ink-tertiary: #8a8f99; /* 仅非正文或 ≥20px，见 DESIGN.md §3.4 */
+
+  /* ---- 品牌：可操作项、选中态、链接 ---- */
+  --brand: #0870c9;
+  --brand-strong: #065da8;
+  --brand-soft: #eef7ff;
+  --on-brand: #ffffff;
+
+  /* ---- 价格与评分：橙色只表达这两个语义 ---- */
+  --price: #d95e00; /* 仅 ≥20px 且 700 字重 */
+  --price-ink: #b85100; /* 需要小字时用这个 */
+  --price-soft: #fff6ec;
+
+  /* ---- 状态 ---- */
+  --success: #0f7b6c;
+  --success-soft: #e4f5f2;
+  --warning: #8a5a00; /* 待处理 / 未保存提醒：不是错误，不能用 --danger */
+  --warning-soft: #fff3d6;
+  --danger: #d70015;
+  --danger-soft: #ffeaed;
+
+  /* ---- 线 ---- */
+  --border: #e8e8ec;
+  --border-strong: #d9dae0;
+  --scrim: rgba(0, 0, 0, 0.45);
+
+  /* ---- 顶栏与底栏 ----
+     本视觉不使用模糊，材料即不透明面；三个别名保留只为让既有组件样式继续成立。 */
+  --material-thin: #ffffff;
+  --material-regular: #ffffff;
+  --material-thick: #ffffff;
+  --material-blur: none;
+
+  /* ---- 高度：只留给真正浮起的东西（弹层、下拉）---- */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.05);
+  --shadow-2: 0 6px 20px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.05);
+  --shadow-3: 0 16px 40px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.07);
+
+  /* ---- 间距（4/8pt 节奏）---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ---- 圆角 ---- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+
+  /* ---- 字体 ---- */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --text-2xs: 11px; /* 仅角标内数字 */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 20px;
+  --text-xl: 28px;
+  --text-2xl: 34px;
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.5;
+
+  /* ---- 布局 ---- */
+  --touch-target: 48px;
+  --content-max: 760px;
+  --bottom-nav-height: 64px;
+  --bottom-nav-offset: 10px;
+
+  /* ---- 芯片与徽章 ---- */
+  --chip-height: 30px;
+  --avatar-sm: 32px;
+  --avatar-md: 48px;
+
+  /* ---- 动效 ---- */
+  --motion-instant: 100ms;
+  --motion-fast: 180ms;
+  --motion-normal: 300ms;
+  --motion-slow: 400ms;
+  --spring-ui: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ---- 焦点：输入框等靠灰底表达的控件，全靠它满足状态可识别 ---- */
+  --focus-ring: rgba(8, 112, 201, 0.45);
+
+  /* ---- 层级 ---- */
+  --layer-content: 0;
+  --layer-sticky: 20;
+  --layer-dropdown: 40;
+  --layer-modal: 100;
+
+  /* ---- Ionic 映射 ---- */
+  --ion-font-family: var(--font-sans);
+  --ion-background-color: var(--paper);
+  --ion-text-color: var(--ink);
+  --ion-color-primary: var(--brand);
+  --ion-color-primary-rgb: 8, 112, 201;
+  --ion-color-primary-contrast: var(--on-brand);
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #065da8;
+  --ion-color-primary-tint: #2180d2;
+  --ion-toolbar-background: transparent;
+  --ion-tab-bar-background: transparent;
+  --ion-item-background: transparent;
+}
+
+:root[data-theme='dark'] {
+  --paper: #000000;
+  --surface-solid: #1c1c1e;
+  --surface-secondary: #2c2c2e;
+  --surface-tertiary: #3a3a3c;
+  --surface-overlay: rgba(0, 0, 0, 0.55);
+  --on-overlay: #ffffff;
+
+  --ink: #f5f5f7;
+  --ink-secondary: #c7c7cc;
+  --ink-tertiary: #98989d;
+
+  --brand: #409cff;
+  --brand-strong: #64adff;
+  --brand-soft: #102d4f;
+  /* 深色下品牌色是亮蓝，其上的文字必须是黑色（7.42:1），不能用白 */
+  --on-brand: #000000;
+
+  --price: #ffa94d;
+  --price-ink: #ffa94d;
+  --price-soft: #3a2408;
+
+  --success: #30d158;
+  --success-soft: #12391d;
+  --warning: #ffd60a;
+  --warning-soft: #3d3200;
+  --danger: #ff453a;
+  --danger-soft: #2e0f0e;
+
+  --border: #303034;
+  --border-strong: #4a4a4f;
+
+  --material-thin: #1c1c1e;
+  --material-regular: #1c1c1e;
+  --material-thick: #1c1c1e;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 22px rgba(0, 0, 0, 0.22);
+  --shadow-2: 0 10px 34px rgba(0, 0, 0, 0.42), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-3: 0 20px 60px rgba(0, 0, 0, 0.56), 0 4px 16px rgba(0, 0, 0, 0.34);
+
+  --focus-ring: rgba(64, 156, 255, 0.55);
+
+  --ion-color-primary-rgb: 64, 156, 255;
+  --ion-color-primary-contrast-rgb: 0, 0, 0;
+}
+
+/* 提高对比度：文字与线升级到高对比取值。
+   必须排在深浅两套定义之后 —— 选择器特异度与 :root[data-theme='dark'] 打平，
+   靠源码顺序取胜。 */
+@media (prefers-contrast: more) {
+  :root,
+  :root[data-theme='dark'] {
+    --ink-secondary: var(--ink);
+    --ink-tertiary: var(--ink-secondary);
+    --border: var(--border-strong);
+  }
+}
