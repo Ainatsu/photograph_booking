@@ -128,6 +128,11 @@ class Settings(BaseSettings):
     AI_EMBEDDING_MAX_LENGTH: int = 512
     AI_EMBEDDING_QUERY_INSTRUCTION: str = "为这个句子生成表示以用于检索相关文章："
     AI_EMBEDDING_BATCH_SIZE: int = 32
+
+    # 平台规则 RAG：docs/rules/*.md → platform_rule 资源文档 → search_platform_rules 工具
+    AI_PLATFORM_RULES_ENABLED: bool = True
+    AI_PLATFORM_RULES_TOP_K: int = 5
+    AI_PLATFORM_RULES_DIR: str = str(BASE_DIR / "docs" / "rules")
     AI_HYBRID_SEMANTIC_WEIGHT: float = 0.40
     AI_HYBRID_KEYWORD_WEIGHT: float = 0.25
     AI_HYBRID_BUSINESS_WEIGHT: float = 0.20
@@ -190,6 +195,15 @@ class Settings(BaseSettings):
     # 写工具是否进入给模型看的工具目录。即使为 True，决策层也只允许"提出"，
     # 真正落库仍由既有确认流程执行（§5.2）。
     AI_AGENT_DECISION_ALLOW_WRITE_TOOLS: bool = True
+    # 阶段D 灰度：首个动态复合流程（赏析图片并寻找类似作品）走 Workflow Runtime，
+    # 关闭时该请求回落到既有视觉分析 + 检索链路。
+    AI_AGENT_WORKFLOW_APPRECIATION_SEARCH_ENABLED: bool = False
+    # 阶段E 灰度：search_then_inspire 固定复合流程走 Workflow Runtime，
+    # 关闭时该请求回落到既有 compound_workflow 条件分支。
+    AI_AGENT_WORKFLOW_SEARCH_THEN_INSPIRE_ENABLED: bool = False
+    # 阶段E 灰度：预订流程拆成 capability steps 并接入 waiting_user 确认，
+    # 关闭时该请求回落到既有 booking planner / booking_agent 分支。
+    AI_AGENT_WORKFLOW_BOOKING_ENABLED: bool = False
     AI_INDEX_WORKER_ENABLED: bool = True
     AI_INDEX_WORKER_POLL_SECONDS: int = 10
     INSPIRATION_GENERATION_WORKER_ENABLED: bool = True

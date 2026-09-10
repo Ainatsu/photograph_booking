@@ -456,7 +456,7 @@ def pgvector_candidate_scores(
         return {}
     normalized_types = [
         value for value in resource_types
-        if value in {"photographer", "portfolio_item", "package"}
+        if value in {"photographer", "portfolio_item", "package", "platform_rule"}
     ]
     if not normalized_types:
         return {}

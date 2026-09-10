@@ -173,17 +173,25 @@ def _reconcile_hybrid_intent(
         return rule_intent
 
     # A no-image inspiration request with an explicit style is the fixed
-    # search-then-inspire workflow. The model commonly reports the legacy
-    # create_inspiration_flow intent for this wording; keep the deterministic
-    # workflow route so an empty attachment list is never sent to the image
-    # reference-only handler.
+    # search-then-inspire workflow. The model prompt carries no
+    # compound_workflow label until v6, so the model reports only the leading
+    # clause of the compound instruction (resource_search, chat, or the legacy
+    # create_inspiration_flow). The deterministic search-then-inspire rule is
+    # high precision (explicit creation phrasing plus explicit search/style
+    # language) and owns this fixed chain; a single-step model reading must
+    # not downgrade it, and an empty attachment list is never sent to the
+    # image reference-only handler.
     if (
         not has_image
-        and model_intent.intent == "create_inspiration_flow"
         and (
-            rule_intent.intent == "compound_workflow"
-            or model_intent.slots.get("style")
-            or model_intent.slots.get("styles")
+            (
+                rule_intent.intent == "compound_workflow"
+                and model_intent.intent != "compound_workflow"
+            )
+            or (
+                model_intent.intent == "create_inspiration_flow"
+                and (model_intent.slots.get("style") or model_intent.slots.get("styles"))
+            )
         )
     ):
         slots = dict(rule_intent.slots or {})

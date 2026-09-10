@@ -53,6 +53,7 @@ Models/
 backend/app/models/*
 !backend/app/models/inspiration.py
 !backend/app/models/image_generation.py
+!backend/app/models/agent_workflow.py
 .tmp/
 .pytest-joint-rec-*/
 

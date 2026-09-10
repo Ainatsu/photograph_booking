@@ -316,6 +316,21 @@ class SearchWebInput(BaseModel):
         return domains[:20]
 
 
+class SearchPlatformRulesInput(BaseModel):
+    """平台规则检索工具的严格入参。"""
+
+    model_config = ConfigDict(extra="forbid")
+    query: str = Field(min_length=2, max_length=300)
+    limit: int = Field(default=5, ge=1, le=10)
+
+    @field_validator("query", mode="before")
+    @classmethod
+    def _normalize_query(cls, value: Any) -> str:
+        if not isinstance(value, str):
+            raise ValueError("query_required")
+        return " ".join(value.strip().split())
+
+
 class SearchProjectsInput(SearchInputBase):
     """检索可应邀的企划（拍摄需求），仅摄影师可用。"""
 

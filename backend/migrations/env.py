@@ -41,6 +41,7 @@ from backend.app.models.order_reschedule import OrderRescheduleRequest
 from backend.app.models.ai_conversation import AIConversation, AIMessage, AIConversationEvent, AIConversationCompression
 from backend.app.models.agent_task import AgentTaskDraft, AgentTaskFormRevision
 from backend.app.models.agent_task_session import AgentTaskEvent, AgentTaskResource, AgentTaskSession
+from backend.app.models.agent_workflow import AgentWorkflowEvent, AgentWorkflowRun, AgentWorkflowStep
 from backend.app.models.agent_memory import AgentMemoryEpisode, AgentUserMemory
 from backend.app.models.ai_resource import AIResourceDocument
 from backend.app.models.ai_production import AIIndexJob, AgentTrace

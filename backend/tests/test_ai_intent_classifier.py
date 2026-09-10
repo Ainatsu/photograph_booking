@@ -436,6 +436,39 @@ class TestClassifyIntentHybridMode:
         assert result.intent.sub_intents == ["search_portfolio_item", "generate_inspiration"]
 
     @pytest.mark.asyncio
+    async def test_hybrid_model_resource_search_cannot_drop_compound_workflow(self):
+        # 回归：模型把「找作品然后创建灵感」的前半句读成 resource_search 时，
+        # 规则侧的 compound_workflow 必须保留，否则编排拆分被静默降级为单步检索。
+        provider = ModelProvider({
+            "intent": "resource_search",
+            "slots": {"styles": ["森系"], "resource_types": ["portfolio_items"]},
+            "confidence": 0.95,
+        })
+        result = await classify_intent(
+            "帮我寻找森系的作品然后用它们创建灵感。",
+            mode="hybrid",
+            provider=provider,
+        )
+        assert result.intent.intent == "compound_workflow"
+        assert result.intent.route == "workflow"
+        assert result.intent.sub_intents == ["search_portfolio_item", "generate_inspiration"]
+        assert result.intent.missing_slots == []
+        assert result.intent.slots.get("explicit_search") is True
+
+    @pytest.mark.asyncio
+    async def test_hybrid_model_chat_cannot_drop_compound_workflow(self):
+        # 守卫不依赖模型具体误判值：模型报 chat 同样保留 compound_workflow。
+        provider = ModelProvider({"intent": "chat", "confidence": 0.95})
+        result = await classify_intent(
+            "帮我寻找森系的作品然后用它们创建灵感。",
+            mode="hybrid",
+            provider=provider,
+        )
+        assert result.intent.intent == "compound_workflow"
+        assert result.intent.route == "workflow"
+        assert result.intent.sub_intents == ["search_portfolio_item", "generate_inspiration"]
+
+    @pytest.mark.asyncio
     async def test_hybrid_uses_model_when_valid(self):
         provider = ModelProvider({"intent": "resource_search", "slots": {"city": "深圳", "styles": ["日系"]}, "confidence": 0.95})
         result = await classify_intent("帮我找深圳日系摄影师", mode="hybrid", provider=provider)
@@ -766,7 +799,8 @@ class TestPromptInjection:
 class TestIntentPoliciesIntegrity:
     def test_all_intents_have_policy(self):
         expected_intents = {
-            "chat", "resource_search", "image_analysis", "image_generation_flow",
+            "chat", "compound_workflow", "resource_search", "rule_query",
+            "image_analysis", "image_generation_flow",
             "create_inspiration_flow",
             "project_application",
             "project_flow", "package_publish_flow", "booking_flow",

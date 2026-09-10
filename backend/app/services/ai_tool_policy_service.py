@@ -21,6 +21,7 @@ from backend.app.services.ai_agent_decision_contracts import (
     GetShootContextInput,
     SearchPackagesInput,
     SearchPhotographersInput,
+    SearchPlatformRulesInput,
     SearchPortfolioItemsInput,
     SearchProjectsInput,
     SearchWebInput,
@@ -248,6 +249,28 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         ),
         llm_selectable=True,
     ),
+    "search_platform_rules": ToolSpec(
+        name="search_platform_rules",
+        input_model=SearchPlatformRulesInput,
+        risk_level=ToolRiskLevel.READ_ONLY,
+        confirmation_policy=ConfirmationPolicy.NONE,
+        timeout_seconds=10,
+        retryable=True,
+        idempotent=True,
+        audit_fields=("query", "limit"),
+        description=(
+            "检索平台自身的业务规则文档，返回带规则编号的原文片段。"
+            "覆盖：订单交易与退款政策、定金尾款、平台服务费、改期与验收期限、"
+            "返修规则、争议处理、企划流程、作品与方案上传限制、入驻审核、"
+            "用户与 AI 助手使用规则等。"
+            "用户询问平台规则、政策、条款、期限、金额比例时必须使用本工具，不要凭记忆回答。"
+        ),
+        argument_hint=(
+            "query: 用户的规则问题关键词，2-300 字符",
+            "limit: 返回片段数量 1-10，默认 5",
+        ),
+        llm_selectable=True,
+    ),
     "search_bookable_packages": ToolSpec(
         name="search_bookable_packages",
         input_model=PackageRecommendationQuery,
@@ -353,6 +376,9 @@ TOOL_ALIASES: dict[str, str] = {
     "search_portfolio": "search_portfolio_items",
     "search_portfolio_item": "search_portfolio_items",
     "search_project": "search_projects",
+    "search_rules": "search_platform_rules",
+    "search_platform_rule": "search_platform_rules",
+    "query_rules": "search_platform_rules",
 }
 
 
@@ -405,8 +431,10 @@ def build_tool_catalog(
             continue
         if spec.name == "search_web" and not settings.WEB_SEARCH_ENABLED:
             continue
+        if spec.name == "search_platform_rules" and not settings.AI_PLATFORM_RULES_ENABLED:
+            continue
         # 旧调用方默认维持原目录；仅决策循环显式开放新增的只读工具。
-        if spec.name in {"get_shoot_context", "search_web"} and not include_read_tools:
+        if spec.name in {"get_shoot_context", "search_web", "search_platform_rules"} and not include_read_tools:
             continue
         if spec.allowed_roles and (user_role or "") not in spec.allowed_roles:
             continue

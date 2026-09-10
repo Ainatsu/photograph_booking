@@ -92,6 +92,15 @@ def recognize_intent_by_rules(content: str | None, attachments: list[dict] | Non
             confidence=0.9,
         )
 
+    if _is_rule_query_intent(text):
+        return AgentIntent(
+            intent="rule_query",
+            sub_intents=["search_platform_rules"],
+            slots=slots,
+            route="rule_query",
+            confidence=0.85,
+        )
+
     if _is_project_consultation(text):
         return AgentIntent(
             intent="chat",
@@ -416,6 +425,47 @@ def _is_follow_intent(text: str) -> bool:
     if _is_negated(text, "关注"):
         return False
     return any(term in text for term in ("关注", "收藏这个摄影师", "收藏这位摄影师", "follow"))
+
+
+# 平台规则主题词：命中其一且为咨询语气时视为规则查询。
+_RULE_TOPIC_TERMS = (
+    "退款", "退钱", "定金", "尾款", "押金", "服务费", "抽成", "平台费",
+    "验收", "返修", "改期", "取消政策", "交付期", "交付天数", "争议", "纠纷",
+    "入驻", "审核", "申请入驻", "封禁", "评价规则", "评分",
+    "企划规则", "应邀规则", "选定", "中标",
+    "上传限制", "最多", "上限", "限额", "几张", "上限是多少", "大小限制",
+    "支付窗口", "付款期限", "结算", "担保",
+    "生图限额", "生图", "每日限额", "确认期", "响应期限", "提前多久",
+    "平台规则", "平台政策", "规则是什么", "条款",
+)
+
+# 规则查询需要咨询语气；纯粹的执行指令不触发。主题词才是判别器，语气词可以宽松。
+_RULE_QUERY_HINTS = (
+    "怎么算", "怎么算的", "怎么退", "怎么处理", "怎么解决", "怎么写", "怎么样",
+    "多少", "多久", "几个", "几次", "几张", "几条", "比例",
+    "是什么", "是啥", "有哪些", "有没有限制", "限制", "规定", "政策", "规则", "条款", "标准",
+    "流程是什么", "要求是什么", "怎么", "如何", "怎样", "吗", "呢",
+    "能不能退", "可不可以退", "可不可以改", "能不能改", "行吗",
+)
+
+# 出现这些执行动词时优先走各自的流程意图，不当作规则查询。
+_RULE_QUERY_EXCLUDE_TERMS = (
+    "帮我取消", "帮我退款", "我要退款", "我要取消", "帮我下单", "我要预约",
+    "帮我预约", "帮我发布", "我要发布", "帮我申请", "我要申请", "帮我退",
+    "我要投诉", "帮我投诉", "提交争议", "我要改期", "帮我改期", "帮我入驻",
+)
+
+
+def _is_rule_query_intent(text: str) -> bool:
+    """判断是否为平台规则查询意图：规则主题 + 咨询语气，且不含执行指令。"""
+    if not text:
+        return False
+    if any(term in text for term in _RULE_QUERY_EXCLUDE_TERMS):
+        return False
+    has_topic = any(term in text for term in _RULE_TOPIC_TERMS)
+    if not has_topic:
+        return False
+    return any(term in text for term in _RULE_QUERY_HINTS)
 
 
 def _is_project_intent(text: str) -> bool:

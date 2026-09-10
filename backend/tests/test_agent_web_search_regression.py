@@ -86,7 +86,7 @@ class TestExplicitWebSearchPredicate:
 
 class TestDecisionPromptWebSearchGuidance:
     def test_prompt_version_bumped(self):
-        assert DECISION_PROMPT_VERSION == "agent_decision_v3"
+        assert DECISION_PROMPT_VERSION == "agent_decision_v4"
 
     def test_prompt_guides_time_sensitive_questions_to_search_web(self):
         prompt = build_decision_system_prompt([{"name": "search_web"}])

@@ -114,6 +114,19 @@ async def lifespan(app: FastAPI):
             print(f"[TextEmbedding] 文本模型预热完成: {text_embedding_info}")
     except Exception as exc:
         print(f"[TextEmbedding] 文本模型预热失败（非致命）: {exc}")
+    # 平台规则 RAG：docs/rules 切分入库并补齐向量；内容与嵌入未变化时幂等跳过。
+    try:
+        from backend.app.core.database import SessionLocal
+        from backend.app.services.platform_rule_service import ensure_platform_rules_indexed
+
+        db = SessionLocal()
+        try:
+            rules_info = ensure_platform_rules_indexed(db)
+            print(f"[PlatformRules] 规则索引就绪: {rules_info}")
+        finally:
+            db.close()
+    except Exception as exc:
+        print(f"[PlatformRules] 规则索引构建失败（非致命）: {exc}")
     try:
         from backend.app.services.ai_embedding_service import warmup_image_embedding_provider
 

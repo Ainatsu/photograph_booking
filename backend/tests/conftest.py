@@ -23,6 +23,7 @@ from backend.app.models.comment import Comment
 from backend.app.models.order_event import OrderEvent
 from backend.app.models.ai_conversation import AIConversation, AIMessage
 from backend.app.models.ai_resource import AIResourceDocument
+from backend.app.models.agent_workflow import AgentWorkflowEvent, AgentWorkflowRun, AgentWorkflowStep
 from backend.app.models.chat_read_state import ChatReadState
 from backend.app.models.project import ProjectApplication, ProjectEvent, ShootProject
 from backend.app.models.photographer_application import PhotographerApplication

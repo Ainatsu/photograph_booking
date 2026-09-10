@@ -49,13 +49,15 @@ from backend.app.services.ai_tool_policy_service import (
 MAX_RAW_OUTPUT_LENGTH = 600
 
 # 只在这两个意图上接管路由：发布/预约/取消等多轮表单流程仍由既有状态机负责（§5.2）。
-DECISION_ELIGIBLE_INTENTS = frozenset({"chat", "resource_search"})
+# rule_query 是单步只读检索，同样交给决策层（模型选 search_platform_rules 或 chat）。
+DECISION_ELIGIBLE_INTENTS = frozenset({"chat", "resource_search", "rule_query"})
 
 _INTENT_TO_TOOL = {
     "booking_flow": "create_booking",
     "project_flow": "create_project",
     "package_publish_flow": "publish_package",
     "follow_photographer": "follow_photographer",
+    "rule_query": "search_platform_rules",
 }
 
 _COMPARED_SLOT_FIELDS = ("city", "budget_min", "budget_max", "limit", "requires_makeup")
@@ -535,7 +537,7 @@ def resolve_decision_plan(
             dropped_fields=tuple(dropped),
         )
     # 只读上下文工具拥有独立执行路径，避免被当成资源搜索并进入 RAG 流程。
-    if authorization.tool in {"get_shoot_context", "search_web"}:
+    if authorization.tool in {"get_shoot_context", "search_web", "search_platform_rules"}:
         return DecisionPlan(
             action="read_tool",
             applied=True,

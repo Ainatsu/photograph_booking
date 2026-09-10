@@ -2,6 +2,7 @@
 
 import pytest
 
+from backend.app.services import ai_capability_adapters
 from backend.app.services import ai_service
 from backend.app.services.ai_orchestrator_service import recognize_intent_by_rules
 from backend.app.services.ai_vision_service import APPRECIATION_SYSTEM_PROMPT
@@ -42,6 +43,7 @@ def test_rule_intent_keeps_plain_analysis_without_appreciation_language():
 async def test_explicit_appreciation_request_uses_skill_prompt(monkeypatch, db, customer_user):
     provider = AppreciationCapturingProvider()
     monkeypatch.setattr(ai_service, "get_ai_provider", lambda: provider)
+    monkeypatch.setattr(ai_capability_adapters, "get_ai_provider", lambda: provider)
     conversation = ai_service.create_conversation(db, customer_user.id)
 
     user_message, assistant_message = await ai_service.send_ai_message(
@@ -78,6 +80,7 @@ async def test_keyword_appreciation_without_explicit_flag_uses_skill_prompt(
 ):
     provider = AppreciationCapturingProvider()
     monkeypatch.setattr(ai_service, "get_ai_provider", lambda: provider)
+    monkeypatch.setattr(ai_capability_adapters, "get_ai_provider", lambda: provider)
     conversation = ai_service.create_conversation(db, customer_user.id)
 
     _, assistant_message = await ai_service.send_ai_message(
@@ -104,6 +107,7 @@ async def test_appreciation_without_image_returns_guidance(monkeypatch, db, cust
             raise AssertionError("provider should not be called without an image")
 
     monkeypatch.setattr(ai_service, "get_ai_provider", lambda: NoCallProvider())
+    monkeypatch.setattr(ai_capability_adapters, "get_ai_provider", lambda: NoCallProvider())
     conversation = ai_service.create_conversation(db, customer_user.id)
 
     _, assistant_message = await ai_service.send_ai_message(

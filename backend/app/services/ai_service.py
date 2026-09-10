@@ -3,6 +3,7 @@
 import base64
 import json
 import mimetypes
+from typing import Any
 from time import perf_counter
 import re
 from datetime import datetime, timedelta, timezone
@@ -70,7 +71,12 @@ from backend.app.services.ai_planner_service import (
     should_run_booking_plan,
 )
 from backend.app.services.ai_entity_grounding_service import enforce_chat_entity_grounding
-from backend.app.services.ai_prompts import AI_SYSTEM_PROMPT, CHAT_NO_PLATFORM_DATA_PROMPT
+from backend.app.services.ai_prompts import (
+    AI_SYSTEM_PROMPT,
+    CHAT_NO_PLATFORM_DATA_PROMPT,
+    PLATFORM_RULES_GROUNDING_PROMPT,
+    PLATFORM_RULES_NO_HITS_PROMPT,
+)
 from backend.app.services.ai_provider import get_ai_provider
 from backend.app.services.ai_retrieval_service import (
     build_empty_retrieval_prompt,
@@ -80,6 +86,10 @@ from backend.app.services.ai_retrieval_service import (
     has_reference_matches,
     is_resource_search,
     retrieve_references,
+)
+from backend.app.services.platform_rule_service import (
+    build_platform_rules_context,
+    search_platform_rules,
 )
 from backend.app.services.ai_search_context_service import (
     active_search_task,
@@ -146,16 +156,21 @@ from backend.app.services.image_generation_workflow_service import (
     image_generation_agent_result,
 )
 from backend.app.services.shoot_context_service import ShootContextService
+from backend.app.services.ai_capability_registry import execute_capability
+from backend.app.services.agent_workflow_appreciation_search import (
+    matches_appreciation_search_request,
+    run_appreciation_and_search_workflow,
+)
+from backend.app.services.agent_workflow_search_then_inspire import (
+    run_search_then_inspire_workflow,
+)
+from backend.app.services.agent_workflow_booking import run_booking_workflow
 from backend.app.services.ai_vision_service import (
     APPRECIATION_SCHEMA_VERSION,
-    APPRECIATION_SYSTEM_PROMPT,
     STYLE_ANALYSIS_SCHEMA_VERSION,
-    STYLE_ANALYSIS_SYSTEM_PROMPT,
-    VISION_SYSTEM_PROMPT,
     build_vision_reply,
     build_vision_retrieval_reply,
     build_vision_search_text,
-    normalize_vision_analysis,
     vision_slots_from_analysis,
     vision_search_terms,
 )
@@ -3883,6 +3898,7 @@ async def send_ai_message(
 
     shoot_context = None
     web_search_call = None
+    platform_rule_hits: list[dict[str, Any]] | None = None
     if decision_read_tool_active and decision_plan.tool == "search_web":
         task_form_id = f"conversation_{conversation.id}_message_{user_message.id}"
         web_search_call = await run_web_search(
@@ -3906,6 +3922,22 @@ async def send_ai_message(
                 "place_candidates": [],
                 "error_code": "service_unavailable",
             }
+    if decision_read_tool_active and decision_plan.tool == "search_platform_rules":
+        # 规则检索是同步 DB 查询，异常收敛为空结果：聊天主链路继续按"未命中"处理。
+        try:
+            platform_rule_hits = search_platform_rules(
+                db,
+                (decision_plan.arguments or {}).get("query"),
+                limit=(decision_plan.arguments or {}).get("limit"),
+            )
+        except Exception:
+            platform_rule_hits = []
+    elif not decision_applied and intent.intent == "rule_query":
+        # legacy 路由下的规则查询：决策层未接管时直接按用户消息检索同一规则库。
+        try:
+            platform_rule_hits = search_platform_rules(db, content)
+        except Exception:
+            platform_rule_hits = []
     shoot_context_error_result = (
         _shoot_context_error_result(shoot_context, decision_plan.arguments)
         if decision_read_tool_active
@@ -3915,39 +3947,85 @@ async def send_ai_message(
     # MiMo 从图片推断出的风格进入检索文本做软排序，不应冒充用户明确的硬过滤条件。
     explicit_retrieval_criteria = criteria_from_slots(intent.slots)
 
-    if cancel_task_state is None and pending_action is None and (
-        _should_run_vision_analysis(intent, vision_attachments)
-        or ((is_appreciation or is_style_analysis) and vision_attachments)
+    # 阶段D 首个动态复合流程：「赏析这张图并找类似」走 Workflow Runtime。
+    # 分支必须位于旧视觉 skill 执行之前：is_appreciation 命中时旧链路只会
+    # 赏析不会检索；必须同时在结果选择链上先于 appreciation_reply 分支。
+    workflow_appreciation_search = (
+        settings.AI_AGENT_WORKFLOW_APPRECIATION_SEARCH_ENABLED
+        and matches_appreciation_search_request(content, vision_attachments)
+    )
+
+    # 阶段E：search_then_inspire 固定复合流程走 Workflow Runtime（§11.2），
+    # 检索与灵感创建由 run 内的两步 DAG 完成，不再走本函数的检索分支与
+    # compound_workflow 条件分支；关闭时回落 legacy。
+    workflow_search_then_inspire = (
+        settings.AI_AGENT_WORKFLOW_SEARCH_THEN_INSPIRE_ENABLED
+        and intent.intent == "compound_workflow"
+    )
+
+    # 阶段E：预订流程拆成 capability steps 并接入 waiting_user（§11.1）。
+    # 命中时检索由 run 内 search 步骤完成，确认轮不再走 pending_action
+    # 执行器，而是 resume 后由 booking.create 步骤执行同一 create_booking 工具。
+    workflow_booking = (
+        settings.AI_AGENT_WORKFLOW_BOOKING_ENABLED
+        and intent.intent == "booking_flow"
+    )
+
+    if (
+        not workflow_appreciation_search
+        and cancel_task_state is None
+        and pending_action is None
+        and (
+            _should_run_vision_analysis(intent, vision_attachments)
+            or ((is_appreciation or is_style_analysis) and vision_attachments)
+        )
     ):
-        skill_prompt = (
-            APPRECIATION_SYSTEM_PROMPT
+        # 视觉 skill 统一走能力协议；adapter 复用同样的 skill prompt 与
+        # 消息构建，主服务和未来 Workflow Runtime 以同一方式调用。
+        vision_capability = (
+            "vision.appreciate_image"
             if is_appreciation
-            else STYLE_ANALYSIS_SYSTEM_PROMPT
+            else "vision.analyze_style"
             if is_style_analysis
-            else VISION_SYSTEM_PROMPT
+            else "vision.analyze_image"
         )
-        provider_messages = _build_provider_messages(
+        capability_result = await execute_capability(
             db,
-            conversation.id,
-            extra_system_prompts=[skill_prompt],
+            name=vision_capability,
+            input={
+                "conversation_id": conversation.id,
+                "content": content,
+                "attachments": vision_attachments or [],
+            },
         )
-        provider = get_ai_provider()
-        vision_provider_result = await provider.chat(provider_messages)
+        if not capability_result.is_success:
+            # 保持既有行为：视觉 provider 失败时异常向上传播（502），
+            # 不吞掉错误后落入普通聊天分支。
+            error = capability_result.error
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=(error.message if error else None) or "AI 服务暂时不可用",
+            )
+        vision_provider_result = {
+            "metadata": dict((capability_result.provenance or {}).provider),
+        }
+        capability_data = capability_result.data or {}
         if is_appreciation:
             # 赏析 skill 输出自由文本；不做结构化解析，也不写检索槽位。
-            appreciation_reply = (vision_provider_result.get("content") or "").strip() or None
+            appreciation_reply = (capability_data.get("reply") or "").strip() or None
         elif is_style_analysis:
             # 风格分析 skill 同样输出自由文本（视觉事实→风格DNA 逐层结论）。
-            style_analysis_reply = (vision_provider_result.get("content") or "").strip() or None
+            style_analysis_reply = (capability_data.get("reply") or "").strip() or None
         else:
-            vision_analysis = normalize_vision_analysis(
-                vision_provider_result,
-                content=content,
-                attachments=vision_attachments,
-            )
+            vision_analysis = capability_data
             intent = _apply_vision_slots(intent, vision_analysis)
 
-    elif cancel_task_state is None and pending_action is None and _should_reuse_latest_vision_analysis(intent, content, vision_attachments):
+    elif (
+        not workflow_appreciation_search
+        and cancel_task_state is None
+        and pending_action is None
+        and _should_reuse_latest_vision_analysis(intent, content, vision_attachments)
+    ):
         vision_analysis = _latest_vision_analysis(db, conversation.id)
         if vision_analysis:
             vision_provider_result = {
@@ -3970,6 +4048,9 @@ async def send_ai_message(
 
     retrieval_requested = (
         should_run_retrieval(intent)
+        and not workflow_appreciation_search
+        and not workflow_search_then_inspire
+        and not workflow_booking
         and cancel_task_state is None
         and pending_action is None
         and not has_active_booking_task
@@ -4115,6 +4196,24 @@ async def send_ai_message(
         result = project_discovery_guard_result
     elif cancel_task_state is not None:
         result = _task_cancel_result(cancel_task_state)
+    elif workflow_booking:
+        # 阶段E：预订流程走 Workflow Runtime（§11.1）。分支必须先于
+        # pending_action 执行器：确认轮由 run 的 waiting_user 步骤 resume
+        # 后执行同一 create_booking 工具（确认策略、审计与 legacy 一致），
+        # 而不是由 _execute_pending_action_result 落地。
+        result = await run_booking_workflow(
+            db,
+            user_id=user_id,
+            conversation_id=conversation.id,
+            message_id=user_message.id,
+            content=content,
+            intent=intent,
+            vision_analysis=vision_analysis,
+            vision_reused_context=vision_reused_context,
+            package_reference=resource_reference,
+            confirm_requested=_is_explicit_task_confirmation(content, "create_booking"),
+            turn_id=str(user_message.id),
+        )
     elif pending_action and active_task_before is None:
         result = _execute_pending_action_result(
             db,
@@ -4122,6 +4221,19 @@ async def send_ai_message(
             conversation_id=conversation.id,
             message_id=user_message.id,
             pending=pending_action,
+        )
+    elif workflow_appreciation_search:
+        # 阶段D 首个动态复合流程（§12 阶段D）：赏析 + 结构化分析并行，
+        # 结构化结果驱动检索，compose 汇总成最终回复；不再依赖本函数的
+        # 条件分支链。
+        result = await run_appreciation_and_search_workflow(
+            db,
+            user_id=user_id,
+            conversation_id=conversation.id,
+            message_id=user_message.id,
+            content=content,
+            attachments=vision_attachments,
+            turn_id=str(user_message.id),
         )
     elif appreciation_guard_result is not None:
         result = appreciation_guard_result
@@ -4147,6 +4259,23 @@ async def send_ai_message(
         and intent.intent not in {"project_flow", "package_publish_flow", "booking_flow", "create_inspiration_flow"}
     ):
         result = _active_task_progress_result(active_task_before)
+    elif (
+        (decision_read_tool_active and decision_plan.tool == "search_platform_rules")
+        or (not decision_applied and intent.intent == "rule_query" and platform_rule_hits is not None)
+    ):
+        # 规则问答：检索命中时强制基于片段回答并引用规则编号；未命中时如实说明。
+        rules_context = build_platform_rules_context(platform_rule_hits)
+        extra_prompts = [
+            PLATFORM_RULES_GROUNDING_PROMPT if rules_context else PLATFORM_RULES_NO_HITS_PROMPT,
+            rules_context,
+        ] if rules_context else [PLATFORM_RULES_NO_HITS_PROMPT]
+        provider_messages = _build_provider_messages(
+            db,
+            conversation.id,
+            extra_system_prompts=extra_prompts,
+            page_context_prompt=page_context_prompt,
+        )
+        result = await get_ai_provider().chat(provider_messages)
     elif decision_read_tool_active and decision_plan.tool == "search_web":
         if not web_search_call or web_search_call.get("status") == "failed":
             result = {"content": "联网搜索暂时不可用，请稍后再试。", "metadata": {}}
@@ -4209,6 +4338,20 @@ async def send_ai_message(
             source="explicit_button" if generation_request else "intent",
         )
         result = image_generation_agent_result(job)
+    elif workflow_search_then_inspire:
+        # 阶段E（§11.2）：search_then_inspire 迁移为普通 workflow definition，
+        # 检索与灵感创建由 run 内两步 DAG 完成；关闭 flag 时回落下方
+        # legacy compound_workflow 分支。
+        result = await run_search_then_inspire_workflow(
+            db,
+            user_id=user_id,
+            conversation_id=conversation.id,
+            message_id=user_message.id,
+            content=content,
+            intent_slots=intent.slots,
+            exclude_resource_ids=(search_refinement or {}).get("exclude_resource_ids"),
+            turn_id=str(user_message.id),
+        )
     elif intent.intent == "compound_workflow":
         references = (retrieval_payload or {}).get("references") or {}
         candidates = references.get("portfolio_items") or []
@@ -4418,6 +4561,10 @@ async def send_ai_message(
         and not is_appreciation
         and not is_style_analysis
         and intent.intent not in {"create_inspiration_flow", "image_generation_flow"}
+        # 阶段E：预订 workflow 分支的回复是确定性平台文案（含等待确认与
+        # 订单回执），不应被任务进度 overlay 覆盖；结果链本就排除了
+        # booking_flow 的进度分支，这里保持一致。
+        and not workflow_booking
     ):
         progress_result = _active_task_progress_result(active_task_before)
         result = {
@@ -4493,6 +4640,13 @@ async def send_ai_message(
     if shoot_context is not None:
         # 同一份结构化结果供客户端卡片直接渲染，避免从自然语言回复反向解析数据。
         assistant_metadata["shoot_context"] = shoot_context
+    if platform_rule_hits is not None:
+        assistant_metadata["platform_rules"] = {
+            "schema_version": "platform_rules_search_v1",
+            "query": (decision_plan.arguments or {}).get("query") if decision_plan else None,
+            "hit_count": len(platform_rule_hits),
+            "hits": platform_rule_hits,
+        }
     if retrieval_payload:
         references = retrieval_payload.get("references") or {}
         assistant_metadata = {

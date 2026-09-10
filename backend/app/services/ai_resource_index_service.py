@@ -75,7 +75,10 @@ def rebuild_ai_resource_documents(
         query = query.filter(PhotographerProfile.user_id == owner_user_id)
     profiles = query.all()
 
-    existing_query = db.query(AIResourceDocument)
+    # 只在摄影师资源类型内做增删：全量重建不得清除其他类型的行（如 platform_rule 规则文档）。
+    existing_query = db.query(AIResourceDocument).filter(
+        AIResourceDocument.resource_type.in_(DOCUMENT_KEYS_BY_TYPE)
+    )
     if owner_user_id is not None:
         existing_query = existing_query.filter(AIResourceDocument.owner_user_id == owner_user_id)
     existing_rows = {

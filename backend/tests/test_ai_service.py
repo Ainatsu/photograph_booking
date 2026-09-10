@@ -14,6 +14,7 @@ from backend.app.models.photographer import PhotographerProfile
 from backend.app.models.project import ProjectStatus, ShootProject
 from backend.app.models.user import User
 from backend.app.services import ai_service
+from backend.app.services import ai_capability_adapters
 from backend.app.services.photographer_service import create_or_update_profile
 from backend.app.services.ai_orchestrator_service import recognize_intent
 from backend.app.services.ai_agent_contracts import (
@@ -298,6 +299,7 @@ async def test_switching_referenced_projects_keeps_each_turn_bound_to_its_projec
 async def test_referenced_work_image_is_sent_to_vision_provider(monkeypatch, db, customer_user):
     provider = CapturingProvider()
     monkeypatch.setattr(ai_service, "get_ai_provider", lambda: provider)
+    monkeypatch.setattr(ai_capability_adapters, "get_ai_provider", lambda: provider)
     conversation = ai_service.create_conversation(db, customer_user.id)
 
     _, assistant_message = await ai_service.send_ai_message(
@@ -412,6 +414,7 @@ async def test_send_ai_message_converts_local_image_to_data_url(monkeypatch, db,
     provider = CapturingProvider()
     monkeypatch.setattr(ai_service.settings, "UPLOAD_DIR", str(upload_root))
     monkeypatch.setattr(ai_service, "get_ai_provider", lambda: provider)
+    monkeypatch.setattr(ai_capability_adapters, "get_ai_provider", lambda: provider)
     conversation = ai_service.create_conversation(db, customer_user.id)
 
     await ai_service.send_ai_message(
@@ -432,6 +435,7 @@ async def test_send_ai_message_converts_local_image_to_data_url(monkeypatch, db,
 @pytest.mark.asyncio
 async def test_image_analysis_saves_structured_vision_metadata(monkeypatch, db, customer_user):
     monkeypatch.setattr(ai_service, "get_ai_provider", lambda: CapturingProvider())
+    monkeypatch.setattr(ai_capability_adapters, "get_ai_provider", lambda: CapturingProvider())
     conversation = ai_service.create_conversation(db, customer_user.id)
 
     _, assistant_message = await ai_service.send_ai_message(
@@ -461,6 +465,7 @@ async def test_image_driven_retrieval_uses_vision_terms(
 ):
     provider = CapturingProvider()
     monkeypatch.setattr(ai_service, "get_ai_provider", lambda: provider)
+    monkeypatch.setattr(ai_capability_adapters, "get_ai_provider", lambda: provider)
     conversation = ai_service.create_conversation(db, customer_user.id)
 
     _, assistant_message = await ai_service.send_ai_message(
@@ -491,6 +496,7 @@ async def test_text_followup_reuses_latest_vision_analysis_for_retrieval(
     photographer_profile,
 ):
     monkeypatch.setattr(ai_service, "get_ai_provider", lambda: CapturingProvider())
+    monkeypatch.setattr(ai_capability_adapters, "get_ai_provider", lambda: CapturingProvider())
     conversation = ai_service.create_conversation(db, customer_user.id)
 
     await ai_service.send_ai_message(
@@ -526,6 +532,7 @@ async def test_complex_booking_plan_uses_vision_and_package_retrieval(
     photographer_profile,
 ):
     monkeypatch.setattr(ai_service, "get_ai_provider", lambda: CapturingProvider())
+    monkeypatch.setattr(ai_capability_adapters, "get_ai_provider", lambda: CapturingProvider())
     conversation = ai_service.create_conversation(db, customer_user.id)
 
     _, assistant_message = await ai_service.send_ai_message(

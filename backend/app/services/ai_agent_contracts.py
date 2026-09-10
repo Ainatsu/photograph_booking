@@ -160,6 +160,7 @@ class LLMIntentCandidate(BaseModel):
         "chat",
         "compound_workflow",
         "resource_search",
+        "rule_query",
         "image_analysis",
         "image_generation_flow",
         "create_inspiration_flow",
@@ -198,6 +199,11 @@ INTENT_POLICIES: dict[str, dict[str, Any]] = {
     "resource_search": {
         "route": "retrieval",
         "sub_intents": ["search_resources"],
+        "requires_confirmation": False,
+    },
+    "rule_query": {
+        "route": "rule_query",
+        "sub_intents": ["search_platform_rules"],
         "requires_confirmation": False,
     },
     "compound_workflow": {

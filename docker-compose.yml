@@ -115,6 +115,7 @@ services:
     volumes:
       - backend_uploads:/app/uploads
       - ./Models:/app/Models:ro
+      - ./docs/rules:/app/docs/rules:ro
       - backend_model_cache:/app/model-cache
     depends_on:
       postgres:
